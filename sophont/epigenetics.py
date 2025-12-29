@@ -4,9 +4,9 @@ from uuid import uuid4
 
 from sortedcontainers import SortedKeyList
 
-from game.genotype import SpeciesGenotype
-from game.gene import Gene, AppliedGene
-from game.phene import AppliedPhene
+from game.genotype import Genotype
+from game.gene import Gene
+from game.phene import Phene
 from game.characteristic_package import CharacteristicPackage
 
 class Acquired:
@@ -25,7 +25,7 @@ class Acquired:
         return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, memo={repr(self.memo)})"
 
 def _package_key(acquired: Acquired) -> Tuple[int, int]:
-    return (acquired.package.item.characteristic.upp_index, acquired.age_acquired_seconds)
+    return (acquired.package.item.gene.characteristic.upp_index, acquired.age_acquired_seconds)
 
 # TODO: phenotype_collation similar to Aptitudes to be the computed layer that expresses the top level characteristics
 class EpigeneticProfile:
@@ -36,16 +36,16 @@ class EpigeneticProfile:
     """
     __slots__ = (
         'acquired_packages_collection',
-        'is_packages_dirty'
+        'is_packages_dirty',
         'genotype',
     )
-    def __init__(self, genotype: SpeciesGenotype):
+    def __init__(self, genotype: Genotype):
         # === COLD DATA (infrequently updated) ============================
         self.acquired_packages_collection: SortedKeyList = SortedKeyList(key=_package_key)
-        self.is_packages_dirty: bool = False
+        self.is_packages_dirty = False
 
         # === NEVER UPDATED DATA === (But Frequently Read) ================
-        self.genotype: SpeciesGenotype
+        self.genotype = genotype
 
     def insert_package_acquired(self, package: CharacteristicPackage, age_acquired_seconds: int, memo: Optional[str] = None) -> None:
         acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, memo=memo)

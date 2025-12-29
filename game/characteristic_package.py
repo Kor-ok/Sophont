@@ -2,10 +2,7 @@ from __future__ import annotations
 from typing import ClassVar, Dict, Generic, Tuple, TypeVar, Union
 from uuid import uuid4
 
-from game.gene import AppliedGene
-from game.phene import AppliedPhene
-
-T = TypeVar("T", AppliedGene, AppliedPhene) # Hint to restrict to Gene or Phene (or anything else immutable)
+T = TypeVar("T") 
 
 class CharacteristicPackage(Generic[T]):
     """Constructs reusable and shareable singleton packages that cumulatively modifies character characteristics.
@@ -15,7 +12,7 @@ class CharacteristicPackage(Generic[T]):
     :param level: The level modifier to apply when this package is used.
     :param context: Storytelling aid to identify the source or reason for this package.
         If omitted/None, a fresh UUID string is generated for each new package.
-    :type item: T|Gene|Phene
+    :type item: T|AppliedGene|AppliedPhene
     :type level: int
     :type context: str
     """

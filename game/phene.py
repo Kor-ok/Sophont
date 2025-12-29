@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from game.characteristic import Characteristic
 
-class AppliedPhene:
+class Phene:
     """
     Immutable package representing a phene.
 
@@ -21,7 +21,7 @@ class AppliedPhene:
         'is_grafted'
     )
     Key = Tuple[Characteristic, int, bytes, bool]
-    _cache: ClassVar[Dict[Key, "AppliedPhene"]] = {}
+    _cache: ClassVar[Dict[Key, "Phene"]] = {}
 
     def __new__(
         cls,
@@ -29,7 +29,7 @@ class AppliedPhene:
         expression_value: int,
         contributor_uuid: bytes,
         is_grafted: bool
-    ) -> "AppliedPhene":
+    ) -> "Phene":
         key = (
             characteristic,
             expression_value,

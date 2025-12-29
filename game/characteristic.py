@@ -6,15 +6,16 @@ class Characteristic:
     __slots__ = (
         "upp_index",
         "subtype",
+        "category_code",
     )
-    Key = Tuple[int, int]
+    Key = Tuple[int, int, int]
     _cache: ClassVar[Dict[Key, "Characteristic"]] = {}
 
-    def __new__(cls, upp_index: int = 0, subtype: int = 0) -> "Characteristic":
-        # Type Enforcement - Beneficial?
+    def __new__(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> "Characteristic":
         upp_index_int = int(upp_index)
         subtype_int = int(subtype)
-        key = (upp_index_int, subtype_int)
+        category_code_int = int(category_code)
+        key = (upp_index_int, subtype_int, category_code_int)
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
@@ -23,11 +24,12 @@ class Characteristic:
 
         object.__setattr__(self, "upp_index", upp_index_int)
         object.__setattr__(self, "subtype", subtype_int)
+        object.__setattr__(self, "category_code", category_code_int)
 
         cls._cache[key] = self
         return self
     
-    def __init__(self, upp_index: int = 0, subtype: int = 0) -> None:
+    def __init__(self, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
 
@@ -35,9 +37,9 @@ class Characteristic:
         raise AttributeError("Characteristic instances are immutable")
     
     @classmethod
-    def of(cls, upp_index: int = 0, subtype: int = 0) -> "Characteristic":
-        """Explicit flyweight constructor (same as `Characteristic(upp_index, subtype)`)."""
-        return cls(upp_index, subtype)
+    def of(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> "Characteristic":
+        """Explicit flyweight constructor (same as `Characteristic(upp_index, subtype, category_code)`)."""
+        return cls(upp_index, subtype, category_code)
     
     @classmethod
     def by_name(cls, name: str) -> "Characteristic":

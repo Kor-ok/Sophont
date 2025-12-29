@@ -129,6 +129,17 @@ _BASE_CHAR_NAME_TO_CATEGORY_CODE: Final[Dict[str, int]] = {
     "sanity": 4,
 }
 
+_BASE_CODE_TO_CATEGORY_CODE: Final[Dict[int, int]] = {
+    1: 1,  # Strength -> Physical
+    2: 1,  # Dexterity -> Physical
+    3: 1,  # Endurance -> Physical
+    4: 2,  # Intelligence -> Mental
+    5: 2,  # Education -> Mental
+    6: 3,  # Social Standing -> Social
+    7: 4,  # Psionics -> Obscure
+    8: 4,  # Sanity -> Obscure
+}
+
 # check alias convenience function
 def _check_alias(pos_code: int) -> str:
     if pos_code in _BASE:
@@ -154,20 +165,3 @@ def char_name_to_category_code(name: str) -> int:
 def category_code_to_category_name(cat_code: int) -> str:
     return _CATEGORY_MAP.get(cat_code, "Undefined")
 
-# convenience function to return a genetic profile which is
-# a list where index is position_code and value is 
-# the first letter of the final name of the characteristic as 
-# derived from a list of tuple(position_code, subtype_code)
-def codes_to_genetic_profile(code_tuples_list: List[CharacteristicIdentifier]) -> List[str]:
-    """
-    Generate genetic profile list from position and subtype codes.
-    codes: list[tuple[int, int]] = [(char.c_pos, char.c_subtype) for char in sophont.characteristics.collection]
-    """
-    # O(n): fill a fixed-size list indexed by pos_code.
-    # This avoids the nested scan (O(8*n)) in hot paths.
-    profile: List[str] = ["*"] * 8
-    for pos_code, sub_code in code_tuples_list:
-        if 1 <= pos_code <= 8:
-            full_name = codes_to_name(pos_code, sub_code)
-            profile[pos_code - 1] = full_name[0].upper() if full_name else "*"
-    return profile
