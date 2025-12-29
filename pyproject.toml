@@ -1,0 +1,29 @@
+[project]
+name = "sophont"
+version = "0.0.0"
+description = "Rapidly-iterable Traveller 5 (T5) sophont/character modeling sandbox"
+requires-python = ">=3.9"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+# Keep this conservative to avoid noisy churn in a fast-iterating sandbox.
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "I",  # isort-like import sorting
+  "UP"  # pyupgrade
+]
+ignore = [
+  "E501"  # line length (handled by formatter; avoid churn)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["game", "sophont"]
+
+[tool.black]
+line-length = 100
+
+target-version = ["py39"]

@@ -63,16 +63,17 @@ from game.aptitude_package import AptitudePackage
 
 # Traveller-style base characteristic names are mapped in game/mappings/characteristics.py
 species_genotype = Genotype.by_gene_characteristic_names(
-		[
-				"strength",
-				"dexterity",
-				"endurance",
-				"intelligence",
-				"education",
-				"social standing",
-				"psionics",
-				"sanity",
-		]
+
+    [
+        "strength",
+        "dexterity",
+        "endurance",
+        "intelligence",
+        "education",
+        "social standing",
+        "psionics",
+        "sanity",
+    ]
 )
 
 s = Sophont(species_genotype=species_genotype, name="Ria", age_seconds=18 * 365 * 24 * 3600)
