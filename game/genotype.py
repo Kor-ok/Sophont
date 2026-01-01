@@ -1,12 +1,15 @@
 from __future__ import annotations
-from typing import Any, ClassVar, Dict, Iterable, Tuple, Optional
+
+from collections.abc import Iterable
+from typing import Any, ClassVar, Union
 from uuid import uuid4
 
 from game.gene import Gene
 from game.mappings.world_id import WorldID
+from game.phene import Phene
 
 
-def _validate_genes(genes: Iterable[Gene]) -> Tuple[bool, str]:
+def _validate_genes(genes: Iterable[Gene]) -> tuple[bool, str]:
     feedback = ""
     is_valid = True
     seen_upp_indexes = set()
@@ -24,16 +27,18 @@ class Genotype:
     the of classmethod must provide validation for this constraint.
     The list must be ordered by upp_index.
     """
-    __slots__ = (
-        "genes",
-    )
-    _cache: ClassVar[Dict[Tuple[Gene, ...], "Genotype"]] = {}
+    __slots__ = ("genes", "phenes")
+    GenesCacheKey = tuple[Gene, ...]
+    PhenotypesCacheKey = Union[None, tuple[Phene, ...]]
+    _cache: ClassVar[dict[tuple[GenesCacheKey, PhenotypesCacheKey], Genotype]] = {}
     def __new__(
         cls,
         genes: Iterable[Gene],
-    ) -> "Genotype":
+        phenes: None | Iterable[Phene] = None
+    ) -> Genotype:
         # Normalize input without mutating caller-owned collections.
         genes_tuple = tuple(genes)
+        phenes_tuple = tuple(phenes) if phenes is not None else None
 
         is_valid, feedback = _validate_genes(genes_tuple)
         if not is_valid:
@@ -41,8 +46,9 @@ class Genotype:
 
         # Deterministic order for stable caching.
         sorted_genes = tuple(sorted(genes_tuple, key=lambda g: g.characteristic.upp_index))
+        sorted_phenes = tuple(sorted(phenes_tuple, key=lambda p: p.characteristic.upp_index)) if phenes_tuple is not None else None
 
-        key = sorted_genes
+        key = sorted_genes, sorted_phenes
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
@@ -51,12 +57,14 @@ class Genotype:
 
         # Store immutably (tuple) to preserve flyweight semantics.
         object.__setattr__(self, "genes", sorted_genes)
+        object.__setattr__(self, "phenes", sorted_phenes)
         cls._cache[key] = self
         return self
     
     def __init__(
         self,
-        genes: Iterable[Gene]
+        genes: Iterable[Gene],
+        phenes: None | Iterable[Phene] = None
     ) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
@@ -64,23 +72,30 @@ class Genotype:
     def __setattr__(self, name: str, value: Any) -> None:
         raise AttributeError(f"{type(self).__name__} instances are immutable")
     
-    def _package_key(self) -> Tuple[int, ...]:
-        return tuple(gene.characteristic.upp_index for gene in self.genes)
+    def _package_key(self) -> tuple[int, ...]:
+        gene_key = tuple(gene.characteristic.upp_index for gene in self.genes)
+        phene_key = tuple(phene.characteristic.upp_index for phene in self.phenes) if self.phenes is not None else ()
+        return gene_key + phene_key
 
     @classmethod
-    def of(cls, genes: Iterable[Gene]) -> "Genotype":
+    def of(cls, genes: Iterable[Gene], phenes: None | Iterable[Phene] = None) -> Genotype:
         # `__new__` performs validation, normalization, and caching.
-        return cls(genes)
+        return cls(genes, phenes)
     
     @classmethod
-    def by_gene_characteristic_names(cls, names: Iterable[str]) -> "Genotype":
+    def by_characteristic_names(cls, gene_names: Iterable[str], phene_names: None | Iterable[str] = None) -> Genotype:
         genes = []
-        for name in names:
+        for name in gene_names:
             gene = Gene.by_characteristic_name(name)
             genes.append(gene)
-        return cls.of(genes)
+        phenes = []
+        if phene_names is not None:
+            for name in phene_names:
+                phene = Phene.by_characteristic_name(name)
+                phenes.append(phene)
+        return cls.of(genes, phenes if phene_names is not None else None)
     
-    def get_all_genes(self) -> Dict[int, Gene]:
+    def get_all_genes(self) -> dict[int, Gene]:
         return {gene.characteristic.upp_index: gene for gene in self.genes}
     
     def __repr__(self) -> str:
@@ -95,7 +110,7 @@ class Species:
         "genotype",
     )
 
-    def __init__(self, genotype: Genotype, uuid: Optional[bytes] = None):
+    def __init__(self, genotype: Genotype, uuid: None | bytes = None):
         self.genotype: Genotype = genotype
         if uuid is None:
             uuid = uuid4().bytes
@@ -110,9 +125,9 @@ class Genus:
         "species_collection",
     )
 
-    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_uuid: bytes = bytes(16)):
-        self.species_collection: Tuple[Species, ...] = tuple(species_collection)
-        if tree_of_life_node_uuid is bytes(16):
+    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_uuid: None | bytes = None):
+        self.species_collection: tuple[Species, ...] = tuple(species_collection)
+        if tree_of_life_node_uuid is None:
             tree_of_life_node_uuid = uuid4().bytes
         self.tree_of_life_node_uuid: bytes = tree_of_life_node_uuid
 
@@ -124,8 +139,8 @@ class TreeOfLifeNode:
         "uuid",
         "children",
     )
-    def __init__(self, children: Iterable[TreeOfLifeNode], uuid: Optional[bytes] = None):
-        self.children: Tuple[TreeOfLifeNode, ...] = tuple(children)
+    def __init__(self, children: Iterable[TreeOfLifeNode], uuid: None | bytes = None):
+        self.children: tuple[TreeOfLifeNode, ...] = tuple(children)
         if uuid is None:
             uuid = uuid4().bytes
         self.uuid: bytes = uuid

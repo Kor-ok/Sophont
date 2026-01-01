@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Optional, ClassVar, Dict, Tuple
-from uuid import uuid4
+
+from typing import ClassVar
 
 from game.characteristic import Characteristic
+
 
 class Gene:
     """
@@ -17,8 +18,8 @@ class Gene:
         "caste_link", # Added
         "inheritance_contributors"
     )
-    Key = Tuple[Characteristic, int, int, int, int, int]
-    _cache: ClassVar[Dict[Key, "Gene"]] = {}
+    Key = tuple[Characteristic, int, int, int, int, int]
+    _cache: ClassVar[dict[Key, Gene]] = {}
 
     def __new__(
         cls,
@@ -28,7 +29,7 @@ class Gene:
         gender_link: int = -1,
         caste_link: int = -1,  # Added
         inheritance_contributors: int = 2
-    ) -> "Gene":
+    ) -> Gene:
         # Type Enforcement - Beneficial?
         die_mult_int = int(die_mult)
         precidence_int = int(precidence)
@@ -82,7 +83,7 @@ class Gene:
         gender_link: int = -1,
         caste_link: int = -1,  # Added
         inheritance_contributors: int = 2
-    ) -> "Gene":
+    ) -> Gene:
         
         characteristic = Characteristic.by_name(characteristic_name)
 

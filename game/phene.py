@@ -1,8 +1,9 @@
 from __future__ import annotations
-from typing import Any, Optional, ClassVar, Dict, Tuple
-from uuid import uuid4
+
+from typing import ClassVar
 
 from game.characteristic import Characteristic
+
 
 class Phene:
     """
@@ -20,8 +21,8 @@ class Phene:
         'contributor_uuid',
         'is_grafted'
     )
-    Key = Tuple[Characteristic, int, bytes, bool]
-    _cache: ClassVar[Dict[Key, "Phene"]] = {}
+    Key = tuple[Characteristic, int, bytes, bool]
+    _cache: ClassVar[dict[Key, Phene]] = {}
 
     def __new__(
         cls,
@@ -29,7 +30,7 @@ class Phene:
         expression_value: int,
         contributor_uuid: bytes,
         is_grafted: bool
-    ) -> "Phene":
+    ) -> Phene:
         key = (
             characteristic,
             expression_value,
@@ -59,8 +60,24 @@ class Phene:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
 
-    def __setattr__(self, name: str, value: Any) -> None:
+    def __setattr__(self, name: str, value: object) -> None:
         raise AttributeError("PhenePackage instances are immutable")
+    
+    @classmethod
+    def by_characteristic_name(
+        cls,
+        characteristic_name: str,
+        expression_value: int = 0, # 0 For a Phene would act as a way to impliment a "placeholder" for the characteristic akin to a gene 
+        contributor_uuid: bytes = bytes(16),
+        is_grafted: bool = False
+    ) -> Phene:
+        characteristic = Characteristic.by_name(characteristic_name)
+        return cls(
+            characteristic=characteristic,
+            expression_value=expression_value,
+            contributor_uuid=contributor_uuid,
+            is_grafted=is_grafted
+        )
     
     def __repr__(self) -> str:
         return (
