@@ -8,15 +8,16 @@ The primary focus is on building a clean, extensible object model (and supportin
 ## Status / Scope
 
 - This is **not** a complete game, UI, or character generator.
-- Much of the project is intentionally “model-first”: data types, packages, and collation layers.
-- Some higher-level computed layers (e.g. phenotype collation in epigenetics) are **TODO** and still evolving.
+- This milestone is a **very basic MVP**: `Sophont` owns *Aptitudes* and *Characteristics* with their respective data structures and collation logic.
+- The project remains intentionally “model-first”: data types, packages, and collation layers.
+- Some higher-level computed layers (e.g. automatically generating inherited packages / phenotype math) are **TODO** and still evolving.
 
 ## Key Ideas (current architecture)
 
 ### Two “state domains” on a Sophont
 
 - **Aptitudes** (skills/knowledge, training progress, computed levels)
-- **Epigenetics** (genotype as a blueprint + acquired characteristic packages over time)
+- **Characteristics** (genotype as a blueprint + acquired characteristic packages over time, collated into computed characteristic levels)
 
 The top-level class is `sophont.character.Sophont`.
 
@@ -31,6 +32,8 @@ Many core entities are implemented as immutable, interned *flyweights*:
 - `game.phene.Phene`
 - `game.genotype.Genotype`
 
+Note on terminology: **“Phene” is an uncommon term**. In this codebase it is used as an “atom” of phenotype — a smallest, composable unit of expressed trait that can be applied/collated (often alongside `Gene`) to compute effective characteristics.
+
 Mutable “character state” is expressed via **acquired packages** over time:
 
 - `game.aptitude_package.AptitudePackage` modifies a `Skill` / `Knowledge`
@@ -39,6 +42,8 @@ Mutable “character state” is expressed via **acquired packages** over time:
 ### Collation layers
 
 `sophont.aptitudes.Aptitudes` keeps a time-ordered collection of acquired packages and can build a summarized list of unique applied aptitudes (e.g. total computed skill level) via `update_collation()`.
+
+Similarly, `sophont.epigenetics.EpigeneticProfile` keeps a time-ordered collection of acquired characteristic packages and collates them into a computed list of effective characteristics via `update_collation()`.
 
 ## Installation
 
@@ -52,7 +57,7 @@ The only third-party runtime dependency currently is `sortedcontainers`.
 
 ## Quick Start
 
-Create a minimal species genotype, then create a `Sophont`, then apply an aptitude package:
+Create a minimal species genotype, then create a `Sophont`, then apply an aptitude package (and optionally a characteristic package):
 
 ```python
 from game.genotype import Genotype
@@ -61,9 +66,11 @@ from sophont.character import Sophont
 from game.skill import Skill
 from game.aptitude_package import AptitudePackage
 
-# Traveller-style base characteristic names are mapped in game/mappings/characteristics.py
-species_genotype = Genotype.by_gene_characteristic_names(
+from game.gene import Gene
+from game.characteristic_package import CharacteristicPackage
 
+# Traveller-style base characteristic names are mapped in game/mappings/characteristics.py
+species_genotype = Genotype.by_characteristic_names(
     [
         "strength",
         "dexterity",
@@ -83,8 +90,16 @@ basic_training = AptitudePackage(item=Skill(38), level=1, context="Basic Trainin
 s.aptitudes.insert_package_acquired(basic_training, age_acquired_seconds=s.age_seconds)
 
 s.aptitudes.update_collation()
+
+# Optionally: acquire a characteristic package (buff/debuff style)
+strength_gene = Gene.by_characteristic_name("strength")
+adrenaline_rush = CharacteristicPackage(item=strength_gene, level=1, context="Adrenaline Rush")
+s.epigenetic_profile.insert_package_acquired(adrenaline_rush, age_acquired_seconds=s.age_seconds)
+s.epigenetic_profile.update_collation()
+
 print(s)
 print(s.aptitudes.aptitude_collation)
+print(s.epigenetic_profile.characteristics_collation)
 ```
 
 ## Project Layout
