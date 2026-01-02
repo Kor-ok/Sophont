@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Optional, ClassVar, Dict, Tuple
+
+from typing import ClassVar
+
 
 class Characteristic:
 
@@ -8,10 +10,10 @@ class Characteristic:
         "subtype",
         "category_code",
     )
-    Key = Tuple[int, int, int]
-    _cache: ClassVar[Dict[Key, "Characteristic"]] = {}
+    Key = tuple[int, int, int]
+    _cache: ClassVar[dict[Key, Characteristic]] = {}
 
-    def __new__(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> "Characteristic":
+    def __new__(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> Characteristic:
         upp_index_int = int(upp_index)
         subtype_int = int(subtype)
         category_code_int = int(category_code)
@@ -37,21 +39,29 @@ class Characteristic:
         raise AttributeError("Characteristic instances are immutable")
     
     @classmethod
-    def of(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> "Characteristic":
+    def of(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> Characteristic:
         """Explicit flyweight constructor (same as `Characteristic(upp_index, subtype, category_code)`)."""
         return cls(upp_index, subtype, category_code)
     
     @classmethod
-    def by_name(cls, name: str) -> "Characteristic":
+    def by_name(cls, name: str) -> Characteristic:
         from game.mappings.characteristics import name_to_position_code
         upp_index, subtype = name_to_position_code(name)
         if upp_index == -1 or subtype == -1:
             raise ValueError(f"Could not match characteristic name: {name!r}")
         return cls(upp_index, subtype)
     
+    def get_name(self) -> str:
+        from game.mappings.characteristics import codes_to_name
+        return codes_to_name(self.upp_index, self.subtype)
+    
     def __repr__(self) -> str:
         from game.mappings.characteristics import codes_to_name
-        return (
-            f"Characteristic(upp_index={self.upp_index}, subtype={self.subtype})"
-            f"\n({codes_to_name(self.upp_index, self.subtype)})"
-        )
+        display = []
+        characteristic_name = codes_to_name(self.upp_index, self.subtype)
+        display.append(f"name={characteristic_name!r}")
+        memory_pointer_for_this_immutable_object = hex(id(self))
+        display.append(f"memory_pointer={memory_pointer_for_this_immutable_object}:")
+        display.append(f"upp_index={self.upp_index}, subtype={self.subtype}, category_code={self.category_code}")
+        
+        return "Characteristic(\n  " + ",\n  ".join(display) + "\n)"

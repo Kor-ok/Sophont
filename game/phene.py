@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from textwrap import indent
 from typing import ClassVar
 
 from game.characteristic import Characteristic
@@ -80,9 +81,18 @@ class Phene:
         )
     
     def __repr__(self) -> str:
-        return (
-            f"PhenePackage(characteristic={repr(self.characteristic)}, "
-            f"expression_value={self.expression_value}, "
-            f"contributor_uuid={repr(self.contributor_uuid)}, "
-            f"is_grafted={self.is_grafted})"
-        )
+        indentation = "  "
+        _blank_uuid = bytes(16)
+        display = []
+
+        memory_pointer_for_this_immutable_object = hex(id(self))
+        display.append(f"memory_pointer={memory_pointer_for_this_immutable_object}:")
+
+        display.append(f"characteristic={self.characteristic!r}")
+        display.append(f"expression_value={self.expression_value}")
+        if self.contributor_uuid == _blank_uuid:
+            display.append("contributor_uuid=BLANK")
+        else:
+            display.append(f"contributor_uuid={self.contributor_uuid!r}")
+        display.append(f"is_grafted={self.is_grafted}")
+        return "Phene(\n" + indent(",\n".join(display), indentation) + "\n)"

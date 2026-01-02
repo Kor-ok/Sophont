@@ -1,8 +1,13 @@
 from __future__ import annotations
-from typing import ClassVar, Dict, Generic, Tuple, TypeVar
+
+from textwrap import indent
+from typing import ClassVar, Generic, TypeVar
 from uuid import uuid4
 
-T = TypeVar("T")  # Skill or Knowledge (or anything else immutable)
+from game.knowledge import Knowledge
+from game.skill import Skill
+
+T = TypeVar("T", Skill, Knowledge)  # Skill or Knowledge (or anything else immutable)
 
 class AptitudePackage(Generic[T]):
     """Constructs reusable and shareable singleton packages that cumulatively modifies character aptitudes.
@@ -18,9 +23,9 @@ class AptitudePackage(Generic[T]):
     :type context: str
     """
     __slots__ = ("item", "level", "context")
-    _cache: ClassVar[Dict[Tuple[object, int, str], "AptitudePackage"]] = {}
+    _cache: ClassVar[dict[tuple[object, int, str], AptitudePackage]] = {}
 
-    def __new__(cls, item: T, level: int = 0, context: str | None = None) -> "AptitudePackage[T]":
+    def __new__(cls, item: T, level: int = 0, context: str | None = None) -> AptitudePackage[T]:
         context_str = str(uuid4()) if context is None else str(context)
         key = (item, int(level), context_str)  # item is already a flyweight => stable identity
         cached = cls._cache.get(key)
@@ -42,8 +47,11 @@ class AptitudePackage(Generic[T]):
         raise AttributeError("Package instances are immutable")
 
     def __repr__(self) -> str:
-        return (
-            f"Package(item={self.item!r}, level={self.level}, context={self.context!r})"
-            f"\nitem_type={type(self.item).__name__}:"
-            f"\n  {self.item.__str__()}"
-            )
+        indentation = "  "
+        display = []
+        memory_pointer_for_this_immutable_object = hex(id(self))
+        display.append(f"# Immutable AptitudePackage at {memory_pointer_for_this_immutable_object}")
+        display.append(f"item={self.item!r}")
+        display.append(f"level={self.level!r}")
+        display.append(f"context={self.context!r}")
+        return "AptitudePackage(\n" + indent(",\n".join(display), indentation) + "\n)"

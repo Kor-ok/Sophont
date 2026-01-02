@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from textwrap import indent
 from typing import Any, ClassVar, Union
-from uuid import uuid4
 
 from game.gene import Gene
-from game.mappings.world_id import WorldID
 from game.phene import Phene
 
 
@@ -95,85 +94,36 @@ class Genotype:
                 phenes.append(phene)
         return cls.of(genes, phenes if phene_names is not None else None)
     
-    def get_all_genes(self) -> dict[int, Gene]:
-        return {gene.characteristic.upp_index: gene for gene in self.genes}
-    
-    def __repr__(self) -> str:
-        return (
-            f"Number of Genes={len(self.genes)}\n"
-            f"{repr(self.genes)}"
-            )
-    
-class Species:
-    __slots__ = (
-        "uuid",
-        "genotype",
-    )
+    def get_phenotype(self) -> dict[int, tuple[Gene | None, Phene | None]]:
+        phenotype: dict[int, tuple[Gene | None, Phene | None]] = {}
 
-    def __init__(self, genotype: Genotype, uuid: None | bytes = None):
-        self.genotype: Genotype = genotype
-        if uuid is None:
-            uuid = uuid4().bytes
-        self.uuid: bytes = uuid
+        for gene in self.genes:
+            upp_index = gene.characteristic.upp_index
+            phene_from_gene = Phene(gene.characteristic, 0, bytes(16), False)
+            phenotype[upp_index] = (gene, phene_from_gene)
 
-    def __repr__(self) -> str:
-        return f"Species(uuid={self.uuid!r}, genotype={self.genotype!r})"
-    
-class Genus:
-    __slots__ = (
-        "tree_of_life_node_uuid",
-        "species_collection",
-    )
+        if self.phenes is not None:
+            for phene in self.phenes:
+                upp_index = phene.characteristic.upp_index
+                existing = phenotype.get(upp_index)
+                if existing is None:
+                    phenotype[upp_index] = (None, phene)
+                else:
+                    existing_gene, _existing_phene = existing
+                    phenotype[upp_index] = (existing_gene, phene)
 
-    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_uuid: None | bytes = None):
-        self.species_collection: tuple[Species, ...] = tuple(species_collection)
-        if tree_of_life_node_uuid is None:
-            tree_of_life_node_uuid = uuid4().bytes
-        self.tree_of_life_node_uuid: bytes = tree_of_life_node_uuid
-
-    def __repr__(self) -> str:
-        return f"Genus(uuid={self.tree_of_life_node_uuid!r}, species_collection={self.species_collection!r})"
-    
-class TreeOfLifeNode:
-    __slots__ = (
-        "uuid",
-        "children",
-    )
-    def __init__(self, children: Iterable[TreeOfLifeNode], uuid: None | bytes = None):
-        self.children: tuple[TreeOfLifeNode, ...] = tuple(children)
-        if uuid is None:
-            uuid = uuid4().bytes
-        self.uuid: bytes = uuid
-
-    def add_child(self, path) -> None:
-        node = self
-        for uuid in path:
-            matching_child = next((child for child in node.children if child.uuid == uuid), None)
-            if matching_child is None:
-                new_child = TreeOfLifeNode(children=(), uuid=uuid)
-                node.children += (new_child,)
-                node = new_child
-            else:
-                node = matching_child
-
-class TreeOfLifeOrigin:
-    __slots__ = (
-        "root",
-        "world_id",
-    )
-    def __init__(self, world_id: WorldID):
-        self.root: TreeOfLifeNode = TreeOfLifeNode(children=())
-        self.world_id: WorldID = world_id
-
-    def add_node(self, path: Iterable[bytes]) -> None:
-        self.root.add_child(path)
-    
-    def display(self) -> None:
-        def _display_node(node: TreeOfLifeNode, depth: int) -> None:
-            indent = "  " * depth
-            print(f"{indent}- Node UUID: {node.uuid!r}")
-            for child in node.children:
-                _display_node(child, depth + 1)
+        return phenotype
         
-        print(f"Tree of Life Origin for World ID: {self.world_id}")
-        _display_node(self.root, 0)
+    
+    def __repr__(self) -> str:
+        indentation = "  "
+        display = []
+        display.append(f"Number of Genes={len(self.genes)}")
+        if self.phenes is not None:
+            display.append(f"Number of Phenes={len(self.phenes)}")
+        display.append(repr(self.genes))
+        if self.phenes is not None:
+            display.append(repr(self.phenes))
+            
+        return "Genotype(\n" + indent(",\n".join(display), indentation) + "\n)"
+    

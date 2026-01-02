@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Final, Dict, Tuple
+from typing import Final
 
-StringAliases = Tuple[str, ...]
+StringAliases = tuple[str, ...]
 
-_BASE: Final[Dict[int, StringAliases]] = {
+_BASE: Final[dict[int, StringAliases]] = {
     -99: ("undefined",),
     -1: ("specialised", "specialized", "world", "career", "culture"),
     0: ("the sciences", "sciences", "science"),
@@ -116,7 +116,7 @@ _SUB_CAT: Final[dict[int, str]] = {
     4: "intuitions",
 }
 
-_KNOWLEDGES: Final[Dict[int, StringAliases]] = {
+_KNOWLEDGES: Final[dict[int, StringAliases]] = {
     1: ("rider",),
     2: ("teamster",),
     3: ("trainer",),
@@ -186,7 +186,7 @@ _KNOWLEDGES: Final[Dict[int, StringAliases]] = {
 }
 
 SkillCode = int
-CategoryCodesTuple = Tuple[int, int]
+CategoryCodesTuple = tuple[int, int]
 _BASE_SKILL_CODE_TO_CATEGORIES: Final[dict[SkillCode, CategoryCodesTuple]] = {
     -99: (-99, -99),
     -1: (0, 0),

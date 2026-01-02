@@ -1,9 +1,12 @@
 from __future__ import annotations
+
+from textwrap import indent
 from uuid import uuid4
 
+from game.genotype import Genotype
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import EpigeneticProfile
-from game.genotype import Genotype
+
 
 class Sophont:
     __slots__ = (
@@ -22,4 +25,12 @@ class Sophont:
         self.epigenetic_profile: EpigeneticProfile = EpigeneticProfile(genotype=species_genotype)
         
     def __repr__(self) -> str:
-        return f"Sophont(uuid={self.uuid!r}, name={self.name!r}, age_seconds={self.age_seconds!r}, aptitudes={self.aptitudes!r})"
+        indentation = "  "
+        display = []
+        display.append(f"uuid={self.uuid!r}")
+        display.append(f"name={self.name!r}")
+        display.append(f"age_seconds={self.age_seconds!r}")
+        display.append(f"aptitudes={self.aptitudes!r}")
+        display.append(f"epigenetic_profile={self.epigenetic_profile!r}")
+        # Join with Newlines for readability
+        return "Sophont(\n" + indent(",\n".join(display), indentation) + "\n)"

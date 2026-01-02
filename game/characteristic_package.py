@@ -1,19 +1,23 @@
 from __future__ import annotations
 
+from textwrap import indent
 from typing import ClassVar, Generic, TypeVar
 from uuid import uuid4
 
-T = TypeVar("T") 
+from game.gene import Gene
+from game.phene import Phene
+
+T = TypeVar("T", Gene, Phene)
 
 class CharacteristicPackage(Generic[T]):
     """Constructs reusable and shareable singleton packages that cumulatively modifies character characteristics.
     i.e. a "context" such as an event can provide a choice of Gene or Phene packages with a genetic value modifier.
 
-    :param item: The Gene, Phene or other immutable flyweight item.
+    :param item: The Gene or Phene flyweight item.
     :param level: The level modifier to apply when this package is used.
     :param context: Storytelling aid to identify the source or reason for this package.
         If omitted/None, a fresh UUID string is generated for each new package.
-    :type item: T|AppliedGene|AppliedPhene
+    :type item: Gene|Phene
     :type level: int
     :type context: str
     """
@@ -42,8 +46,11 @@ class CharacteristicPackage(Generic[T]):
         raise AttributeError("Package instances are immutable")
 
     def __repr__(self) -> str:
-        return (
-            f"Package(item={self.item!r}, level={self.level}, context={self.context!r})"
-            f"\nitem_type={type(self.item).__name__}:"
-            f"\n  {self.item.__str__()}"
-            )
+        indentation = "  "
+        display = []
+        memory_pointer_for_this_immutable_object = hex(id(self))
+        display.append(f"# Immutable CharacteristicPackage at {memory_pointer_for_this_immutable_object}")
+        display.append(f"item={self.item!r}")
+        display.append(f"level={self.level!r}")
+        display.append(f"context={self.context!r}")
+        return "CharacteristicPackage(\n" + indent(",\n".join(display), indentation) + "\n)"

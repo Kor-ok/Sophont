@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
 from uuid import uuid4
 
-from game.mappings.skills import get_category_codes_from_skill_code
+from game.mappings.skills import get_base_skill_code_from_name, get_category_codes_from_skill_code
 
 
 class Skill:
@@ -17,9 +16,9 @@ class Skill:
     __slots__ = ("code", "master_category", "sub_category", "unique_id")
 
     # Per-process interning cache: code -> Skill singleton
-    _cache: dict[Tuple[int, int, int], "Skill"] = {}
+    _cache: dict[tuple[int, int, int], Skill] = {}
 
-    def __new__(cls, code: int = -99) -> "Skill":
+    def __new__(cls, code: int = -99) -> Skill:
         code_int = int(code)
         master, sub = get_category_codes_from_skill_code(code_int)
         key = (code_int, master, sub)
@@ -47,9 +46,15 @@ class Skill:
         raise AttributeError("Skill instances are immutable")
 
     @classmethod
-    def of(cls, code: int) -> "Skill":
+    def of(cls, code: int) -> Skill:
         """Explicit flyweight constructor (same as `Skill(code)`)."""
         return cls(code)
+    
+    @classmethod
+    def by_skill_name(cls, name: str) -> Skill:
+        """Construct Skill flyweight by skill name lookup."""
+        code = get_base_skill_code_from_name(name)
+        return cls.of(code)
 
     def __repr__(self) -> str:
         from game.mappings.skills import Table, code_to_string
@@ -59,7 +64,7 @@ class Skill:
             f"sub_category={self.sub_category}[{code_to_string(self.sub_category, Table.SUB_CATEGORY)}])"
         )
     
-    def apply_knowledge(self, knowledge_code: int, focus:Optional[str] = None):
+    def apply_knowledge(self, knowledge_code: int, focus: str | None = None):
         """Create a Knowledge instance associated with this Skill."""
         from game.knowledge import Knowledge  # Avoid circular import
         return Knowledge.of(knowledge_code, focus=focus, associated_skill=self.code)

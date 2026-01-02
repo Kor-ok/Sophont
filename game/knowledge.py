@@ -1,14 +1,16 @@
 from __future__ import annotations
-from typing import Optional, ClassVar, Dict, Tuple
+
+from typing import ClassVar
 from uuid import uuid4
+
 
 class Knowledge:
 
     __slots__ = ("code", "focus", "associated_skill", "unique_id")
 
-    _cache: ClassVar[Dict[Tuple[int, str, int], "Knowledge"]] = {}
+    _cache: ClassVar[dict[tuple[int, str, int], Knowledge]] = {}
 
-    def __new__(cls, code: int = -99, focus: Optional[str] = None, associated_skill: Optional[int] = -99) -> "Knowledge":
+    def __new__(cls, code: int = -99, focus: str | None = None, associated_skill: int = -99) -> Knowledge:
         code_int = int(code)
         focus_str = "" if focus is None else str(focus)
         associated_skill_int = int(associated_skill) if associated_skill is not None else -99
@@ -29,7 +31,7 @@ class Knowledge:
         cls._cache[key] = self
         return self
     
-    def __init__(self, code: int = -99, focus: Optional[str] = None, associated_skill: Optional[int] = -99) -> None:
+    def __init__(self, code: int = -99, focus: str | None = None, associated_skill: int = -99) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
 
@@ -37,7 +39,7 @@ class Knowledge:
         raise AttributeError("Knowledge instances are immutable")
     
     @classmethod
-    def of(cls, code: int, focus: Optional[str] = None, associated_skill: Optional[int] = -99) -> "Knowledge":
+    def of(cls, code: int, focus: str | None = None, associated_skill: int = -99) -> Knowledge:
         """Explicit flyweight constructor (same as `Knowledge(code)`)."""
         return cls(code, focus, associated_skill)
     
