@@ -23,7 +23,7 @@ The design splits the world into two layers:
 
 - **Aptitudes** (skills/knowledge, training progress, computed levels)
 - **Epigenetics** (genotype as a blueprint + acquired characteristic packages over time, collated into computed characteristic levels)
-![Epigenetics Class Map][ClassMap_Epigenetics.jpg]
+![Epigenetics Class Map](/ClassMap_Epigenetics.jpg)
 
 The top-level class is `sophont.character.Sophont`.
 
