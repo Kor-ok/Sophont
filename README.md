@@ -21,9 +21,12 @@ The design splits the world into two layers:
 
 ### Two “state domains” on a Sophont
 
-- **Aptitudes** (skills/knowledge, training progress, computed levels)
+- **Aptitudes** (skills/knowledge, training progress, computed levels) 
+
+![Aptitudes Class Map](/ClassMap_Aptitudes.jpg)
 - **Epigenetics** (genotype as a blueprint + acquired characteristic packages over time, collated into computed characteristic levels)
   - Note on terminology: **“Phene”** is used as an “atom” of the "expressed phenotype" — a smallest, composable unit of a expressed characteristic (i.e. Strength, Agility, Caste, etc) that can be applied/collated (often alongside `Gene`) to compute effective characteristics.
+
 ![Epigenetics Class Map](/ClassMap_Epigenetics.jpg)
 
 The top-level class is `sophont.character.Sophont`.
