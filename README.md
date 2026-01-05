@@ -11,7 +11,7 @@ Purpose: **quickly-iterable Python codebase for designing the classes, data stru
 - Some higher-level computed layers (e.g. automatically generating inherited packages / phenotype math) are **TODO** and still evolving.
 
 ## Key Ideas (current architecture)
-
+![Concept Map](/ConceptMap.jpg)
 ### High-level Concept
 
 The design splits the world into two layers:

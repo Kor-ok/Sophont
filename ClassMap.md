@@ -6,7 +6,6 @@ This document describes how the **current MVP** classes interact to model a `Sop
 - **Aptitudes** (skills/knowledge)
 - **Characteristics** (via epigenetics: genotype + acquired characteristic packages)
 
-Scope: this intentionally excludes incomplete/adjacent domains (e.g. Species).
 
 ## High-level Concept
 
@@ -16,10 +15,6 @@ The design splits the world into two layers:
 2. **Mutable character state**: the character’s time-ordered acquired packages, plus cached “collated” summaries.
 
 Changes to a character (training, buffs/debuffs, events) are modeled as **packages acquired over time**. A collation step summarizes those packages into “effective state”.
-
-Terminology note:
-
-- **Phene** is an uncommon term. In this repository it is used as an “atom” of phenotype: a smallest, composable unit of expressed trait that can be applied/collated (often alongside `Gene`) to compute effective characteristics.
 
 ## Primary Objects
 
@@ -138,53 +133,6 @@ Drawbacks:
 
 - Consumers must call `update_collation()` (or otherwise ensure collation is current) before relying on computed summaries.
 
-## Diagram (Mermaid)
-
-```mermaid
-flowchart TD
-		S[Sophont]
-		A[Aptitudes]
-		E[EpigeneticProfile]
-
-		AP[AptitudePackage]
-		CP[CharacteristicPackage]
-
-		SK[Skill]
-		KN[Knowledge]
-
-		GT[Genotype]
-		GE[Gene]
-		PH[Phene]
-		CH[Characteristic]
-
-		AAcq[Acquired (aptitude)]
-		EAcq[Acquired (characteristic)]
-
-		ACol[UniqueAppliedAptitude (collation)]
-		ECol[UniqueAppliedCharacteristic (collation)]
-
-		S --> A
-		S --> E
-
-		A --> AAcq
-		AAcq --> AP
-		AP --> SK
-		AP --> KN
-		A --> ACol
-
-		E --> GT
-		GT --> GE
-		GT --> PH
-		GE --> CH
-		PH --> CH
-
-		E --> EAcq
-		EAcq --> CP
-		CP --> GE
-		CP --> PH
-		E --> ECol
-		ECol --> CH
-```
 
 ## “Buff/Debuff” Style Usage (MVP interpretation)
 
