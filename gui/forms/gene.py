@@ -9,8 +9,8 @@ from game.gene import Gene
 
 def gene_form(options: list[str], on_add: Optional[Callable[[Gene], None]] = None):
     with ui.row():
-        ui.label('Genes')
-        ui.icon('biotech')
+        ui.label('Custom Genes')
+        ui.icon('🧬').classes('text-xl')
     with ui.card().classes('w-full'):
         characteristic_select = ui.select(
             options=options,

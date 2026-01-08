@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-# from dataclasses import dataclass
 from typing import Callable
 
 from nicegui import ui
 
 import gui.draggable.fab as d_fab
 from game.gene import Gene
+from game.genotype import Genotype
 from game.mappings.characteristics import (
     _CATEGORY_MAP,
 )
@@ -23,7 +23,9 @@ from gui.initialisation.pickables import (
     build_initial_categorised_gene_and_phene_list_section,
     item_type_for_characteristic_name,
 )
+from gui.initialisation.species import premade_species_card
 
+# https://quasar.dev/layout/grid/flex-playground
 
 def _make_category_acceptor(category_columns: dict[int, ui.element]) -> Callable[[Gene | Phene], None]:
     def accept(item: Gene | Phene) -> None:
@@ -59,8 +61,8 @@ def _pickable_gene_list_section():
             cat_name = _CATEGORY_MAP[cat_code]
             if cat_code == 0:
                 continue
-            with ui.expansion(cat_name, value=True).classes('w-full text-xs leading-none px-1 py-0 q-py-xs'):
-                target: ui.element = ui.column().classes('w-full')
+            with ui.expansion(cat_name, value=True).classes('w-auto text-xs leading-none px-1 py-0 q-py-xs'):
+                target: ui.element = ui.column().classes('')
                 category_columns[cat_code] = target
 
                 for characteristic_name in characteristic_names_by_category.get(cat_code, []):
@@ -80,7 +82,8 @@ def _pickable_gene_list_section():
 # ============================== Widget to Define a Species Genotype ==============================    
 def _species_genotype_widget(category_columns: dict[int, ui.element]) -> None:
     with species_genotype_widget(
-        'Homo Sapiens',
+        name = '',
+        placeholder= 'Homo Sapiens',
         on_drop=lambda item, loc: ui.notify(f'Dropped: {item.characteristic.get_name()}'),
     ):
         # `genotype_drop_column` is a self-contained widget:
@@ -95,7 +98,27 @@ def _input_form_section(*, on_add_item: Callable[[Gene | Phene], None]) -> None:
     gene_form(options=CHARACTERISTICS, on_add=on_add_item)
     phene_form(options=CHARACTERISTICS, on_add=on_add_item)
 
+def _create_standard_genotype() -> Genotype:
+    
+    # Let's first create a human genotype which will be a flyweight instance shared across 
+    # all human sophonts.
+    human_genes_by_name = [
+        "Dexterity", 
+        "Strength", 
+        "Intelligence", 
+        "Endurance"
+        ] # Purposefully disordered compared to classical Traveller UPP indices.
+    
+    human_phenes_by_name = [
+        "Education",
+        "Social Standing",
+        "Psionics",
+        "Sanity"
+        ]
 
+    human_genotype = Genotype.by_characteristic_names(human_genes_by_name, human_phenes_by_name)
+
+    return human_genotype
 
 def species_tab(tab):
     with ui.tab_panel(tab):
@@ -103,9 +126,11 @@ def species_tab(tab):
         acceptor = _make_category_acceptor(genotype_category_columns)
 
         with ui.row().classes(''):
-            with ui.column(wrap=False).classes('w-46'):
+            with ui.column(wrap=False).classes('w-46 q-mr-md'):
                 _input_form_section(on_add_item=acceptor)
-            with ui.column(wrap=False):
+            with ui.column(wrap=False).classes('w-32 q-mr-xl'):
                 _pickable_gene_list_section()
-            with ui.column(wrap=False):
+            with ui.column(wrap=False).classes('q-ml-xl'):
                 _species_genotype_widget(genotype_category_columns)
+                ui.label('Premade Species').classes('text-lg font-bold q-mt-md')
+                premade_species_card('Homo Sapiens', _create_standard_genotype())

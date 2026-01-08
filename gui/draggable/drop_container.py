@@ -50,6 +50,8 @@ class species_genotype_widget(ui.column):
     def __init__(
         self,
         name: str,
+        placeholder: str = 'Homo Sapiens',
+        is_instantiated: bool = False,
         on_drop: Optional[Callable[[Union[Gene, Phene], str], None]] = None,
     ) -> None:
         super().__init__()
@@ -59,19 +61,26 @@ class species_genotype_widget(ui.column):
         # - `collection`: the actual list of dropped Genes/Phenes
         self.collation_layer: ui.element
         self.collection: ui.element
+        self.save_button: ui.element
 
         with self.classes(f'{d_fab.BG_INACTIVE} w-96 p-4 rounded'):
-            # Name input (user-editable). Keep it compact and full-width.
-            self.name_input = ui.input(label='Enter Species Name:', placeholder=name).props('').classes('w-full text-xs')
+            if is_instantiated:
+                name_label = ''
+            else:
+                name_label = 'Enter Species Name:'
+            self.name_input = ui.input(label=name_label, placeholder=placeholder, value=name).props('').classes('w-full text-xs')
 
             # Collation layer placeholder section.
             with ui.label('UPP:').classes('w-full'):
                 self.collation_layer = _collation_layer()
 
-
             # Collection section: dropped items are appended here.
             with ui.expansion('Collection (drag & drop items here)', value=True).classes('w-full'):
-                self.collection = ui.column().classes('w-full')
+                self.collection = ui.row().classes('')
+
+            if not is_instantiated:
+                ui.button('Save Species Genotype', on_click=lambda: ui.notify('Species Genotype Saved')) \
+                    .classes('w-full mt-2 text-xs')
 
         self.name = name
         self.on('dragover.prevent', self.highlight)

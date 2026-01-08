@@ -4,7 +4,10 @@ from nicegui import ui
 
 from gui.tabs.species import species_tab
 
+# https://quasar.dev/layout/grid/flex-playground
+
 with ui.tabs().classes('w-full') as tabs:
+    zero = ui.tab('Custom Characteristics')
     one = ui.tab('Species')
     two = ui.tab('Sophont')
     three = ui.tab('Package Maker')

@@ -10,8 +10,8 @@ from game.phene import Phene
 
 def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = None):
     with ui.row():
-        ui.label('Phenes')
-        ui.icon('fingerprint')
+        ui.label('Custom Phenes')
+        ui.icon('fingerprint').classes('text-xl')
     with ui.card().classes('w-full'):
         characteristic_select = ui.select(
             options=options,

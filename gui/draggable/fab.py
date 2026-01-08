@@ -27,6 +27,7 @@ class draggable(ui.fab):
         color: Optional[str] = None,
         direction: Literal['up', 'down', 'left', 'right'] = 'right',
         on_remove: Optional[Callable[[draggable], None]] = None,
+        is_draggable_active: bool = True,
     ) -> None:
         item = gene
 
@@ -46,26 +47,30 @@ class draggable(ui.fab):
         # - `padding` controls vertical/horizontal padding (v h)
         # - Tailwind classes handle remaining height/text tweaks
         self.props('draggable dense unelevated size=sm padding="xs sm"').classes(
-            'cursor-grab text-xs leading-none min-h-0 h-7 px-1 py-0'
+            'cursor-grab text-xs leading-none min-h-0 h-5 px-0 py-0'
         )
 
         if isinstance(item, Gene):
             with self:
-                ui.fab_action('casino', label=str(item.die_mult), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Die Multiplier')
-                ui.fab_action('low_priority', label=str(item.precidence), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Precidence')
-                ui.fab_action('transgender', label=str(item.gender_link), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Gender Link')
-                ui.fab_action('line_style', label=str(item.caste_link), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Caste Link')
-                ui.fab_action('family_restroom', label=str(item.inheritance_contributors), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Inheritance Contributors')
+                ui.fab_action('casino', label=str(item.die_mult), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Die Multiplier')
+                ui.fab_action('low_priority', label=str(item.precidence), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Precidence')
+                ui.fab_action('transgender', label=str(item.gender_link), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Gender Link')
+                ui.fab_action('line_style', label=str(item.caste_link), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Caste Link')
+                ui.fab_action('family_restroom', label=str(item.inheritance_contributors), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Inheritance Contributors')
         elif isinstance(item, Phene):
             with self:
-                ui.fab_action('bar_chart', label=str(item.expression_value), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Expression Value')
-                ui.fab_action('medical_services', label=str(item.is_grafted), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Is Grafted')
-                ui.fab_action('baby_changing_station', label=str(item.contributor_uuid), color='gray').props('dense size=xs padding="xs"').classes('text-xs').tooltip('Contributor UUID')
+                ui.fab_action('bar_chart', label=str(item.expression_value), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Expression Value')
+                ui.fab_action('medical_services', label=str(item.is_grafted), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Is Grafted')
+                if item.contributor_uuid != bytes(16):
+                    ui.fab_action('baby_changing_station', label=str(item.contributor_uuid), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Contributor UUID')
         else:
             raise TypeError(f'Unsupported draggable item type: {type(item)!r}')
         with self:
-            ui.fab_action('delete_forever', label='Remove', color='gray').props('dense size=xs padding="xs"').classes('text-xs').on('click', lambda _: self.request_remove()).tooltip('Remove')
-        self.on('dragstart', self.handle_dragstart)
+            if is_draggable_active:
+                ui.fab_action('delete_forever', label='', color='red').props('dense size=xs padding="xs"').classes('text-xs').on('click', lambda _: self.request_remove()).tooltip('Remove')
+        
+        if is_draggable_active:
+            self.on('dragstart', self.handle_dragstart)
 
     def handle_dragstart(self) -> None:
         # Tooltips can become visually orphaned during HTML5 drag operations
