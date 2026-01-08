@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Final, Tuple, Dict, List
+from typing import Final
 
-CharacteristicIdentifier = Tuple[int, int]  # position_code, subtype_code
-StringAliases = Tuple[str, ...]
+CharacteristicIdentifier = tuple[int, int]  # position_code, subtype_code
+StringAliases = tuple[str, ...]
 
 """mappings.characteristics
 
@@ -21,7 +21,7 @@ def _normalize(name: str) -> str:
 
 
 # Base characteristics: any of these names map to (position_code, subtype_code=0)
-_BASE: Final[Dict[int, StringAliases]] = {
+_BASE: Final[dict[int, StringAliases]] = {
     1: ("strength", "str"),
     2: ("dexterity", "dex"),
     3: ("endurance", "end"),
@@ -33,7 +33,7 @@ _BASE: Final[Dict[int, StringAliases]] = {
 }
 
 # Subtypes by position_code; subtype_code is 1-based (1..N)
-_SUBTYPES: Final[Dict[int, StringAliases]] = {
+_SUBTYPES: Final[dict[int, StringAliases]] = {
     2: ("agility", "grace"),
     3: ("vigour", "stamina"),
     5: ("training", "instinct"),
@@ -41,7 +41,7 @@ _SUBTYPES: Final[Dict[int, StringAliases]] = {
 }
 
 # Short aliases that should behave exactly like their canonical subtype name
-_SUBTYPE_ALIASES: Final[Dict[str, StringAliases]] = {
+_SUBTYPE_ALIASES: Final[dict[str, StringAliases]] = {
     "agi": ("agility",),
     "gra": ("grace",),
     "vig": ("vigour", "vigor"),  # handle both spellings
@@ -54,7 +54,7 @@ _SUBTYPE_ALIASES: Final[Dict[str, StringAliases]] = {
 
 
 # Build a single lookup: normalized name -> (position_code, subtype_code)
-_NAME_TO_CODES: Dict[str, CharacteristicIdentifier] = {}
+_NAME_TO_CODES: dict[str, CharacteristicIdentifier] = {}
 
 for pos_code, names in _BASE.items():
     for n in names:
@@ -110,7 +110,7 @@ def codes_to_name(pos_code: int, sub_code: int = 0) -> str:
         return base_names[0].title()
     return "Undefined"
 
-_CATEGORY_MAP: Final[Dict[int, str]] = {
+_CATEGORY_MAP: Final[dict[int, str]] = {
     0: "Undefined",
     1: "Physical",
     2: "Mental",
@@ -118,7 +118,7 @@ _CATEGORY_MAP: Final[Dict[int, str]] = {
     4: "Obscure",
 }
 
-_BASE_CHAR_NAME_TO_CATEGORY_CODE: Final[Dict[str, int]] = {
+_BASE_CHAR_NAME_TO_CATEGORY_CODE: Final[dict[str, int]] = {
     "strength": 1,
     "dexterity": 1,
     "endurance": 1,
@@ -129,7 +129,7 @@ _BASE_CHAR_NAME_TO_CATEGORY_CODE: Final[Dict[str, int]] = {
     "sanity": 4,
 }
 
-_BASE_CODE_TO_CATEGORY_CODE: Final[Dict[int, int]] = {
+_BASE_CODE_TO_CATEGORY_CODE: Final[dict[int, int]] = {
     1: 1,  # Strength -> Physical
     2: 1,  # Dexterity -> Physical
     3: 1,  # Endurance -> Physical
@@ -149,7 +149,7 @@ def _check_alias(pos_code: int) -> str:
     return "Undefined"
 
 # lookup: normalized name -> (category_code)
-_CHAR_NAME_TO_CATEGORY_CODE: Dict[str, int] = {}
+_CHAR_NAME_TO_CATEGORY_CODE: dict[str, int] = {}
 for name, cat_code in _BASE_CHAR_NAME_TO_CATEGORY_CODE.items():
     _CHAR_NAME_TO_CATEGORY_CODE[_normalize(name)] = cat_code
 
