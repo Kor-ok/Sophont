@@ -74,6 +74,13 @@ class EpigeneticProfile:
         if trigger_collation:
             self.update_collation()
 
+    def remove_package_acquired(self, package: CharacteristicPackage, age_acquired_seconds: int, trigger_collation: bool = False) -> None:
+        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds)
+        self.acquired_packages_collection.remove(acquired)
+        self.is_packages_dirty = True
+        if trigger_collation:
+            self.update_collation()
+
     def get_acquired_packages(self) -> list[CharacteristicPackage]:
         return [acquired.package for acquired in self.acquired_packages_collection]
     
