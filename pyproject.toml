@@ -17,11 +17,13 @@ select = [
   "UP"  # pyupgrade
 ]
 ignore = [
-  "E501"  # line length (handled by formatter; avoid churn)
+  "E501",  # line length (handled by formatter; avoid churn)
+  "UP007",  # prefer typing.Union for py39 compatibility
+  "UP045",  # prefer typing.Optional for py39 compatibility
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["game", "sophont"]
+known-first-party = ["game", "sophont", "gui"]
 
 [tool.black]
 line-length = 100

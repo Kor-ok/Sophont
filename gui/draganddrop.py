@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Callable, Protocol
 
 from nicegui import ui
@@ -61,3 +62,22 @@ class card(ui.card):
     def handle_dragstart(self) -> None:
         global dragged  # pylint: disable=global-statement # noqa: PLW0603
         dragged = self
+
+
+@dataclass
+class ToDo:
+    title: str
+    value: int = 0
+
+def handle_drop(todo: ToDo, location: str):
+    ui.notify(f'"{todo.title}" is now in {location}')
+
+with ui.row():
+    with column('Characteristics Pool', on_drop=handle_drop): # type: ignore
+        card(ToDo('Strength', 2))
+        card(ToDo('Dexterity'))
+    with column('Aptitudes Pool', on_drop=handle_drop): # type: ignore
+        card(ToDo('Skill: Language'))
+        card(ToDo('Knowledge: Language <name>'))
+    with column('Package', on_drop=handle_drop): # type: ignore
+        pass
