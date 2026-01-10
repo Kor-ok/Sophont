@@ -3,6 +3,7 @@ from __future__ import annotations
 from random import randint
 from uuid import uuid4
 
+from game import genotype
 from game.characteristic_package import CharacteristicPackage
 from game.genotype import Genotype
 from sophont.character import Sophont
@@ -368,9 +369,7 @@ def make_characteristic_package(contributor_uuid: bytes) -> CharacteristicPackag
     dexterity_package = CharacteristicPackage(item=dexterity_characteristic, level=level, context=context)
     return dexterity_package
 
-if __name__ == "__main__":
-    print("\033c", end="")
-    
+def demo1() -> None:
     sophont = create_unborn_sophont()
     sophont = apply_inherited_packages(sophont)
     show_characteristics_collation_summary(sophont)
@@ -446,3 +445,13 @@ if __name__ == "__main__":
             display_lines.append(f"{aptitude_item}: {computed_level}")
         display_text = "\n".join(display_lines)
         print(display_text)
+
+if __name__ == "__main__":
+    print("\033c", end="")
+    
+    genotype = create_standard_genotype()
+    phenotype = genotype.get_phenotype()
+    print("Genotype Phenotype Mapping:")
+    print(display(phenotype))
+    num_characteristics = len(phenotype)
+    

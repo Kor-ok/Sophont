@@ -55,6 +55,22 @@ When modifying or adding code:
 - Keep modules focused; avoid circular imports (use local imports where necessary).
 - Use docstrings when adding new public classes/functions.
 
+### Ruff / Black (important)
+
+This repo uses **Ruff** for linting (including isort-like import sorting) and **Black** for formatting.
+When making changes, keep code aligned with the existing `pyproject.toml` settings.
+
+Key points:
+- Expect Ruff to flag **import sorting/formatting** issues (notably `I001`).
+- Avoid `from ... import *` in new/edited modules; prefer explicit imports.
+- Keep imports grouped and ordered: **stdlib**, **third-party**, **first-party** (`game`, `sophont`, `gui`).
+- Within a `from x import (...)` block, keep imported names sorted.
+
+Agentic workflow expectation (to reduce iterations):
+- After editing Python files, run Ruff’s auto-fix on the touched files.
+- Then run Black on the same files.
+- Re-check Ruff to confirm zero remaining issues.
+
 ## Safety Rails
 
 - Do not “invent” new rules values or tables. If a mapping/table needs extending, place it under `game/mappings/` and keep changes minimal.
@@ -64,3 +80,8 @@ When modifying or adding code:
 
 - Install runtime deps: `pip install -r requirements.txt`
 - Optional dev tools (if present): `pip install -r requirements-dev.txt`
+
+Formatting/linting (recommended after edits):
+- Auto-fix lint + imports: `python -m ruff check --fix <paths>`
+- Format: `python -m black <paths>`
+- Verify lint clean: `python -m ruff check <paths>`

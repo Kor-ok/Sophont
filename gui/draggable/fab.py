@@ -1,23 +1,64 @@
 from __future__ import annotations
 
-# from dataclasses import dataclass
-from typing import Callable, Literal, Optional, Union  # Protocol
+from pathlib import Path
+from typing import Callable, Literal, Optional, Union
 
 from nicegui import ui
 
 from game.gene import Gene
 from game.phene import Phene
+from gui.styles import (
+    COLOUR_GENE,
+    COLOUR_PHENE,
+    DRAG_DROP_BG_ACTIVE,
+    DRAG_DROP_BG_INACTIVE,
+    DRAGGABLE_FAB_CLASSES,
+    FAB_FLYOUT_COLOUR,
+    FAB_FLYOUT_PROP,
+)
 
-dna_icon_path = 'gui/icons/dna.svg'
-# read svg content as plain text
-with open(dna_icon_path, encoding='utf-8') as f:
-    dna_icon_svg = f.read()
+_HERE = Path(__file__).resolve().parent
+_GUI_DIR = _HERE.parent
 
 
-BG_INACTIVE = 'bg-grey-10'
-BG_ACTIVE = 'bg-blue-grey-10'
+def _read_text_file(path: Path) -> str:
+    return path.read_text(encoding='utf-8')
+
+
+dna_icon_path = _GUI_DIR / 'icons' / 'dna.svg'
+dna_icon_svg = _read_text_file(dna_icon_path)
+
+# Compatibility exports: other modules currently import these from gui.draggable.fab
+BG_INACTIVE = DRAG_DROP_BG_INACTIVE
+BG_ACTIVE = DRAG_DROP_BG_ACTIVE
+FLYOUT_COLOUR = FAB_FLYOUT_COLOUR
 
 dragged: Optional[draggable] = None
+
+_FAB_LAYER_CSS_ADDED = False
+_DISABLE_TOOLTIP_JS_TEMPLATE: str | None = None
+
+
+def _ensure_fab_layer_css() -> None:
+    """Ensure FAB action flyouts render above other UI layers."""
+    global _FAB_LAYER_CSS_ADDED  # pylint: disable=global-statement
+    if _FAB_LAYER_CSS_ADDED:
+        return
+    _FAB_LAYER_CSS_ADDED = True
+
+    css_path = _HERE / 'fab.css'
+    ui.add_css(_read_text_file(css_path))
+
+
+def _disable_tooltip_js(element_id: int) -> str:
+    global _DISABLE_TOOLTIP_JS_TEMPLATE  # pylint: disable=global-statement
+    if _DISABLE_TOOLTIP_JS_TEMPLATE is None:
+        js_path = _HERE / 'disable_tooltip.js'
+        _DISABLE_TOOLTIP_JS_TEMPLATE = _read_text_file(js_path)
+    return _DISABLE_TOOLTIP_JS_TEMPLATE.replace('{self.id}', str(element_id))
+
+def _build_fab_flyout(icon: str, label: str, tooltip: str) -> ui.fab_action:
+    return ui.fab_action(icon, label=label, color=FLYOUT_COLOUR).props(FAB_FLYOUT_PROP).classes('text-sm').tooltip(tooltip)
 
 class draggable(ui.fab):
     def __init__(
@@ -29,12 +70,13 @@ class draggable(ui.fab):
         on_remove: Optional[Callable[[draggable], None]] = None,
         is_draggable_active: bool = True,
     ) -> None:
+        _ensure_fab_layer_css()
         item = gene
 
         if icon is None:
             icon = '🧬' if isinstance(item, Gene) else 'fingerprint'
         if color is None:
-            color = 'purple-11' if isinstance(item, Gene) else 'blue'
+            color = COLOUR_GENE if isinstance(item, Gene) else COLOUR_PHENE
 
         super().__init__(label=item.characteristic.get_name(), icon=icon, color=color, direction=direction)
         self.item: Union[Gene, Phene] = item
@@ -46,28 +88,26 @@ class draggable(ui.fab):
         # - `dense` reduces button height
         # - `padding` controls vertical/horizontal padding (v h)
         # - Tailwind classes handle remaining height/text tweaks
-        self.props('draggable dense unelevated size=sm padding="xs sm"').classes(
-            'cursor-grab text-xs leading-none min-h-0 h-5 px-0 py-0'
-        )
+        self.props('draggable dense unelevated size=sm padding="xs sm"').classes(DRAGGABLE_FAB_CLASSES)
 
         if isinstance(item, Gene):
             with self:
-                ui.fab_action('casino', label=str(item.die_mult), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Die Multiplier')
-                ui.fab_action('low_priority', label=str(item.precidence), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Precidence')
-                ui.fab_action('transgender', label=str(item.gender_link), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Gender Link')
-                ui.fab_action('line_style', label=str(item.caste_link), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Caste Link')
-                ui.fab_action('family_restroom', label=str(item.inheritance_contributors), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Inheritance Contributors')
+                _build_fab_flyout(icon='casino', label=str(item.die_mult), tooltip='Die Multiplier')
+                _build_fab_flyout(icon='low_priority', label=str(item.precidence), tooltip='Precidence')
+                _build_fab_flyout(icon='transgender', label=str(item.gender_link), tooltip='Gender Link')
+                _build_fab_flyout(icon='line_style', label=str(item.caste_link), tooltip='Caste Link')
+                _build_fab_flyout(icon='family_restroom', label=str(item.inheritance_contributors), tooltip='Inheritance Contributors')
         elif isinstance(item, Phene):
             with self:
-                ui.fab_action('bar_chart', label=str(item.expression_value), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Expression Value')
-                ui.fab_action('medical_services', label=str(item.is_grafted), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Is Grafted')
+                _build_fab_flyout(icon='bar_chart', label=str(item.expression_value), tooltip='Expression Value')
+                _build_fab_flyout(icon='medical_services', label=str(item.is_grafted), tooltip='Is Grafted')
                 if item.contributor_uuid != bytes(16):
-                    ui.fab_action('baby_changing_station', label=str(item.contributor_uuid), color='gray').props('dense size=xs padding="xs"').classes('text-sm').tooltip('Contributor UUID')
+                    _build_fab_flyout(icon='baby_changing_station', label=str(item.contributor_uuid), tooltip='Contributor UUID')
         else:
             raise TypeError(f'Unsupported draggable item type: {type(item)!r}')
         with self:
             if is_draggable_active:
-                ui.fab_action('delete_forever', label='', color='red').props('dense size=xs padding="xs"').classes('text-xs').on('click', lambda _: self.request_remove()).tooltip('Remove')
+                ui.fab_action('delete_forever', label='', color='red').props(FAB_FLYOUT_PROP).classes('text-xs').on('click', lambda _: self.request_remove()).tooltip('Remove')
         
         if is_draggable_active:
             self.on('dragstart', self.handle_dragstart)
@@ -77,29 +117,7 @@ class draggable(ui.fab):
         # because the underlying DOM element gets moved/removed without the
         # usual mouseleave/mouseout events firing. Proactively dismiss any
         # visible tooltips as soon as dragging begins.
-        ui.run_javascript(
-            f"""(() => {{
-    try {{
-        const el = getHtmlElement({self.id});
-        if (el) {{
-            el.dispatchEvent(new MouseEvent('mouseleave', {{ bubbles: true, cancelable: true }}));
-            el.dispatchEvent(new MouseEvent('mouseout', {{ bubbles: true, cancelable: true }}));
-        }}
-
-        // Safety net: ensure any currently-visible Quasar tooltips are hidden.
-        // This avoids stale tooltips lingering when a drag starts mid-hover.
-        document.querySelectorAll('.q-tooltip').forEach((tip) => {{
-            try {{
-                tip.style.display = 'none';
-            }} catch (_) {{
-                // ignore
-            }}
-        }});
-    }} catch (_) {{
-        // ignore
-    }}
-}})();""",
-        )
+        ui.run_javascript(_disable_tooltip_js(self.id))
         global dragged  # pylint: disable=global-statement # noqa: PLW0603
         dragged = self
 

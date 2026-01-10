@@ -8,8 +8,10 @@ from nicegui import ui
 
 import gui.draggable.fab as d_fab
 from game.gene import Gene
+from game.genotype import Genotype
 from game.mappings.characteristics import char_name_to_category_code
 from game.phene import Phene
+from gui.computed.upp import collation_layer
 from gui.draggable.commands import RemoveFabCommand
 from gui.history.undo import notify_undo
 
@@ -27,30 +29,13 @@ def handle_remove_requested(fab: d_fab.draggable) -> None:
     command.execute()
     notify_undo(f'Removed {fab.item.characteristic.get_name()}', command)
 
-def _collation_layer():
-    """Build a default 2×8 summary grid.
-
-    Row 1: UPP index (1..8)
-    Row 2: placeholder characteristic names (to be filled by your collation logic later)
-    """
-    with ui.column().classes('w-full') as root:
-        with ui.grid(columns=8).classes('w-full gap-1'):
-            # Row 1: UPP indices
-            for upp_index in range(1, 9):
-                ui.label(str(upp_index)).classes('w-full text-center text-xs font-bold leading-none')
-
-            # Row 2: placeholders for characteristic names
-            for _ in range(1, 9):
-                ui.label('—').classes('w-full text-center text-xs leading-none')
-
-    return root
-
 class species_genotype_widget(ui.column):
 
     def __init__(
         self,
         name: str,
         placeholder: str = 'Homo Sapiens',
+        genotype: Genotype | None = None,
         is_instantiated: bool = False,
         on_drop: Optional[Callable[[Union[Gene, Phene], str], None]] = None,
     ) -> None:
@@ -72,14 +57,14 @@ class species_genotype_widget(ui.column):
 
             # Collation layer placeholder section.
             with ui.label('UPP:').classes('w-full'):
-                self.collation_layer = _collation_layer()
+                self.collation_layer = collation_layer(genotype=genotype)
 
             # Collection section: dropped items are appended here.
             with ui.expansion('Collection (drag & drop items here)', value=True).classes('w-full'):
                 self.collection = ui.row().classes('')
 
             if not is_instantiated:
-                ui.button('Save Species Genotype', on_click=lambda: ui.notify('Species Genotype Saved')) \
+                ui.button('Save Species Genotype', on_click=lambda: ui.notify(message='Not Yet Implemented', color='orange')) \
                     .classes('w-full mt-2 text-xs')
 
         self.name = name
