@@ -31,7 +31,6 @@ class Gene:
         caste_link: int = -1,  # Added
         inheritance_contributors: int = 2
     ) -> Gene:
-        # Type Enforcement - Beneficial?
         die_mult_int = int(die_mult)
         precidence_int = int(precidence)
         gender_link_int = int(gender_link)

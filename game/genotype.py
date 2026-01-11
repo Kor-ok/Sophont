@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Union
 from game.gene import Gene
 from game.phene import Phene
 
+upp_index = int # Alias for clarity
 
 def _validate_genes(genes: Iterable[Gene]) -> tuple[bool, str]:
     feedback = ""
@@ -94,7 +95,41 @@ class Genotype:
                 phenes.append(phene)
         return cls.of(genes, phenes if phene_names is not None else None)
     
+    def get_genes_without_phenes(self) -> dict[upp_index, Gene]:
+        genes_without_phenes: dict[upp_index, Gene] = {}
+        phene_upp_indexes = set()
+        if self.phenes is not None:
+            for phene in self.phenes:
+                phene_upp_indexes.add(phene.characteristic.upp_index)
+        
+        for gene in self.genes:
+            upp_index = gene.characteristic.upp_index
+            if upp_index not in phene_upp_indexes:
+                genes_without_phenes[upp_index] = gene
+        
+        return genes_without_phenes
+    
+    def get_phenes_without_genes(self) -> dict[upp_index, Phene]:
+        phenes_without_genes: dict[upp_index, Phene] = {}
+        gene_upp_indexes = set()
+        for gene in self.genes:
+            gene_upp_indexes.add(gene.characteristic.upp_index)
+        
+        if self.phenes is not None:
+            for phene in self.phenes:
+                upp_index = phene.characteristic.upp_index
+                if upp_index not in gene_upp_indexes:
+                    phenes_without_genes[upp_index] = phene
+        
+        return phenes_without_genes
+    
     def get_phenotype(self) -> dict[int, tuple[Gene | None, Phene | None]]:
+        from warnings import warn
+        warn(
+            "Genotype.get_phenotype is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         phenotype: dict[int, tuple[Gene | None, Phene | None]] = {}
 
         for gene in self.genes:

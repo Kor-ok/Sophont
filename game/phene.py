@@ -28,15 +28,18 @@ class Phene:
     def __new__(
         cls,
         characteristic: Characteristic,
-        expression_value: int,
-        contributor_uuid: bytes,
-        is_grafted: bool
+        expression_value: int = 0,
+        contributor_uuid: bytes = bytes(16),
+        is_grafted: bool = False
     ) -> Phene:
+        expression_value_int = int(expression_value)
+        contributor_uuid_bytes = bytes(contributor_uuid)
+        is_grafted_bool = bool(is_grafted) # Python bool/int behaviour enforcement for cache key consistency
         key = (
             characteristic,
-            expression_value,
-            contributor_uuid,
-            is_grafted
+            expression_value_int,
+            contributor_uuid_bytes,
+            is_grafted_bool
         )
         cached = cls._cache.get(key)
         if cached is not None:
@@ -54,9 +57,9 @@ class Phene:
     def __init__(
         self,
         characteristic: Characteristic,
-        expression_value: int,
-        contributor_uuid: bytes,
-        is_grafted: bool
+        expression_value: int = 0,
+        contributor_uuid: bytes = bytes(16),
+        is_grafted: bool = False
     ) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
