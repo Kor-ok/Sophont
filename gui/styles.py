@@ -61,6 +61,9 @@ FIXED_PICKABLES_SCROLLER: Final[str] = "w-full flex-1 overflow-y-auto"
 # Expandable Group Style
 CATEGORY_EXPANDER: Final[str] = "w-full text-left text-xs leading-none px-1 py-0 q-py-xs padding-0"
 
+# Character Selector Styles
+CHARACTER_SELECTOR: Final[str] = "w-full"
+
 # Character card layout styles.
 CHARACTER_CARD: Final[str] = "w-full"
 CHARACTER_IMAGE_FRAME: Final[str] = "w-32 h-32 flex items-center justify-center mx-auto"
@@ -70,34 +73,37 @@ CHARACTER_CARD_SECTION: Final[str] = "w-full px-2"
 CHARACTER_GRID: Final[str] = (
     "grid-cols-[max-content_max-content] gap-2 justify-items-start items-start text-left"
 )
+CHARACTER_NAME_INPUT_CLASSES: Final[str] = "w-full outlined"
+CHARACTER_NAME_INPUT_PROPS: Final[str] = 'rounded outlined dense debounce=1000'
 
 
-__all__ = [
-    "cx",
-    "COLOUR_GENE",
-    "COLOUR_PHENE",
-    "DRAG_DROP_BG_INACTIVE",
-    "DRAG_DROP_BG_ACTIVE",
-    "FAB_FLYOUT_COLOUR",
-    "FAB_FLYOUT_PROP",
-    "DRAGGABLE_FAB_CLASSES",
-    "UPP_ROOT",
-    "UPP_GRID",
-    "UPP_INDEX_LABEL",
-    "UPP_CELL_LABEL",
-    "UPP_GENE_CELL_LABEL",
-    "UPP_PHENE_CELL_LABEL",
-    "TAB_PANEL",
-    "TAB_ROW",
-    "TAB_COLUMN_BASE",
-    "TAB_COLUMN_LEFT",
-    "TAB_COLUMN_CENTER",
-    "TAB_COLUMN_RIGHT",
-    "FIXED_PICKABLES_SCROLLER",
-    "CATEGORY_EXPANDER",
-    "CHARACTER_CARD",
-    "CHARACTER_IMAGE_FRAME",
-    "CHARACTER_IMAGE",
-    "CHARACTER_CARD_SECTION",
-    "CHARACTER_GRID",
-]
+# __all__ = [
+#     "cx",
+#     "COLOUR_GENE",
+#     "COLOUR_PHENE",
+#     "DRAG_DROP_BG_INACTIVE",
+#     "DRAG_DROP_BG_ACTIVE",
+#     "FAB_FLYOUT_COLOUR",
+#     "FAB_FLYOUT_PROP",
+#     "DRAGGABLE_FAB_CLASSES",
+#     "UPP_ROOT",
+#     "UPP_GRID",
+#     "UPP_INDEX_LABEL",
+#     "UPP_CELL_LABEL",
+#     "UPP_GENE_CELL_LABEL",
+#     "UPP_PHENE_CELL_LABEL",
+#     "TAB_PANEL",
+#     "TAB_ROW",
+#     "TAB_COLUMN_BASE",
+#     "TAB_COLUMN_LEFT",
+#     "TAB_COLUMN_CENTER",
+#     "TAB_COLUMN_RIGHT",
+#     "FIXED_PICKABLES_SCROLLER",
+#     "CATEGORY_EXPANDER",
+#     "CHARACTER_SELECTOR",
+#     "CHARACTER_CARD",
+#     "CHARACTER_IMAGE_FRAME",
+#     "CHARACTER_IMAGE",
+#     "CHARACTER_CARD_SECTION",
+#     "CHARACTER_GRID",
+# ]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from gui import styles
 from gui.forms.character import CharacterCard, CharacterSelector
 from gui.initialisation.species import CHARACTER_OPTIONS
 from gui.initialisation.state import active_character_card_state
@@ -53,7 +54,7 @@ with ui.column().classes(
         options=CHARACTER_OPTIONS,
         value=default_character,
         on_change=set_active_character,
-    )
+    ).classes(styles.CHARACTER_SELECTOR)
 
 with ui.column().classes("w-128 q-pa-md items-center justify-center") as character_card_container:
     pass

@@ -13,12 +13,6 @@ from gui.initialisation.species import SPECIES_MAP
 from sophont.character import Sophont
 
 
-def set_character_name(character: Sophont, new_name: str) -> None:
-    if new_name == "":
-        new_name = "Unnamed"
-    character.name = new_name
-
-
 def format_age(age_seconds: int) -> str:
     result = ""
     if age_seconds < 0:
@@ -84,7 +78,8 @@ class CharacterCard(ui.column):
         self.parent_uuids: list[bytes] | None = parent_uuids
         self._compute_parents_num()
         self._build_card()
-
+#region: ================================================== DATA HANDLING ======================
+    
     def _compute_parents_num(self) -> None:
         # For all Genes in character.epigenetic_profile.genotype.genes:
         # Get the highest inheritance_contributors int value
@@ -112,9 +107,15 @@ class CharacterCard(ui.column):
         elif uuids is not None:
             self.parent_uuids = uuids
 
-    def _build_card(self) -> None:
-        with ui.card().tight().classes(styles.CHARACTER_CARD):
-            with ui.element("div").classes(styles.CHARACTER_IMAGE_FRAME):
+    def _commit_name(self, raw: str) -> None:
+        new_name = (raw or "").strip() or "Unnamed"
+        if new_name != self.character.name:  # prevents redundant writes
+            self.character.name = new_name
+            ui.notify(f'Renamed to "{new_name}"', type="positive")
+#endregion
+#region: =================================================== UI SECTIONS =======================
+    def _build_profile_picture(self) -> None:
+        with ui.element("div").classes(styles.CHARACTER_IMAGE_FRAME):
                 image_set = "set2"  # 'set2' is alien-themed 'set4' is cats
                 # If SPECIES_MAP uuid matches "Human", use 'set5' which is human-themed
                 if self.character.epigenetic_profile.species_genotype.uuid == SPECIES_MAP["Human"]:
@@ -126,48 +127,74 @@ class CharacterCard(ui.column):
                 ui.image(
                     f"https://robohash.org/{self.character.uuid.hex()}?set={image_set}"
                 ).classes(styles.CHARACTER_IMAGE)
-            with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
-                with ui.grid().classes(styles.CHARACTER_GRID):
-                    if IS_DEBUG:
+
+    def _build_debug_info(self) -> None:
+        if IS_DEBUG:
                         ui.label("Character UUID:")
                         ui.label(self.character.uuid.hex())
                         ui.label("Species UUID:")
                         ui.label(self.character.epigenetic_profile.species_genotype.uuid.hex())
 
-                    ui.label("Name:")
-                    ui.input(
-                        label=self.character.name,
-                        placeholder=self.character.name,
-                        on_change=lambda e: set_character_name(self.character, e.value),
-                        validation={"Input too long": lambda value: len(value) < 20},
-                    )
+    def _build_name_input(self) -> None:
+        ui.label("Name:")
+        name_input = (
+            ui.input(value=self.character.name, placeholder=self.character.name)
+            .without_auto_validation()
+            .classes(styles.CHARACTER_NAME_INPUT_CLASSES)
+            .props(styles.CHARACTER_NAME_INPUT_PROPS)
+        )
+        name_input.on(
+            "keydown.enter",
+            js_handler="(e) => { e.target.blur(); }",
+        )
+        name_input.on(
+            "blur",
+            handler=lambda e: self._commit_name(e.args["value"]),
+            js_handler="(e) => emit({value: e.target.value})",
+        )
 
-                    ui.label("Age:")
-                    ui.label(format_age(self.character.age_seconds))
+    def _build_age_display(self) -> None:
+        ui.label("Age:")
+        ui.label(format_age(self.character.age_seconds))
 
-                    ui.label("Parents:")
-                    ui.label(
-                        str(
-                            len(self.parent_uuids) if self.parent_uuids is not None else "Undefined"
-                        )
-                    ).tooltip(
-                        "Parent UUIDs: " + ", ".join(pu.hex() for pu in self.parent_uuids)
-                        if self.parent_uuids is not None
-                        else "No parent UUIDs defined"
-                    )
+    def _build_parentage_display(self) -> None:
+        ui.label("Parents:")
+        ui.label(
+            str(len(self.parent_uuids) if self.parent_uuids is not None else "Undefined")
+        ).tooltip(
+            "Parent UUIDs: " + ", ".join(pu.hex() for pu in self.parent_uuids)
+            if self.parent_uuids is not None
+            else "No parent UUIDs defined"
+        )
+    
+    def _build_genotype_display(self) -> None:
+        # Get Species Name by matching species_genotype.uuid to SPECIES_MAP
+        species_name = "ERROR"
+        for name, uuid in SPECIES_MAP.items():
+            if uuid == self.character.epigenetic_profile.species_genotype.uuid:
+                species_name = name
+                break
+        ui.label(f"Genotype: {species_name}")
+        UPPDisplay(character=self.character, display_indices=False)
+#endregion
+#region: =================================================== CARD LAYOUT =======================
+    def _build_card(self) -> None:
+        with ui.card().tight().classes(styles.CHARACTER_CARD):
+            self._build_profile_picture()
+            
+            with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
+                with ui.grid().classes(styles.CHARACTER_GRID):
+                    self._build_debug_info()
+                    self._build_name_input()
+                    self._build_age_display()
+                    self._build_parentage_display()
 
             with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
-                # Get Species Name by matching species_genotype.uuid to SPECIES_MAP
-                species_name = "ERROR"
-                for name, uuid in SPECIES_MAP.items():
-                    if uuid == self.character.epigenetic_profile.species_genotype.uuid:
-                        species_name = name
-                        break
-                ui.label(f"Phenotype: {species_name}")
-                UPPDisplay(character=self.character, display_indices=False)
+                self._build_genotype_display()
                 ui.label("PLACEHOLDER: Epigenetic Collation")
                 raw_collation = repr(self.character.epigenetic_profile.characteristics_collation)
                 ui.label(raw_collation).classes()
 
             with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
                 ui.label("PLACEHOLDER: Drop Containers")
+#endregion
