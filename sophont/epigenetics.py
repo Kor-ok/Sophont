@@ -9,8 +9,8 @@ from sortedcontainers import SortedKeyList
 from game.characteristic import Characteristic
 from game.characteristic_package import CharacteristicPackage
 from game.gene import Gene
-from game.genotype import Genotype
 from game.phene import Phene
+from game.species import Species
 
 GeneOrPhene = Union[Gene, Phene]
 
@@ -48,15 +48,15 @@ class EpigeneticProfile:
 
     acquired_packages_collection: SortedKeyList[Acquired] ordered by (gene.characteristic.upp_index, age_acquired_seconds)
     is_packages_dirty: bool - Flag to indicate if the aptitude collation needs to be recomputed.
-    genotype: SpeciesGenotype - The genetic blueprint of the sophont.
+    species_genotype: Species - The genetic blueprint of the sophont.
     """
     __slots__ = (
         'characteristics_collation',
         'acquired_packages_collection', 
         'is_packages_dirty', 
-        'genotype'
+        'species_genotype'
         )
-    def __init__(self, genotype: Genotype):
+    def __init__(self, species_genotype: Species):
         # === HOT DATA (frequently updated) ============================
         self.characteristics_collation: list[UniqueAppliedCharacteristic] | None = None
 
@@ -65,7 +65,7 @@ class EpigeneticProfile:
         self.is_packages_dirty = False
 
         # === NEVER UPDATED DATA === (But Frequently Read) ================
-        self.genotype = genotype
+        self.species_genotype: Species = species_genotype
 
     def insert_package_acquired(self, package: CharacteristicPackage, age_acquired_seconds: int, memo: list[str] | None = None, trigger_collation: bool = False) -> None:
         acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, memo=memo)
@@ -149,7 +149,7 @@ class EpigeneticProfile:
     def __repr__(self) -> str:
         indentation = "  "
         display = []
-        display.append(f"genotype={self.genotype!r}")
+        display.append(f"species_genotype={self.species_genotype!r}")
         display.append(f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]")
         if self.characteristics_collation is None:
             display.append("characteristics_collation=None")

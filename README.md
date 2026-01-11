@@ -4,6 +4,12 @@ Purpose: **quickly-iterable Python codebase for designing the classes, data stru
 
 A NiceGUI interface to communicate and demonstrate concepts that runs in browser.
 
+> [!IMPORTANT]
+> ## Structural Model Changes not yet documented
+> Sophont > EpigeneticProfile > Species(!New) > Genotype
+
+> Species now holds a UUID alongisde the Genotype flyweight
+
 ## Status / Scope
 
 - A **very basic MVP**: `Sophont` owns *Aptitudes* (Collections of Skill/Knowledge/Certification Packages that have been acquired by the character over its lifetime) and *Epigenetics* (Characteristics derived from collections of "Gene" and "Phene" Packages) with their respective data structures and collation logic.

@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
-from gui.forms.character import CharacterCard
+from sophont.character import Sophont
 
-CharacterCardListener = Callable[[Optional[CharacterCard]], None]
+CharacterCardListener = Callable[[Optional[Sophont]], None]
 
 
 @dataclass()
@@ -17,10 +17,10 @@ class ActiveCharacterCardState:
     underlying Sophont.
     """
 
-    value: Optional[CharacterCard] = None
+    value: Optional[Sophont] = None
     _listeners: list[CharacterCardListener] = field(default_factory=list, init=False, repr=False)
 
-    def set(self, character_card: Optional[CharacterCard]) -> None:
+    def set(self, character_card: Optional[Sophont]) -> None:
         if character_card is self.value:
             return
         self.value = character_card

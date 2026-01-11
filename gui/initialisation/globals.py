@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import gui.initialisation.species as init_species
-from gui.forms.character import CharacterCard
 from sophont.character import Sophont
+
+IS_DEBUG = True
 
 example_sophont_1 = Sophont(species_genotype=init_species.create_human_genotype())
 example_sophont_2 = Sophont(species_genotype=init_species.create_human_genotype())

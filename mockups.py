@@ -6,6 +6,7 @@ from uuid import uuid4
 from game import genotype
 from game.characteristic_package import CharacteristicPackage
 from game.genotype import Genotype
+from game.species import Species
 from sophont.character import Sophont
 
 
@@ -87,9 +88,10 @@ def create_detailed_genotype() -> Genotype:
 
 def create_unborn_sophont() -> Sophont:
     human_genotype = create_standard_genotype()
+    human_species = Species(genotype=human_genotype)
 
     # Now create an unborn sophont (age_seconds=-1) with that genotype.
-    sophont = Sophont(species_genotype=human_genotype)
+    sophont = Sophont(species_genotype=human_species)
 
     # print("Sophont Created:")
     # print(sophont)
@@ -105,7 +107,7 @@ def apply_inherited_packages(sophont: Sophont) -> Sophont:
     parent_2_uuid = uuid4().bytes
 
     # Fetch phenotype from the Sophont
-    phenotype = sophont.epigenetic_profile.genotype.get_phenotype()
+    phenotype = sophont.epigenetic_profile.species_genotype.genotype.get_phenotype()
 
     BASE_DIE_VALUE = 6  # nD6 T5 rules
 

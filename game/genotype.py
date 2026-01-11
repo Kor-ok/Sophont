@@ -83,7 +83,13 @@ class Genotype:
         return cls(genes, phenes)
     
     @classmethod
-    def by_characteristic_names(cls, gene_names: Iterable[str], phene_names: None | Iterable[str] = None) -> Genotype:
+    def by_characteristic_names(
+        cls, gene_names: Iterable[str],
+        phene_names: None | Iterable[str] = None, 
+        custom_genes: None | Iterable[Gene] = None,
+        custom_phenes: None | Iterable[Phene] = None
+        ) -> Genotype:
+
         genes = []
         for name in gene_names:
             gene = Gene.by_characteristic_name(name)
@@ -93,6 +99,11 @@ class Genotype:
             for name in phene_names:
                 phene = Phene.by_characteristic_name(name)
                 phenes.append(phene)
+        if custom_genes is not None:
+            genes.extend(custom_genes)
+        if custom_phenes is not None:
+            phenes.extend(custom_phenes)
+            
         return cls.of(genes, phenes if phene_names is not None else None)
     
     def get_genes_without_phenes(self) -> dict[upp_index, Gene]:

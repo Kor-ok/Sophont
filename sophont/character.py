@@ -3,7 +3,7 @@ from __future__ import annotations
 from textwrap import indent
 from uuid import uuid4
 
-from game.genotype import Genotype
+from game.species import Species
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import EpigeneticProfile
 
@@ -17,12 +17,12 @@ class Sophont:
         "epigenetic_profile",
     )
 
-    def __init__(self, species_genotype: Genotype, name: str = "Unnamed", age_seconds: int = -1):
+    def __init__(self, species_genotype: Species, name: str = "Unnamed", age_seconds: int = -1):
         self.uuid: bytes = uuid4().bytes
         self.name: str = name
         self.age_seconds: int = age_seconds
         self.aptitudes: Aptitudes = Aptitudes()
-        self.epigenetic_profile: EpigeneticProfile = EpigeneticProfile(genotype=species_genotype)
+        self.epigenetic_profile: EpigeneticProfile = EpigeneticProfile(species_genotype=species_genotype)
         
     def __repr__(self) -> str:
         indentation = "  "

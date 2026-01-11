@@ -11,7 +11,7 @@ from game.gene import Gene
 from game.genotype import Genotype
 from game.mappings.characteristics import char_name_to_category_code
 from game.phene import Phene
-from gui.computed.upp import collation_layer
+from gui.computed.upp import characteristics_collation_layer
 from gui.draggable.commands import RemoveFabCommand
 from gui.history.undo import notify_undo
 
@@ -57,7 +57,7 @@ class species_genotype_widget(ui.column):
 
             # Collation layer placeholder section.
             with ui.label('UPP:').classes('w-full'):
-                self.collation_layer = collation_layer(genotype=genotype)
+                self.collation_layer = characteristics_collation_layer(genotype=genotype)
 
             # Collection section: dropped items are appended here.
             with ui.expansion('Collection (drag & drop items here)', value=True).classes('w-full'):

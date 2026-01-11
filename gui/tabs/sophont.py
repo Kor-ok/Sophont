@@ -17,6 +17,8 @@ from sophont.character import Sophont
 
 # https://quasar.dev/layout/grid/flex-playground
 
+# THIS ALL NEEDS TO BE REWORKED
+
 example_sophont_1 = Sophont(species_genotype=create_human_genotype())
 example_sophont_2 = Sophont(species_genotype=create_human_genotype())
 

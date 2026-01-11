@@ -23,7 +23,7 @@ from gui.initialisation.pickables import (
     build_initial_categorised_gene_and_phene_list_section,
     item_type_for_characteristic_name,
 )
-from gui.initialisation.species import create_human_genotype, premade_species_card
+from gui.initialisation.species import create_human_genotype, premade_non_editable_species_card
 
 # https://quasar.dev/layout/grid/flex-playground
 
@@ -113,4 +113,4 @@ def species_tab(tab):
             with ui.column(wrap=False).classes(styles.TAB_COLUMN_RIGHT):
                 _species_genotype_widget(genotype_category_columns)
                 ui.label('Premade Species').classes('text-lg font-bold q-mt-md')
-                premade_species_card('Homo Sapiens', create_human_genotype())
+                premade_non_editable_species_card('Homo Sapiens', create_human_genotype())
