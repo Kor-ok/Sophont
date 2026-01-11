@@ -2,6 +2,8 @@
 
 Purpose: **quickly-iterable Python codebase for designing the classes, data structures, and logic** to model an RPG character for the Traveller 5 ruleset.
 
+A NiceGUI interface to communicate and demonstrate concepts that runs in browser.
+
 ## Status / Scope
 
 - A **very basic MVP**: `Sophont` owns *Aptitudes* (Collections of Skill/Knowledge/Certification Packages that have been acquired by the character over its lifetime) and *Epigenetics* (Characteristics derived from collections of "Gene" and "Phene" Packages) with their respective data structures and collation logic.
@@ -64,7 +66,11 @@ Recommended: Python 3.9+.
 pip install -r requirements.txt
 ```
 
-The only third-party runtime dependency currently is `sortedcontainers`.
+Third-party runtime dependencies:
+`sortedcontainers`
+`nicegui`
+`humanizer`
+
 
 ## Project Layout
 
@@ -74,6 +80,8 @@ The only third-party runtime dependency currently is `sortedcontainers`.
 	- Immutable “rules data” types (skills, knowledges, characteristics, genes, phenes)
 	- Package types that apply deltas over time
 	- Mapping tables in `game/mappings/` (name/code tables and lookup helpers)
+- `gui/`
+  - NiceGUI related
 
 ## Design Principles
 
