@@ -12,7 +12,7 @@ from gui import styles
 from gui.draggable.inheritance import inheritance_drop_container
 from gui.forms.character import CharacterCard
 from gui.initialisation.species import create_human_genotype
-from gui.state import active_character_card_state
+from gui.initialisation.state import active_character_card_state
 from sophont.character import Sophont
 
 # https://quasar.dev/layout/grid/flex-playground

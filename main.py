@@ -7,6 +7,8 @@ from gui.tabs.species import species_tab
 
 # https://quasar.dev/layout/grid/flex-playground
 
+with ui.header().classes('items-center justify-center bg-deep-orange-10 q-ma-none'):
+    ui.label('DEV NOTE: GUI State Management and Character Card swapping is currently incomplete').classes('text-sm font-thin q-ma-none')
 with ui.tabs().classes('w-full') as tabs:
     zero = ui.tab('Custom Characteristics')
     one = ui.tab('Species')

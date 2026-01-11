@@ -25,9 +25,6 @@ def _read_text_file(path: Path) -> str:
     return path.read_text(encoding='utf-8')
 
 
-dna_icon_path = _GUI_DIR / 'icons' / 'dna.svg'
-dna_icon_svg = _read_text_file(dna_icon_path)
-
 # Compatibility exports: other modules currently import these from gui.draggable.fab
 BG_INACTIVE = DRAG_DROP_BG_INACTIVE
 BG_ACTIVE = DRAG_DROP_BG_ACTIVE
