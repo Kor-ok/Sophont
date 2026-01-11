@@ -1,38 +1,37 @@
 from __future__ import annotations
 
-from random import randint
-from uuid import uuid4
-
-from game import genotype
-from game.characteristic_package import CharacteristicPackage
+from game.characteristic import Characteristic
 from game.genotype import Genotype
-from sophont.character import Sophont
+from game.phene import Phene
 
 # TODO: I need to improve the step by step instantiation of the sophont's inherited characteristics.
 
-human_genes_by_name = [
-        "Dexterity", 
+def create_aslan_genotype() -> Genotype:
+    # Let's create a custom Phene for TER that works alongside Social Standing
+    # to stress test the underlying model logic and validation. Multiple Genes
+    # of the same UPP Index is NOT allowed, but multiple Phenes of the same UPP
+    # Index is allowed.
+
+    ter_characteristic = Characteristic.of(upp_index=6, subtype=3, category_code=3) # This subtype is not in the base mappings.
+    ter_phene = Phene(characteristic=ter_characteristic)
+    aslan_genes_by_name = [
         "Strength", 
-        "Intelligence", 
-        "Endurance"
-        ] # Purposefully disordered compared to classical Traveller UPP indices.
-    
-human_phenes_by_name = [
-    "Psionics",
-    "Social Standing",
-    "Education",
-    "Sanity"
+        "Dexterity",
+        "Endurance",
+        "Intelligence",
     ]
+    aslan_phenes_by_name = [
+        "Education",
+        "Social Standing",
+        "Psionics",
+        "Sanity",
+    ]
+    aslan_genotype = Genotype.by_characteristic_names(
+        aslan_genes_by_name,
+        aslan_phenes_by_name,
+        custom_phenes=[ter_phene]
+    )
 
-human_genotype = Genotype.by_characteristic_names(human_genes_by_name, human_phenes_by_name)
+    return aslan_genotype
 
-genes_without_phenes = human_genotype.get_genes_without_phenes()
-phenes_without_genes = human_genotype.get_phenes_without_genes()
-
-print("Genes without corresponding phenes:")
-for upp_index, gene in genes_without_phenes.items():
-    print(f"  UPP Index {upp_index}: {gene.characteristic.get_name()}")
-
-print("\nPhenes without corresponding genes:")
-for upp_index, phene in phenes_without_genes.items():
-    print(f"  UPP Index {upp_index}: {phene.characteristic.get_name()}")
+print(create_aslan_genotype().get_phenes_without_genes())

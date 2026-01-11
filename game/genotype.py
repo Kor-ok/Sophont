@@ -133,34 +133,14 @@ class Genotype:
                     phenes_without_genes[upp_index] = phene
         
         return phenes_without_genes
-    
-    def get_phenotype(self) -> dict[int, tuple[Gene | None, Phene | None]]:
-        from warnings import warn
-        warn(
-            "Genotype.get_phenotype is deprecated and will be removed in a future version.",
-            DeprecationWarning,
-            stacklevel=2
-        )
-        phenotype: dict[int, tuple[Gene | None, Phene | None]] = {}
-
-        for gene in self.genes:
-            upp_index = gene.characteristic.upp_index
-            phene_from_gene = Phene(gene.characteristic, 0, bytes(16), False)
-            phenotype[upp_index] = (gene, phene_from_gene)
-
-        if self.phenes is not None:
-            for phene in self.phenes:
-                upp_index = phene.characteristic.upp_index
-                existing = phenotype.get(upp_index)
-                if existing is None:
-                    phenotype[upp_index] = (None, phene)
-                else:
-                    existing_gene, _existing_phene = existing
-                    phenotype[upp_index] = (existing_gene, phene)
-
-        return phenotype
         
-    
+    def compute_max_inheritance_contributors(self) -> int:
+        max_contributors = 0
+        for gene in self.genes:
+            if gene.inheritance_contributors > max_contributors:
+                max_contributors = gene.inheritance_contributors
+        return max_contributors
+
     def __repr__(self) -> str:
         indentation = "  "
         display = []

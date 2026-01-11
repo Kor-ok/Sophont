@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from uuid import uuid4
 
 from humanize import time
 from nicegui import ui
@@ -71,42 +70,11 @@ class CharacterSelector(ui.select):
 
 
 class CharacterCard(ui.column):
-    def __init__(self, character: Sophont, parent_uuids: list[bytes] | None = None) -> None:
+    def __init__(self, character: Sophont) -> None:
         super().__init__()
-
         self.character: Sophont = character
-        self.parent_uuids: list[bytes] | None = parent_uuids
-        self._compute_parents_num()
         self._build_card()
 #region: ================================================== DATA HANDLING ======================
-    
-    def _compute_parents_num(self) -> None:
-        # For all Genes in character.epigenetic_profile.genotype.genes:
-        # Get the highest inheritance_contributors int value
-        value = 0
-        for gene in self.character.epigenetic_profile.species_genotype.genotype.genes:
-            inheritance_contributors = gene.inheritance_contributors
-            if inheritance_contributors > value:
-                value = inheritance_contributors
-
-        self.set_parent_uuids(num_parents=value)
-
-    def set_parent_uuids(
-        self, num_parents: int | None = None, uuids: list[bytes] | None = None
-    ) -> None:
-        if uuids is None and num_parents is None:
-            return
-
-        if uuids is None and num_parents is not None:
-            if num_parents < 0:
-                return
-            if num_parents == 0:
-                self.parent_uuids = [self.character.uuid]
-            else:
-                self.parent_uuids = [uuid4().bytes for _ in range(num_parents)]
-        elif uuids is not None:
-            self.parent_uuids = uuids
-
     def _commit_name(self, raw: str) -> None:
         new_name = (raw or "").strip() or "Unnamed"
         if new_name != self.character.name:  # prevents redundant writes
@@ -118,10 +86,10 @@ class CharacterCard(ui.column):
         with ui.element("div").classes(styles.CHARACTER_IMAGE_FRAME):
                 image_set = "set2"  # 'set2' is alien-themed 'set4' is cats
                 # If SPECIES_MAP uuid matches "Human", use 'set5' which is human-themed
-                if self.character.epigenetic_profile.species_genotype.uuid == SPECIES_MAP["Human"]:
+                if self.character.epigenetic_profile.species.uuid == SPECIES_MAP["Human"]:
                     image_set = "set5"
                 elif (
-                    self.character.epigenetic_profile.species_genotype.uuid == SPECIES_MAP["Aslan"]
+                    self.character.epigenetic_profile.species.uuid == SPECIES_MAP["Aslan"]
                 ):
                     image_set = "set4"
                 ui.image(
@@ -133,7 +101,7 @@ class CharacterCard(ui.column):
                         ui.label("Character UUID:")
                         ui.label(self.character.uuid.hex())
                         ui.label("Species UUID:")
-                        ui.label(self.character.epigenetic_profile.species_genotype.uuid.hex())
+                        ui.label(self.character.epigenetic_profile.species.uuid.hex())
 
     def _build_name_input(self) -> None:
         ui.label("Name:")
@@ -160,18 +128,14 @@ class CharacterCard(ui.column):
     def _build_parentage_display(self) -> None:
         ui.label("Parents:")
         ui.label(
-            str(len(self.parent_uuids) if self.parent_uuids is not None else "Undefined")
-        ).tooltip(
-            "Parent UUIDs: " + ", ".join(pu.hex() for pu in self.parent_uuids)
-            if self.parent_uuids is not None
-            else "No parent UUIDs defined"
-        )
+            str(len(self.character.epigenetic_profile.parent_uuids) - 1) # Exclude 'Self'
+        ).tooltip(f"UUIDs: {[pu.hex() for pu in self.character.epigenetic_profile.parent_uuids if pu != self.character.uuid]}")
     
     def _build_genotype_display(self) -> None:
-        # Get Species Name by matching species_genotype.uuid to SPECIES_MAP
+        # Get Species Name by matching species.uuid to SPECIES_MAP
         species_name = "ERROR"
         for name, uuid in SPECIES_MAP.items():
-            if uuid == self.character.epigenetic_profile.species_genotype.uuid:
+            if uuid == self.character.epigenetic_profile.species.uuid:
                 species_name = name
                 break
         ui.label(f"Genotype: {species_name}")

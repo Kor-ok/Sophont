@@ -1,67 +1,43 @@
 from __future__ import annotations
 
 from random import randint
-from typing import Optional, Union
+from typing import Optional
 
 from nicegui import ui
 
 from game.gene import Gene
 from game.genotype import Genotype
-from game.phene import Phene
 from gui import styles
 from gui.element.popchip import Popchip
-from gui.forms.character import CharacterCard
+from sophont.character import Sophont
 
 T5_STANDARD_DIE_SIDES = 6
 
-dragged: Optional[inheritance_card] = None
+dragged: Optional[InheritanceCard] = None
 
-Phenotype = dict[int, tuple[Union[Gene, None], Union[Phene, None]]]
-
-
-def _derive_genes_without_phenes(genotype: Genotype) -> list[Gene]:
-    """Return all Genes that have no matching Phene in this genotype.
-
-    Note: `Genotype.get_phenotype()` always returns a Phene entry for every Gene
-    (it synthesizes a default Phene when none exists). So we must compare
-    indices against `genotype.phenes` rather than look for `phene is None`.
-    """
-
-    phene_indices = (
-        {phene.characteristic.upp_index for phene in genotype.phenes}
-        if genotype.phenes is not None
-        else set()
-    )
-    return [
-        gene
-        for gene in genotype.genes
-        if gene.characteristic.upp_index not in phene_indices
-    ]
-
-def _generate_inheritance_card_popchips(genotype: Genotype, parent_uuids: list[bytes]) -> list[inheritance_card]:
-    genes_without_phenes = _derive_genes_without_phenes(genotype)
+def generate_inheritance_card_popchips(genotype: Genotype, parent_uuids: list[bytes]) -> list[InheritanceCard]:
+    genes_without_phenes = genotype.get_genes_without_phenes()
     
-    cards: list[inheritance_card] = []
-    for gene in genes_without_phenes:
-        popchip = Popchip(item=gene)
-        card = inheritance_card(
+    cards: list[InheritanceCard] = []
+    for upp_index in genes_without_phenes:
+        popchip = Popchip(item=genes_without_phenes[upp_index])
+        card = InheritanceCard(
             popchip=popchip,
             parent_uuids=parent_uuids,
         )
         cards.append(card)
     return cards
 
-class inheritance_drop_container(ui.column):
+class InheritancePopchipDynamicContainer(ui.column):
     def __init__(
         self,
-        character_card: CharacterCard,
+        character: Sophont,
     ) -> None:
-
         super().__init__()
-
-        inheritance_cards = _generate_inheritance_card_popchips(
-            genotype=character_card.character.epigenetic_profile.genotype,
-            parent_uuids=character_card.parent_uuids if character_card.parent_uuids is not None else [],
+        
+        inheritance_cards = generate_inheritance_card_popchips(
+            genotype=character.epigenetic_profile.species.genotype,
+            parent_uuids=character.epigenetic_profile.parent_uuids,
         )
         with self:
             with ui.column(wrap=False, align_items="center").classes("q-py-lg") as card_column:
@@ -69,21 +45,32 @@ class inheritance_drop_container(ui.column):
                     card.move(card_column)
 
 
-class inheritance_card(ui.card):
+class InheritanceCard(ui.card):
     def __init__(
         self,
         popchip: Popchip,
-        parent_uuids: list[bytes] | list[str] | None = None,
-        selected_parent_uuid: bytes | str | None = None,
+        parent_uuids: list[bytes],
+        selected_parent_uuid: bytes | None = None,
         chosen_inherited_value: int | None = None,
         is_draggable_active: bool = False,
     ) -> None:
 
         super().__init__()
 
-        self._selected_parent_uuid: bytes | str | None = selected_parent_uuid
+        self._selected_parent_uuid: bytes | None = selected_parent_uuid
         self._chosen_inherited_value: int | None = chosen_inherited_value
         self.is_draggable_active: bool = False
+
+        # Build a dict of parent str to UUID bytes so that the select shows readable options.
+        parent_uuid_options_map: dict[str, bytes] = {}
+        iteration_size = len(parent_uuids)
+        for i in range(iteration_size):
+            pu = parent_uuids[i]
+            if i == 0:
+                parent_uuid_options_map["Self (Clone)"] = pu
+            else:
+                parent_uuid_options_map[f"Parent {i} - {pu.hex()[:8]}..."] = pu
+        self.parent_uuid_options_map = parent_uuid_options_map
 
         def is_valid() -> bool:
             return (
@@ -106,8 +93,11 @@ class inheritance_card(ui.card):
         def validate_and_apply() -> None:
             set_draggable(is_valid())
 
-        def on_parent_chosen(value: bytes | str | None) -> None:
-            self._selected_parent_uuid = value
+        def on_parent_chosen(value: str | None) -> None:
+            if value is None:
+                self._selected_parent_uuid = None
+            else:
+                self._selected_parent_uuid = parent_uuid_options_map[value]
             validate_and_apply()
 
         def on_inherited_value_changed(value: int) -> None:
@@ -133,8 +123,14 @@ class inheritance_card(ui.card):
                 1, len(parent_uuids) - 1
             )  # Skip index 0 which is 'Self' intended for cloning scenarios.
             new_parent = parent_uuids[index]
-            on_parent_chosen(new_parent)
-            self._parent_select.set_value(new_parent)
+            # Get from self.parent_uuid_options_map the str version of the UUID.
+            for pu_str, pu_bytes in parent_uuid_options_map.items():
+                if pu_bytes == new_parent:
+                    new_parent_str = pu_str
+                    break
+            on_parent_chosen(new_parent_str)
+            # New Parent str id
+            self._parent_select.set_value(new_parent_str)
 
         with self:
             # Showing the characteristic of the gene/phene as a Popchip(custom FAB).
@@ -144,13 +140,14 @@ class inheritance_card(ui.card):
             with ui.row(wrap=False, align_items="stretch").classes("q-py-sm"):
                 parent_select = ui.select(
                     label="Inherit From Parent:",
-                    options=parent_uuids if parent_uuids else [],
+                    options=list(self.parent_uuid_options_map.keys()),
                     value=self._selected_parent_uuid,
                     on_change=lambda v: on_parent_chosen(v.value),
                 ).classes("flex-1")
                 self._parent_select = parent_select
-                # Randomise Parent Button (exclude 'Self' at index 0).
-                ui.button(icon="casino", on_click=lambda: on_randomise_parent_clicked())
+                # Randomise Parent Button (exclude 'Self' at index 0)
+                random_parent_button = ui.button(icon="casino", on_click=lambda: on_randomise_parent_clicked())
+                random_parent_button.tooltip("Random excluding 'Self'")
             # Inherited Value Input
             with ui.row(wrap=False, align_items="stretch").classes("q-py-sm"):
                 inherited_value_input = ui.number(
@@ -161,7 +158,9 @@ class inheritance_card(ui.card):
                 self._inherited_value_input = inherited_value_input
                 # Randomise Inherited Value Button that takes into account the die multiplier value
                 # associated with the Gene that has been passed in via the Popchip.
-                ui.button(icon="casino", on_click=lambda: on_randomise_inheritance_value_clicked())
+                random_inherited_value_button = ui.button(icon="casino", on_click=lambda: on_randomise_inheritance_value_clicked())
+                if isinstance(popchip.item, Gene) and popchip.item.die_mult != 0:
+                    random_inherited_value_button.tooltip(f"Randomise Inherited Value ({popchip.item.die_mult}d{T5_STANDARD_DIE_SIDES})")
             # On validation success, this user feedback row appears to indicate draggable state.
             with ui.row().classes("q-py-sm w-full justify-end") as drag_row:
                 ui.icon("drag_indicator").classes("cursor-grab")

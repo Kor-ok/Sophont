@@ -123,10 +123,10 @@ def create_species_with_aslan_genotype() -> Species:
     aslan_species = Species(genotype=aslan_genotype, uuid=ASLAN_UUID)
     return aslan_species
 
-example_sophont_1 = Sophont(species_genotype=create_species_with_human_genotype())
-example_sophont_2 = Sophont(species_genotype=create_species_with_human_genotype())
-example_sophont_3 = Sophont(species_genotype=create_species_with_alien_genotype())
-example_sophont_4 = Sophont(species_genotype=create_species_with_aslan_genotype())
+example_sophont_1 = Sophont(species=create_species_with_human_genotype())
+example_sophont_2 = Sophont(species=create_species_with_human_genotype())
+example_sophont_3 = Sophont(species=create_species_with_alien_genotype())
+example_sophont_4 = Sophont(species=create_species_with_aslan_genotype())
 
 CHARACTER_OPTIONS: dict[Sophont, str] = {
     example_sophont_1: "Human Sophont 1",

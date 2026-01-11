@@ -91,7 +91,7 @@ def create_unborn_sophont() -> Sophont:
     human_species = Species(genotype=human_genotype)
 
     # Now create an unborn sophont (age_seconds=-1) with that genotype.
-    sophont = Sophont(species_genotype=human_species)
+    sophont = Sophont(species=human_species)
 
     # print("Sophont Created:")
     # print(sophont)
@@ -107,7 +107,7 @@ def apply_inherited_packages(sophont: Sophont) -> Sophont:
     parent_2_uuid = uuid4().bytes
 
     # Fetch phenotype from the Sophont
-    phenotype = sophont.epigenetic_profile.species_genotype.genotype.get_phenotype()
+    # phenotype = sophont.epigenetic_profile.species.genotype.get_phenotype()
 
     BASE_DIE_VALUE = 6  # nD6 T5 rules
 
@@ -145,33 +145,33 @@ def apply_inherited_packages(sophont: Sophont) -> Sophont:
         f"parent_2_uuid={parent_2_uuid!r}",
     ]
 
-    for upp_index, (gene, phene) in phenotype.items():
-        if gene is not None:
-            gene_pkg = CharacteristicPackage(item=gene, level=gene_inheritance_level(gene), context="Birth")
-            sophont.epigenetic_profile.insert_package_acquired(
-                package=gene_pkg,
-                age_acquired_seconds=birth_seconds,
-                memo=[*memo_base, f"upp_index={upp_index}", "item_type=Gene"],
-            )
+    # for upp_index, (gene, phene) in phenotype.items():
+    #     if gene is not None:
+    #         gene_pkg = CharacteristicPackage(item=gene, level=gene_inheritance_level(gene), context="Birth")
+    #         sophont.epigenetic_profile.insert_package_acquired(
+    #             package=gene_pkg,
+    #             age_acquired_seconds=birth_seconds,
+    #             memo=[*memo_base, f"upp_index={upp_index}", "item_type=Gene"],
+    #         )
 
-        if phene is not None and gene is not None:
-            phene_pkg = CharacteristicPackage(item=phene, level=phene_level(phene, is_expressed_gene=True), context="Birth")
-            sophont.epigenetic_profile.insert_package_acquired(
-                package=phene_pkg,
-                age_acquired_seconds=birth_seconds,
-                memo=[*memo_base, f"upp_index={upp_index}", "item_type=Phene"],
-            )
+    #     if phene is not None and gene is not None:
+    #         phene_pkg = CharacteristicPackage(item=phene, level=phene_level(phene, is_expressed_gene=True), context="Birth")
+    #         sophont.epigenetic_profile.insert_package_acquired(
+    #             package=phene_pkg,
+    #             age_acquired_seconds=birth_seconds,
+    #             memo=[*memo_base, f"upp_index={upp_index}", "item_type=Phene"],
+    #         )
 
-        if phene is not None and gene is None:
-            phene_pkg = CharacteristicPackage(item=phene, level=phene_level(phene, is_expressed_gene=False), context="Birth")
-            sophont.epigenetic_profile.insert_package_acquired(
-                package=phene_pkg,
-                age_acquired_seconds=birth_seconds,
-                memo=[*memo_base, f"upp_index={upp_index}", "item_type=Phene"],
-            )
+    #     if phene is not None and gene is None:
+    #         phene_pkg = CharacteristicPackage(item=phene, level=phene_level(phene, is_expressed_gene=False), context="Birth")
+    #         sophont.epigenetic_profile.insert_package_acquired(
+    #             package=phene_pkg,
+    #             age_acquired_seconds=birth_seconds,
+    #             memo=[*memo_base, f"upp_index={upp_index}", "item_type=Phene"],
+    #         )
 
     sophont.epigenetic_profile.update_collation()
-    return sophont
+    return NotImplemented
 
 # region: PLACEHOLDERS
 # def define_species() -> None:
@@ -452,8 +452,8 @@ if __name__ == "__main__":
     print("\033c", end="")
     
     genotype = create_standard_genotype()
-    phenotype = genotype.get_phenotype()
-    print("Genotype Phenotype Mapping:")
-    print(display(phenotype))
-    num_characteristics = len(phenotype)
+    # phenotype = genotype.get_phenotype()
+    # print("Genotype Phenotype Mapping:")
+    # print(display(phenotype))
+    # num_characteristics = len(phenotype)
     

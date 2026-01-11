@@ -11,7 +11,7 @@ class UPPDisplay(ui.grid):
 
     """
     def __init__(self, character: Sophont, display_indices: bool = True) -> None:
-        self.genotype = character.epigenetic_profile.species_genotype.genotype
+        self.genotype = character.epigenetic_profile.species.genotype
         self.genes = self.genotype.get_genes_without_phenes()
         self.phenes = self.genotype.get_phenes_without_genes()
         self.upp_indexes = sorted(

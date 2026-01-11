@@ -7,8 +7,12 @@ A NiceGUI interface to communicate and demonstrate concepts that runs in browser
 > [!IMPORTANT]
 > ## Structural Model Changes not yet documented
 > Sophont > EpigeneticProfile > Species(!New) > Genotype
+> 
+> Sophont > EpigeneticProfile > Parent_UUIDs(!New)
 
 > Species now holds a UUID alongisde the Genotype flyweight
+> 
+> EpigeneticsProfile now holds a list[bytes] of Parent UUIDs making inheritance links more concrete
 
 ## Status / Scope
 

@@ -48,24 +48,29 @@ class EpigeneticProfile:
 
     acquired_packages_collection: SortedKeyList[Acquired] ordered by (gene.characteristic.upp_index, age_acquired_seconds)
     is_packages_dirty: bool - Flag to indicate if the aptitude collation needs to be recomputed.
-    species_genotype: Species - The genetic blueprint of the sophont.
+    parent_uuids: list[bytes] - List of parent UUIDs used for inheritance tracking.
+    species: Species - The unique species identifier and GENOTYPE:genetic blueprint of the sophont.
     """
     __slots__ = (
         'characteristics_collation',
         'acquired_packages_collection', 
         'is_packages_dirty', 
-        'species_genotype'
+        'parent_uuids',
+        'species'
         )
-    def __init__(self, species_genotype: Species):
+    def __init__(self, species: Species):
         # === HOT DATA (frequently updated) ============================
         self.characteristics_collation: list[UniqueAppliedCharacteristic] | None = None
 
-        # === COLD DATA (infrequently updated) ============================
+        # === WARM DATA (infrequently updated) ============================
         self.acquired_packages_collection: SortedKeyList = SortedKeyList(key=_package_key)
         self.is_packages_dirty = False
 
+        # === COLD DATA (rarely updated) ================================
+        self.parent_uuids: list[bytes] = [] # First entry should always be self UUID for cloning scenarios.
+
         # === NEVER UPDATED DATA === (But Frequently Read) ================
-        self.species_genotype: Species = species_genotype
+        self.species: Species = species
 
     def insert_package_acquired(self, package: CharacteristicPackage, age_acquired_seconds: int, memo: list[str] | None = None, trigger_collation: bool = False) -> None:
         acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, memo=memo)
@@ -149,7 +154,7 @@ class EpigeneticProfile:
     def __repr__(self) -> str:
         indentation = "  "
         display = []
-        display.append(f"species_genotype={self.species_genotype!r}")
+        display.append(f"species={self.species!r}")
         display.append(f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]")
         if self.characteristics_collation is None:
             display.append("characteristics_collation=None")

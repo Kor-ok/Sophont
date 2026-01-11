@@ -17,12 +17,21 @@ class Sophont:
         "epigenetic_profile",
     )
 
-    def __init__(self, species_genotype: Species, name: str = "Unnamed", age_seconds: int = -1):
+    def __init__(self, species: Species, name: str = "Unnamed", age_seconds: int = -1):
         self.uuid: bytes = uuid4().bytes
         self.name: str = name
         self.age_seconds: int = age_seconds
         self.aptitudes: Aptitudes = Aptitudes()
-        self.epigenetic_profile: EpigeneticProfile = EpigeneticProfile(species_genotype=species_genotype)
+        self.epigenetic_profile: EpigeneticProfile = EpigeneticProfile(species=species)
+
+        # Initialize parent UUIDs list with self UUID for cloning scenarios.
+        self.epigenetic_profile.parent_uuids.append(self.uuid)
+
+        # Populate parent UUIDs up to max contributors.
+        max_contributors = (self.epigenetic_profile.species.genotype
+                            .compute_max_inheritance_contributors())
+        while len(self.epigenetic_profile.parent_uuids) <= max_contributors:
+            self.epigenetic_profile.parent_uuids.append(uuid4().bytes)
         
     def __repr__(self) -> str:
         indentation = "  "
