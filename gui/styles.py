@@ -49,14 +49,14 @@ UPP_PHENE_CELL_LABEL: Final[str] = cx(UPP_CELL_LABEL, f"bg-{COLOUR_PHENE}", "tex
 
 # Tab layout styles.
 TAB_PANEL: Final[str] = "w-full h-full"
-TAB_ROW: Final[str] = "w-full h-full flex-nowrap gap-4"
+TAB_ROW: Final[str] = "w-auto h-full flex-nowrap gap-4"
 TAB_COLUMN_BASE: Final[str] = "flex-1 min-w-0 h-full"
 
 TAB_COLUMN_LEFT: Final[str] = cx(TAB_COLUMN_BASE, "items-start", "text-left")
 TAB_COLUMN_CENTER: Final[str] = cx(TAB_COLUMN_BASE, "items-center", "text-center")
 TAB_COLUMN_RIGHT: Final[str] = cx(TAB_COLUMN_BASE, "items-end", "text-right")
 
-FIXED_PICKABLES_SCROLLER: Final[str] = "w-full flex-1 overflow-y-auto"
+FIXED_PICKABLES_SCROLLER: Final[str] = "w-full flex-1 overflow-y-auto no-margin no-padding"
 
 # Expandable Group Style
 CATEGORY_EXPANDER: Final[str] = "w-full text-left text-xs leading-none px-1 py-0 q-py-xs padding-0"
@@ -75,35 +75,3 @@ CHARACTER_GRID: Final[str] = (
 )
 CHARACTER_NAME_INPUT_CLASSES: Final[str] = "w-full outlined"
 CHARACTER_NAME_INPUT_PROPS: Final[str] = 'rounded outlined dense debounce=1000'
-
-
-# __all__ = [
-#     "cx",
-#     "COLOUR_GENE",
-#     "COLOUR_PHENE",
-#     "DRAG_DROP_BG_INACTIVE",
-#     "DRAG_DROP_BG_ACTIVE",
-#     "FAB_FLYOUT_COLOUR",
-#     "FAB_FLYOUT_PROP",
-#     "DRAGGABLE_FAB_CLASSES",
-#     "UPP_ROOT",
-#     "UPP_GRID",
-#     "UPP_INDEX_LABEL",
-#     "UPP_CELL_LABEL",
-#     "UPP_GENE_CELL_LABEL",
-#     "UPP_PHENE_CELL_LABEL",
-#     "TAB_PANEL",
-#     "TAB_ROW",
-#     "TAB_COLUMN_BASE",
-#     "TAB_COLUMN_LEFT",
-#     "TAB_COLUMN_CENTER",
-#     "TAB_COLUMN_RIGHT",
-#     "FIXED_PICKABLES_SCROLLER",
-#     "CATEGORY_EXPANDER",
-#     "CHARACTER_SELECTOR",
-#     "CHARACTER_CARD",
-#     "CHARACTER_IMAGE_FRAME",
-#     "CHARACTER_IMAGE",
-#     "CHARACTER_CARD_SECTION",
-#     "CHARACTER_GRID",
-# ]

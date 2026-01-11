@@ -60,7 +60,8 @@ def sophont_tab(tab):
             # inheritance_drop_container should update based on selected sophont
             with ui.column(wrap=False).classes(styles.TAB_COLUMN_LEFT):
                 ui.label("Inheritance Drag & Drop")
-                left_scroller = ui.column(wrap=False).classes(styles.FIXED_PICKABLES_SCROLLER)
+                with ui.scroll_area().classes('no-margin no-padding').style('height: calc(100vh - 200px);'):
+                    left_scroller = ui.column(wrap=False).classes(styles.FIXED_PICKABLES_SCROLLER)
 
             # CENTER COLUMN ==================== CHARACTER SELECTION DROPDOWN & EDITOR
             # the character selection dropdown should update CHARACTER_CARD which is passed
