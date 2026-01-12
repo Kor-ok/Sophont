@@ -9,10 +9,18 @@ A NiceGUI interface to communicate and demonstrate concepts that runs in browser
 > Sophont > EpigeneticProfile > Species(!New) > Genotype
 > 
 > Sophont > EpigeneticProfile > Parent_UUIDs(!New)
+>
+> Sophont > EpigeneticProfile > Gender: tuple[int,int] (!New)
+>
+> Phene > expression_value: int renamed to expression_precidence: int
 
 > Species now holds a UUID alongisde the Genotype flyweight
 > 
 > EpigeneticsProfile now holds a list[bytes] of Parent UUIDs making inheritance links more concrete
+>
+> Gender tuple (-1, -1) = unspecified: where first=selected gender out of, second=max gene(non grafted) contributors
+>
+> Phene expression attribute name was causing confusion: expression_precidence should determine priority. The actual "level" is applied as a Characteristic Package downstream.
 
 ## Status / Scope
 

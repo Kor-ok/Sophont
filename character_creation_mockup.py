@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from random import choice, randint
+
 from game.characteristic import Characteristic
 from game.genotype import Genotype
 from game.phene import Phene
@@ -34,4 +36,4 @@ def create_aslan_genotype() -> Genotype:
 
     return aslan_genotype
 
-print(create_aslan_genotype().get_phenes_without_genes())
+# print(create_aslan_genotype().get_phenes_without_genes())

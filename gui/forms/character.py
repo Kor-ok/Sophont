@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from hmac import new
 
 from humanize import time
 from nicegui import ui
 
+from game.mappings.gender import _BASE as gender_map
 from gui import styles
 from gui.computed.upp import UPPDisplay
 from gui.initialisation.globals import IS_DEBUG
@@ -80,6 +82,11 @@ class CharacterCard(ui.column):
         if new_name != self.character.name:  # prevents redundant writes
             self.character.name = new_name
             ui.notify(f'Renamed to "{new_name}"', type="positive")
+
+    def _commit_gender(self, new_gender_key: int) -> None:
+        original_selected, original_selection_size = self.character.epigenetic_profile.gender
+        if new_gender_key != original_selected:  # prevents redundant writes
+            self.character.epigenetic_profile.gender = (new_gender_key, original_selection_size)
 #endregion
 #region: =================================================== UI SECTIONS =======================
     def _build_profile_picture(self) -> None:
@@ -130,6 +137,16 @@ class CharacterCard(ui.column):
         ui.label(
             str(len(self.character.epigenetic_profile.parent_uuids) - 1) # Exclude 'Self'
         ).tooltip(f"UUIDs: {[pu.hex() for pu in self.character.epigenetic_profile.parent_uuids if pu != self.character.uuid]}")
+
+    def _build_gender_display(self) -> None:
+        ui.label("Gender:")
+        selected_gender, possible_genders = self.character.epigenetic_profile.gender
+        gender_map_slice = possible_genders + 2 
+        gender_map_options = {k: v[0].capitalize() for k, v in list(gender_map.items())[0:gender_map_slice]}
+        gender_select_input = (
+             ui.select(value=selected_gender, options=gender_map_options, on_change=lambda e: self._commit_gender(e.value))
+             .props('dense rounded outlined')
+        )
     
     def _build_genotype_display(self) -> None:
         # Get Species Name by matching species.uuid to SPECIES_MAP
@@ -139,7 +156,7 @@ class CharacterCard(ui.column):
                 species_name = name
                 break
         ui.label(f"Genotype: {species_name}")
-        UPPDisplay(character=self.character, display_indices=False)
+        UPPDisplay(character=self.character, display_indices=IS_DEBUG)
 #endregion
 #region: =================================================== CARD LAYOUT =======================
     def _build_card(self) -> None:
@@ -152,6 +169,7 @@ class CharacterCard(ui.column):
                     self._build_name_input()
                     self._build_age_display()
                     self._build_parentage_display()
+                    self._build_gender_display()
 
             with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
                 self._build_genotype_display()

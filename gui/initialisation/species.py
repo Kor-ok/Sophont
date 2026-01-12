@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from random import randint
 from uuid import uuid4
 
 from nicegui import ui
@@ -47,6 +48,40 @@ def create_human_genotype() -> Genotype:
     human_genotype = Genotype.by_characteristic_names(human_genes_by_name, human_phenes_by_name)
 
     return human_genotype
+
+def create_random_genotype() -> Genotype:
+    from game.mappings.characteristics import codes_to_name
+
+    collection = []
+    for i in range(1, 9):
+        char_name = codes_to_name(i, randint(0, 2))
+        # if char_name == "Undefined": try again
+        if char_name == "Undefined":
+            i -= 1
+            continue
+        collection.append(char_name)
+
+    _inheritance_contributors = randint(0, 10)
+
+    def _create_random_gene(name: str) -> Gene:
+        characteristic = Characteristic.by_name(name)
+        die_mult = randint(1, 6)
+        precidence = randint(-1, 1)
+        inheritance_contributors = _inheritance_contributors
+        gender_link = randint(-1, _inheritance_contributors)
+        caste_link = randint(-1, 16)
+        return Gene(
+            characteristic=characteristic,
+            die_mult=die_mult,
+            precidence=precidence,
+            gender_link=gender_link,
+            caste_link=caste_link,
+            inheritance_contributors=inheritance_contributors
+        )
+    bisect_at = randint(4, 6)
+    genes = [_create_random_gene(name) for name in collection[:bisect_at]]
+    phenes = [Phene.by_characteristic_name(name) for name in collection[bisect_at:]]
+    return Genotype.of(genes, phenes)
 
 def create_alien_genotype() -> Genotype:
     # Let's make a non-default Caste gene that it gets from a THIRD parent i.e. inheritance_contributors = 3
@@ -113,6 +148,11 @@ def create_species_with_human_genotype() -> Species:
     human_species = Species(genotype=human_genotype, uuid=HUMAN_UUID)
     return human_species
 
+def create_species_with_random_genotype() -> Species:
+    random_genotype = create_random_genotype()
+    random_species = Species(genotype=random_genotype, uuid=ALIEN_UUID)
+    return random_species
+
 def create_species_with_alien_genotype() -> Species:
     alien_genotype = create_alien_genotype()
     alien_species = Species(genotype=alien_genotype, uuid=ALIEN_UUID)
@@ -125,13 +165,13 @@ def create_species_with_aslan_genotype() -> Species:
 
 example_sophont_1 = Sophont(species=create_species_with_human_genotype())
 example_sophont_2 = Sophont(species=create_species_with_human_genotype())
-example_sophont_3 = Sophont(species=create_species_with_alien_genotype())
+example_sophont_3 = Sophont(species=create_species_with_random_genotype())
 example_sophont_4 = Sophont(species=create_species_with_aslan_genotype())
 
 CHARACTER_OPTIONS: dict[Sophont, str] = {
+    example_sophont_3: "Alien Sophont",
     example_sophont_1: "Human Sophont 1",
     example_sophont_2: "Human Sophont 2",
-    example_sophont_3: "Alien Sophont",
     example_sophont_4: "Aslan Sophont",
 }
 

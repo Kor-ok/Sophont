@@ -56,6 +56,7 @@ class EpigeneticProfile:
         'acquired_packages_collection', 
         'is_packages_dirty', 
         'parent_uuids',
+        'gender',
         'species'
         )
     def __init__(self, species: Species):
@@ -68,6 +69,7 @@ class EpigeneticProfile:
 
         # === COLD DATA (rarely updated) ================================
         self.parent_uuids: list[bytes] = [] # First entry should always be self UUID for cloning scenarios.
+        self.gender: tuple[int, int] = (-1, -1)  # -1 = unspecified where first=selected gender out of, second=max gene(non grafted) contributors
 
         # === NEVER UPDATED DATA === (But Frequently Read) ================
         self.species: Species = species
@@ -155,6 +157,8 @@ class EpigeneticProfile:
         indentation = "  "
         display = []
         display.append(f"species={self.species!r}")
+        display.append(f"parent_uuids=[{', '.join(repr(uuid) for uuid in self.parent_uuids)}]")
+        display.append(f"gender={self.gender!r}")
         display.append(f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]")
         if self.characteristics_collation is None:
             display.append("characteristics_collation=None")

@@ -12,13 +12,13 @@ class Phene:
 
     Attributes:
         characteristic: Characteristic - The characteristic represented by this phene.
-        expression_value: int - The value modifying the characteristic.
+        expression_precidence: int - The value modifying the characteristic.
         contributor_uuid: bytes - The context or source of the phene.
         is_grafted: bool - Indicates if the phene is grafted which will be used to determine permanence and other effects.
     """
     __slots__ = (
         'characteristic',
-        'expression_value',
+        'expression_precidence',
         'contributor_uuid',
         'is_grafted'
     )
@@ -28,16 +28,16 @@ class Phene:
     def __new__(
         cls,
         characteristic: Characteristic,
-        expression_value: int = 0,
+        expression_precidence: int = 1,
         contributor_uuid: bytes = bytes(16),
         is_grafted: bool = False
     ) -> Phene:
-        expression_value_int = int(expression_value)
+        expression_precidence_int = int(expression_precidence)
         contributor_uuid_bytes = bytes(contributor_uuid)
         is_grafted_bool = bool(is_grafted) # Python bool/int behaviour enforcement for cache key consistency
         key = (
             characteristic,
-            expression_value_int,
+            expression_precidence_int,
             contributor_uuid_bytes,
             is_grafted_bool
         )
@@ -48,7 +48,7 @@ class Phene:
         self = super().__new__(cls)
 
         object.__setattr__(self, "characteristic", characteristic)
-        object.__setattr__(self, "expression_value", expression_value)
+        object.__setattr__(self, "expression_precidence", expression_precidence)
         object.__setattr__(self, "contributor_uuid", contributor_uuid)
         object.__setattr__(self, "is_grafted", is_grafted)
         cls._cache[key] = self
@@ -57,7 +57,7 @@ class Phene:
     def __init__(
         self,
         characteristic: Characteristic,
-        expression_value: int = 0,
+        expression_precidence: int = 1,
         contributor_uuid: bytes = bytes(16),
         is_grafted: bool = False
     ) -> None:
@@ -71,14 +71,14 @@ class Phene:
     def by_characteristic_name(
         cls,
         characteristic_name: str,
-        expression_value: int = 0, # 0 For a Phene would act as a way to impliment a "placeholder" for the characteristic akin to a gene 
+        expression_precidence: int = 1, 
         contributor_uuid: bytes = bytes(16),
         is_grafted: bool = False
     ) -> Phene:
         characteristic = Characteristic.by_name(characteristic_name)
         return cls(
             characteristic=characteristic,
-            expression_value=expression_value,
+            expression_precidence=expression_precidence,
             contributor_uuid=contributor_uuid,
             is_grafted=is_grafted
         )
@@ -92,7 +92,7 @@ class Phene:
         display.append(f"memory_pointer={memory_pointer_for_this_immutable_object}:")
 
         display.append(f"characteristic={self.characteristic!r}")
-        display.append(f"expression_value={self.expression_value}")
+        display.append(f"expression_precidence={self.expression_precidence}")
         if self.contributor_uuid == _blank_uuid:
             display.append("contributor_uuid=BLANK")
         else:

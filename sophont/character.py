@@ -32,6 +32,9 @@ class Sophont:
                             .compute_max_inheritance_contributors())
         while len(self.epigenetic_profile.parent_uuids) <= max_contributors:
             self.epigenetic_profile.parent_uuids.append(uuid4().bytes)
+
+        # Set Epigentic Profile Gender tuple to (selected_gender, max_contributors)
+        self.epigenetic_profile.gender = (-1, max_contributors)
         
     def __repr__(self) -> str:
         indentation = "  "
