@@ -11,9 +11,10 @@ from sophont.character import Sophont
 
 
 class UPPDisplay(ui.column):
-    """Display a simple UPP-style grid for a Sophont's genotype.
+    """Display a UPP-style grid for a Sophont's genotype.
 
-    Renders up to three rows:
+    Renders up to three rows where columns are sized
+    according to gene die multiplier value and phene expression precidence value:
     - Optional index row (UPP positions)
     - Gene initials
     - Phene initials (with inheritance details when present)
@@ -52,31 +53,38 @@ class UPPDisplay(ui.column):
             with ui.grid(columns=columns).classes(styles.UPP_GRID):
                 if display_indices:
                     for upp_index in upp_indices:
-                        ui.label(str(upp_index)).classes(styles.UPP_INDEX_LABEL + self._grid_column_span_class_constructor(
-                            genes.get(upp_index).die_mult
-                            if genes.get(upp_index) is not None
-                             else phenes.get(upp_index).expression_precidence
-                        ))
+                        ui.label(str(upp_index))\
+                        .classes(
+                            styles.UPP_INDEX_LABEL 
+                            + self._grid_column_span_class_constructor(
+                                genes.get(upp_index).die_mult
+                                if genes.get(upp_index) is not None
+                                else phenes.get(upp_index).expression_precidence
+                            ))
 
                 for upp_index in upp_indices:
                     gene = genes.get(upp_index)
-                    ui.label(self._initial_for_trait(gene)).classes(
-                        styles.UPP_GENE_CELL_LABEL + self._grid_column_span_class_constructor(
-                            genes.get(upp_index).die_mult
-                            if genes.get(upp_index) is not None
-                             else phenes.get(upp_index).expression_precidence
-                        )
-                    ).tooltip(self._tooltip_for_gene(upp_index, gene))
+                    ui.label(self._initial_for_trait(gene))\
+                        .classes(
+                            styles.UPP_GENE_CELL_LABEL
+                            + self._grid_column_span_class_constructor(
+                                genes.get(upp_index).die_mult
+                                if genes.get(upp_index) is not None
+                                else phenes.get(upp_index).expression_precidence
+                            )
+                        ).tooltip(self._tooltip_for_gene(upp_index, gene))
 
                 for upp_index in upp_indices:
                     phene = phenes.get(upp_index)
-                    ui.label(self._initial_for_trait(phene)).classes(
-                        styles.UPP_PHENE_CELL_LABEL + self._grid_column_span_class_constructor(
-                            genes.get(upp_index).die_mult
-                            if genes.get(upp_index) is not None
-                             else phenes.get(upp_index).expression_precidence
-                        )
-                    ).tooltip(self._tooltip_for_phene(upp_index, phene))
+                    ui.label(self._initial_for_trait(phene))\
+                        .classes(
+                            styles.UPP_PHENE_CELL_LABEL
+                            + self._grid_column_span_class_constructor(
+                                genes.get(upp_index).die_mult
+                                if genes.get(upp_index) is not None
+                                else phenes.get(upp_index).expression_precidence
+                            )
+                        ).tooltip(self._tooltip_for_phene(upp_index, phene))
 
     @staticmethod
     def _initial_for_trait(trait: Gene | Phene | None) -> str:
@@ -98,6 +106,7 @@ class UPPDisplay(ui.column):
             if phene.characteristic is not None
         )
         return gene_die_mult_sum, phene_expression_precidence_sum
+    
     def _grid_column_span_class_constructor(self, span: int) -> str:
         return f" col-span-{span}"
 
