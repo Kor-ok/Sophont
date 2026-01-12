@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from hmac import new
 
 from humanize import time
 from nicegui import ui

@@ -49,7 +49,7 @@ UPP_PHENE_CELL_LABEL: Final[str] = cx(UPP_CELL_LABEL, f"bg-{COLOUR_PHENE}", "tex
 
 # Tab layout styles.
 TAB_PANEL: Final[str] = "w-full h-full"
-TAB_ROW: Final[str] = "w-auto h-full flex-nowrap gap-4"
+TAB_ROW: Final[str] = "w-full h-full flex-nowrap gap-4"
 TAB_COLUMN_BASE: Final[str] = "flex-1 min-w-0 h-full"
 
 TAB_COLUMN_LEFT: Final[str] = cx(TAB_COLUMN_BASE, "items-start", "text-left")

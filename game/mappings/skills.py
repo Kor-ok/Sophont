@@ -62,7 +62,7 @@ def _build_norm_alias_lookup(table: dict[int, StringAliases]) -> dict[str, int]:
             lookup[_normalize(alias)] = code
     return lookup
 
-_NORM_BASE_NAME_TO_CODE: Final[dict[str, int]] = _build_norm_alias_lookup(_BASE)
+_NORM_SKILL_NAME_TO_CODES: Final[dict[str, int]] = _build_norm_alias_lookup(_BASE)
 
 # ================================================ MASTER CATEGORY ================================================ #
 
@@ -103,7 +103,7 @@ _MIN_KNOWLEDGE_CODE, _KNOWLEDGE_PRIMARY_BY_CODE = _build_dense_primary_name_tabl
 def _knowledge_primary_name(code: int) -> str:
     return _dense_get(code, _MIN_KNOWLEDGE_CODE, _KNOWLEDGE_PRIMARY_BY_CODE)
 
-_NORM_KNOWLEDGE_NAME_TO_CODE: Final[dict[str, int]] = _build_norm_alias_lookup(_KNOWLEDGES)
+_NORM_KNOWLEDGE_NAME_TO_CODES: Final[dict[str, int]] = _build_norm_alias_lookup(_KNOWLEDGES)
 
 # ================================================ CATEGORY MAPPINGS ================================================ #
 
@@ -140,7 +140,7 @@ def code_to_string(code: int, table: Table, context: str | None = None, capitali
     return cap("undefined")
 
 def get_base_skill_code_from_name(name: str) -> int:
-    return _NORM_BASE_NAME_TO_CODE.get(_normalize(name), -99)
+    return _NORM_SKILL_NAME_TO_CODES.get(_normalize(name), -99)
 
 def get_master_category_code_from_name(name: str) -> int:
     return _NORM_MASTER_CATEGORY_NAME_TO_CODE.get(_normalize(name), -99)
@@ -150,7 +150,7 @@ def get_sub_category_code_from_name(name: str) -> int:
     return _NORM_SUB_CATEGORY_NAME_TO_CODE.get(_normalize(name), -99)
 
 def get_knowledge_code_from_name(name: str, associated_skill: str | None = None) -> int:
-    code = _NORM_KNOWLEDGE_NAME_TO_CODE.get(_normalize(name))
+    code = _NORM_KNOWLEDGE_NAME_TO_CODES.get(_normalize(name))
     if code is not None:
         return code
 

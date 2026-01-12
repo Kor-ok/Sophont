@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from gui.tabs.package_builder import package_builder_tab
 from gui.tabs.sophont import sophont_tab
 from gui.tabs.species import species_tab
 
@@ -13,9 +14,10 @@ with ui.tabs().classes('w-full') as tabs:
     zero = ui.tab('Custom Characteristics')
     one = ui.tab('Species')
     two = ui.tab('Sophont')
-    three = ui.tab('Package Maker')
-with ui.tab_panels(tabs, value=two).classes('w-full'):
+    three = ui.tab('Package Builder')
+with ui.tab_panels(tabs, value=three).classes('w-full'):
     species_tab(one)
     sophont_tab(two)
+    package_builder_tab(three)
 
 ui.run(dark=True)

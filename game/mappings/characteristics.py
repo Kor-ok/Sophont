@@ -54,15 +54,19 @@ _SUBTYPE_ALIASES: Final[dict[str, StringAliases]] = {
 
 
 # Build a single lookup: normalized name -> (position_code, subtype_code)
-_NAME_TO_CODES: dict[str, CharacteristicIdentifier] = {}
+_NORM_CHARACTERISTIC_NAME_TO_CODES: dict[str, CharacteristicIdentifier] = {}
+# Alias calls for genes and phenes so that it gets _NORM_CHARACTERISTIC_NAME_TO_CODES
+# TODO: Research a true aliasing mechanism
+_NORM_GENE_NAME_TO_CODES = _NORM_CHARACTERISTIC_NAME_TO_CODES
+_NORM_PHENE_NAME_TO_CODES = _NORM_CHARACTERISTIC_NAME_TO_CODES
 
 for pos_code, names in _BASE.items():
     for n in names:
-        _NAME_TO_CODES[_normalize(n)] = (pos_code, 0)
+        _NORM_CHARACTERISTIC_NAME_TO_CODES[_normalize(n)] = (pos_code, 0)
 
 for pos_code, subtype_names in _SUBTYPES.items():
     for sub_code, canonical in enumerate(subtype_names):
-        _NAME_TO_CODES[_normalize(canonical)] = (pos_code, sub_code + 1)
+        _NORM_CHARACTERISTIC_NAME_TO_CODES[_normalize(canonical)] = (pos_code, sub_code + 1)
 
 # Add alias entries.
 #
@@ -76,7 +80,7 @@ for alias, canonical in _SUBTYPE_ALIASES.items():
     resolved_code: CharacteristicIdentifier | None = None
     for canonical_name in canonical:
         canonical_key = _normalize(canonical_name)
-        code = _NAME_TO_CODES.get(canonical_key)
+        code = _NORM_CHARACTERISTIC_NAME_TO_CODES.get(canonical_key)
         if code is not None:
             resolved_code = code
             break
@@ -85,16 +89,16 @@ for alias, canonical in _SUBTYPE_ALIASES.items():
         continue
 
     # Alias token itself (e.g. "vig")
-    _NAME_TO_CODES[_normalize(alias)] = resolved_code
+    _NORM_CHARACTERISTIC_NAME_TO_CODES[_normalize(alias)] = resolved_code
     # Also register alternate spellings/synonyms listed under that alias (e.g. "vigor").
     for canonical_name in canonical:
-        _NAME_TO_CODES[_normalize(canonical_name)] = resolved_code
+        _NORM_CHARACTERISTIC_NAME_TO_CODES[_normalize(canonical_name)] = resolved_code
 
 def name_to_position_code(name: str) -> CharacteristicIdentifier:
     # Hot path: do one normalization and one dict lookup.
     # We already expanded aliases/alternate spellings into `_NAME_TO_CODES`.
     key = _normalize(name)
-    return _NAME_TO_CODES.get(key, (-1, -1))
+    return _NORM_CHARACTERISTIC_NAME_TO_CODES.get(key, (-1, -1))
 
 # Position Code and Subtype Code to Name
 def codes_to_name(pos_code: int, sub_code: int = 0) -> str:
