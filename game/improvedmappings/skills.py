@@ -277,12 +277,12 @@ class SkillSet:
         norm = _normalize(name_or_alias)
         removed = self._custom_name_to_code.pop(norm, None) is not None
         if removed:
-            self.custom_skills_dict_attributes.base_codes_size = len(self._custom_name_to_code)
+            self.custom_skills_dict_attributes.highest_base_code = max(code[2] for code in self._custom_name_to_code.values()) if self._custom_name_to_code else 0
         return removed
 
     def clear_custom(self) -> None:
         self._custom_name_to_code.clear()
-        self.custom_skills_dict_attributes.base_codes_size = 0
+        self.custom_skills_dict_attributes.highest_base_code = 0
 
 
 # Convenience singleton instance for app-wide usage.
