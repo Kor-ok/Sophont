@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any, Optional, Union
-
 from game.improvedmappings.io import save_custom_skills_json
 from game.improvedmappings.skills import SKILLS
 

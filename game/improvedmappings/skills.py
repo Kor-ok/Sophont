@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from calendar import c
 from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from types import MappingProxyType
@@ -106,12 +105,12 @@ class SkillSet:
         object.__setattr__(self, "_is_initialized", True)
 
     @property
-    def default_skill_name_to_codes(self) -> Mapping[str, FullSkillCode]:
+    def default_skill_name_to_codes(self) -> Mapping[StringAliases, FullSkillCode]:
         """Read-only mapping of default normalized name -> full skill code."""
         return self._default_view
 
     @property
-    def custom_skill_name_to_codes(self) -> Mapping[str, FullSkillCode]:
+    def custom_skill_name_to_codes(self) -> Mapping[StringAliases, FullSkillCode]:
         """Read-only mapping of custom normalized name -> full skill code."""
         return self._custom_view
 
@@ -166,9 +165,9 @@ class SkillSet:
             aliases += (base_aliases[0],)
         else:
             # search custom base skill codes
-            for custom_name, custom_code in self.custom_skill_name_to_codes.items():
-                if base_code == custom_code[2]:
-                    aliases += (custom_name,)
+            for str_aliases, codes_tuple in self._custom_names_to_code.items():
+                if codes_tuple == codes:
+                    aliases += (str_aliases,)
                     break
         return tuple(aliases)
 
