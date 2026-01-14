@@ -9,7 +9,7 @@ _MASTER_CATEGORY_CODES: Final[dict[int, StringAliases]] = {
     0: ("contextual",),
     1: ("base",),
     2: ("starship skills",),
-    3: ("trades",),
+    3: ("trades", "trade",),
     4: ("arts",),
     5: ("soldier skills",),
     6: ("extended",),
