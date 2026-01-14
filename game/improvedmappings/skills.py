@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from calendar import c
 from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from types import MappingProxyType
@@ -58,9 +59,9 @@ class SkillSet:
     """
 
     __slots__ = (
-        "_default_name_to_code",
+        "_default_names_to_code",
         "_default_view",
-        "_custom_name_to_code",
+        "_custom_names_to_code",
         "_custom_view",
         "default_skills_dict_attributes",
         "custom_skills_dict_attributes",
@@ -76,10 +77,10 @@ class SkillSet:
             return cls._instance
 
         self = super().__new__(cls)
-        object.__setattr__(self, "_default_name_to_code", {})
-        object.__setattr__(self, "_default_view", MappingProxyType(self._default_name_to_code))
-        object.__setattr__(self, "_custom_name_to_code", {})
-        object.__setattr__(self, "_custom_view", MappingProxyType(self._custom_name_to_code))
+        object.__setattr__(self, "_default_names_to_code", dict[StringAliases, FullSkillCode]())
+        object.__setattr__(self, "_default_view", MappingProxyType(self._default_names_to_code))
+        object.__setattr__(self, "_custom_names_to_code", dict[StringAliases, FullSkillCode]())
+        object.__setattr__(self, "_custom_view", MappingProxyType(self._custom_names_to_code))
         object.__setattr__(
             self,
             "default_skills_dict_attributes",
@@ -92,8 +93,8 @@ class SkillSet:
             "custom_skills_dict_attributes",
             SkillDictAttributes(0, 0, 0),
         )
-        object.__setattr__(self, "custom_master_category_dict", {})
-        object.__setattr__(self, "custom_sub_category_dict", {})
+        object.__setattr__(self, "custom_master_category_dict", dict[int, StringAliases]())
+        object.__setattr__(self, "custom_sub_category_dict", dict[int, StringAliases]())
         object.__setattr__(self, "_is_initialized", False)
         cls._instance = self
         return self
@@ -128,7 +129,7 @@ class SkillSet:
 
         This runs once per process. It intentionally builds a dict and then exposes it read-only.
         """
-        default_map: dict[str, FullSkillCode] = self._default_name_to_code
+        default_map: dict[StringAliases, FullSkillCode] = self._default_names_to_code
         for base_code, name_aliases in _BASE_SKILL_CODES.items():
             full_skill_code = self._generate_full_skill_code(base_code)
             for alias in name_aliases:
@@ -138,7 +139,7 @@ class SkillSet:
                     raise ValueError(
                         f"Default alias collision for {alias!r} ({norm_name!r}): {existing} vs {full_skill_code}"
                     )
-                default_map[norm_name] = full_skill_code
+                default_map[(norm_name,)] = full_skill_code
 
     def _return_string_names(self, codes: FullSkillCode) -> StringAliases:
         """Given a full skill code, return the first default string alias for each tuple value"""
@@ -149,19 +150,17 @@ class SkillSet:
             aliases += (master_aliases[0],)
         else:
             # search custom master category codes
-            for custom_name, custom_code in self.custom_master_category_dict.items():
-                if master_cat == custom_code:
-                    aliases += (custom_name,)
-                    break
+            master_aliases = self.custom_master_category_dict.get(master_cat)
+            if master_aliases:
+                aliases += (master_aliases,)
         sub_aliases = _SUB_CATEGORY_CODES.get(sub_cat)
         if sub_aliases:
             aliases += (sub_aliases[0],)
         else:
             # search custom sub category codes
-            for custom_name, custom_code in self.custom_sub_category_dict.items():
-                if sub_cat == custom_code:
-                    aliases += (custom_name,)
-                    break
+            sub_aliases = self.custom_sub_category_dict.get(sub_cat)
+            if sub_aliases:
+                aliases += (sub_aliases,)
         base_aliases = _BASE_SKILL_CODES.get(base_code)
         if base_aliases:
             aliases += (base_aliases[0],)
@@ -179,11 +178,11 @@ class SkillSet:
         Custom skills take precedence *if* a custom alias exists.
         """
         norm = _normalize(name)
-        custom = self._custom_name_to_code.get(norm)
+        custom = self._custom_names_to_code.get(norm)
         if custom is not None:
             aliases = self._return_string_names(custom)
             return custom, aliases
-        default = self._default_name_to_code.get(norm, _UNDEFINED_FULL_SKILL_CODE)
+        default = self._default_names_to_code.get(norm, _UNDEFINED_FULL_SKILL_CODE)
         aliases = self._return_string_names(default)
         return default, aliases
 
@@ -208,15 +207,15 @@ class SkillSet:
         """
         # First check that skill_name does not already exist in default names.
         _norm_skill_name = _normalize(skill_name)
-        if _norm_skill_name in self._default_name_to_code:
+        if _norm_skill_name in self._default_names_to_code:
             return_mesage = f"Cannot override default skill alias: {skill_name}"
             return return_mesage
         
         # Next find the next available base skill code to use
         if self.custom_skills_dict_attributes.highest_base_code == 0:
-            next_base_code = max(code[2] for code in self._default_name_to_code.values()) + 1
+            next_base_code = max(code[2] for code in self._default_names_to_code.values()) + 1
         else:
-            next_base_code = max(code[2] for code in self._custom_name_to_code.values()) + 1
+            next_base_code = max(code[2] for code in self._custom_names_to_code.values()) + 1
 
         # Now resolve the master and sub category names to their codes, adding to custom dicts if needed.
         _norm_master_category_name = _normalize(master_category_name)
@@ -226,7 +225,7 @@ class SkillSet:
                 master_cat_code = code
                 cat_name_found = True
         for custom_code, custom_name in self.custom_master_category_dict.items():
-            if _norm_master_category_name == custom_name:
+            if _norm_master_category_name == _normalize(custom_name):
                 master_cat_code = custom_code
                 cat_name_found = True
         if not cat_name_found:
@@ -262,26 +261,26 @@ class SkillSet:
         normalized_keys = [_norm_skill_name, *(a for a in aliases)]
 
         for k in normalized_keys:
-            self._custom_name_to_code[k] = (
+            self._custom_names_to_code[k] = (
                 int(new_full_code[0]),
                 int(new_full_code[1]),
                 int(new_full_code[2]),
             )
 
-        self.custom_skills_dict_attributes.highest_base_code = max(code[2] for code in self._custom_name_to_code.values())
+        self.custom_skills_dict_attributes.highest_base_code = max(code[2] for code in self._custom_names_to_code.values())
 
         return return_mesage
 
     def unregister_custom(self, name_or_alias: str) -> bool:
         """Remove a custom alias. Returns True if removed."""
         norm = _normalize(name_or_alias)
-        removed = self._custom_name_to_code.pop(norm, None) is not None
+        removed = self._custom_names_to_code.pop(norm, None) is not None
         if removed:
-            self.custom_skills_dict_attributes.highest_base_code = max(code[2] for code in self._custom_name_to_code.values()) if self._custom_name_to_code else 0
+            self.custom_skills_dict_attributes.highest_base_code = max(code[2] for code in self._custom_names_to_code.values()) if self._custom_names_to_code else 0
         return removed
 
     def clear_custom(self) -> None:
-        self._custom_name_to_code.clear()
+        self._custom_names_to_code.clear()
         self.custom_skills_dict_attributes.highest_base_code = 0
 
 
