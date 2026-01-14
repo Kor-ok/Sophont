@@ -144,15 +144,6 @@ class SkillSet:
         """Given a full skill code, return the first default string alias for each tuple value"""
         master_cat, sub_cat, base_code = codes
         aliases: StringAliases = ()
-        base_aliases = _BASE_SKILL_CODES.get(base_code)
-        if base_aliases:
-            aliases += (base_aliases[0],)
-        else:
-            # search custom base skill codes
-            for custom_name, custom_code in self.custom_skill_name_to_codes.items():
-                if base_code == custom_code[2]:
-                    aliases += (custom_name,)
-                    break
         master_aliases = _MASTER_CATEGORY_CODES.get(master_cat)
         if master_aliases:
             aliases += (master_aliases[0],)
@@ -169,6 +160,15 @@ class SkillSet:
             # search custom sub category codes
             for custom_name, custom_code in self.custom_sub_category_dict.items():
                 if sub_cat == custom_code:
+                    aliases += (custom_name,)
+                    break
+        base_aliases = _BASE_SKILL_CODES.get(base_code)
+        if base_aliases:
+            aliases += (base_aliases[0],)
+        else:
+            # search custom base skill codes
+            for custom_name, custom_code in self.custom_skill_name_to_codes.items():
+                if base_code == custom_code[2]:
                     aliases += (custom_name,)
                     break
         return tuple(aliases)
