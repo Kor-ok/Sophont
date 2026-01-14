@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from textwrap import indent
-from uuid import uuid4
 
 from game.species import Species
+from game.uid.guid import uuid4
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import EpigeneticProfile
 

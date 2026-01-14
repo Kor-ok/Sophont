@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from textwrap import indent
 from typing import ClassVar, Generic, TypeVar
-from uuid import uuid4
 
 from game.knowledge import Knowledge
 from game.skill import Skill
+from game.uid.guid import uuid4
 
 T = TypeVar("T", Skill, Knowledge)  # Skill or Knowledge (or anything else immutable)
 

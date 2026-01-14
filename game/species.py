@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from uuid import uuid4
 
 from game.genotype import Genotype
 from game.mappings.world_id import WorldID
+from game.uid.guid import uuid4
 
 
 class Species:

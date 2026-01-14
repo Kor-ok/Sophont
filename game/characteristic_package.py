@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from textwrap import indent
 from typing import ClassVar, Generic, TypeVar
-from uuid import uuid4
 
 from game.gene import Gene
 from game.phene import Phene
+from game.uid.guid import uuid4
 
 T = TypeVar("T", Gene, Phene)
 

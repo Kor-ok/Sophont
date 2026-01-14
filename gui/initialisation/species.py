@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from random import randint
-from uuid import uuid4
 
 from nicegui import ui
 
@@ -11,6 +10,7 @@ from game.gene import Gene
 from game.genotype import Genotype
 from game.phene import Phene
 from game.species import Species
+from game.uid.guid import uuid4
 from gui.draggable.drop_container import (
     handle_remove_requested,
     species_genotype_widget,

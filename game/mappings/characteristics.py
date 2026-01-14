@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import MappingProxyType
 from typing import Final
 
 CharacteristicIdentifier = tuple[int, int]  # position_code, subtype_code
@@ -56,9 +57,8 @@ _SUBTYPE_ALIASES: Final[dict[str, StringAliases]] = {
 # Build a single lookup: normalized name -> (position_code, subtype_code)
 _NORM_CHARACTERISTIC_NAME_TO_CODES: dict[str, CharacteristicIdentifier] = {}
 # Alias calls for genes and phenes so that it gets _NORM_CHARACTERISTIC_NAME_TO_CODES
-# TODO: Research a true aliasing mechanism
-_NORM_GENE_NAME_TO_CODES = _NORM_CHARACTERISTIC_NAME_TO_CODES
-_NORM_PHENE_NAME_TO_CODES = _NORM_CHARACTERISTIC_NAME_TO_CODES
+_NORM_GENE_NAME_TO_CODES = MappingProxyType(_NORM_CHARACTERISTIC_NAME_TO_CODES)
+_NORM_PHENE_NAME_TO_CODES = MappingProxyType(_NORM_CHARACTERISTIC_NAME_TO_CODES)
 
 for pos_code, names in _BASE.items():
     for n in names:

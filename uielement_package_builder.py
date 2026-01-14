@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from uuid import uuid4
 
 from nicegui import ui
 
@@ -13,6 +12,7 @@ from game.mappings.skills import (
     code_to_string,
 )
 from game.skill import Skill
+from game.uid.guid import uuid4
 from gui.initialisation.globals import IS_DEBUG
 
 # https://quasar.dev/layout/grid/flex-playground

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from uuid import uuid4
-
 from game.mappings.skills import get_base_skill_code_from_name, get_category_codes_from_skill_code
+from game.uid.guid import uuid4
 
 
 class Skill:
