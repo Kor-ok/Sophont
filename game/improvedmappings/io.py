@@ -11,24 +11,28 @@ CUSTOM_SKILLS_SCHEMA_VERSION: Final[int] = 1
 
 
 def _to_jsonable_custom_skills(
-    custom: Mapping[StringAliases, FullSkillCode],
-) -> dict[StringAliases, FullSkillCode]:
-    """Convert internal custom mapping to a JSON-safe representation."""
-    out: dict[StringAliases, FullSkillCode] = {}
-    for name, code in custom.items():
+    custom: Mapping[str, FullSkillCode],
+) -> dict[str, list[int]]:
+    """Convert custom skills mapping to a JSON-serializable representation.
+
+    `SkillSet.custom_skill_name_to_codes` is a mapping of normalized alias -> full skill code.
+    """
+    out: dict[str, list[int]] = {}
+    for alias, code in custom.items():
         master, sub, base = code
-        out[name] = (master, sub, base)
+        out[alias] = [int(master), int(sub), int(base)]
     return out
+
 
 def _to_jsonable_custom_category_dicts(
     custom: Mapping[int, StringAliases],
-) -> dict[int, StringAliases]:
-    """Convert internal custom category mapping to a JSON-safe representation."""
-    out: dict[int, StringAliases] = {}
+) -> dict[str, list[str]]:
+    """Convert custom category mapping to a JSON-serializable representation."""
+    out: dict[str, list[str]] = {}
     for code, names in custom.items():
-        out[code] = names
+        out[str(int(code))] = list(names)
     return out
-        
+
 
 def save_custom_skills_json(
     path: Union[str, Path],
@@ -59,11 +63,18 @@ def save_custom_skills_json(
     out_path = Path(path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    custom_mapping: Mapping[StringAliases, FullSkillCode]
+    custom_mapping: Mapping[str, FullSkillCode]
+    custom_master_categories: Mapping[int, StringAliases]
+    custom_sub_categories: Mapping[int, StringAliases]
+
     if isinstance(skills, SkillSet):
         custom_mapping = skills.custom_skill_name_to_codes
         custom_master_categories = skills.custom_master_category_dict
         custom_sub_categories = skills.custom_sub_category_dict
+    else:
+        custom_mapping = skills
+        custom_master_categories = master_categories or {}
+        custom_sub_categories = sub_categories or {}
 
     payload: dict[str, Any] = {
         "schema": CUSTOM_SKILLS_SCHEMA_VERSION,
@@ -72,6 +83,8 @@ def save_custom_skills_json(
         "custom_sub_categories": _to_jsonable_custom_category_dicts(custom_sub_categories),
     }
 
-    feedback = out_path.write_text(json.dumps(payload, indent=indent, sort_keys=True), encoding="utf-8")
-    print(f"{feedback} - Custom skills saved to: {out_path.resolve()}")
+    chars_written = out_path.write_text(
+        json.dumps(payload, indent=indent, sort_keys=True), encoding="utf-8"
+    )
+    print(f"{chars_written} chars - Custom skills saved to: {out_path.resolve()}")
     return out_path
