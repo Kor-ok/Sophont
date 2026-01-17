@@ -1,139 +1,73 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from functools import lru_cache
-from types import MappingProxyType
-from typing import Final, Optional
+from collections.abc import Iterable
+from typing import Final, cast
 
+from game.improvedmappings.attributes import AttributesBase
 from game.improvedmappings.skill_tables import (
     _BASE_SKILL_CODES,
     _MAPPING_BASE_SKILL_CODE_TO_CATEGORIES,
     _MASTER_CATEGORY_CODES,
     _SUB_CATEGORY_CODES,
 )
-
-# TODO: Streamline all of this.
+from game.improvedmappings.utils import AttributeViewHeader, _normalize
 
 StringAliases = tuple[str, ...]
-FullSkillCode = tuple[int, int, int]  # (master_category, sub_category, base_skill)
-NormalizedAlias = str
+MasterCategoryInt = int
+SubCategoryInt = int
+BaseSkillInt = int
+FullSkillCode = tuple[MasterCategoryInt, SubCategoryInt, BaseSkillInt]
+
+CanonicalAlias = str
 
 _UNDEFINED_FULL_SKILL_CODE: Final[FullSkillCode] = (-99, -99, -99)
 
-
-@lru_cache(maxsize=4096)
-def _normalize(name: str | Iterable[str]) -> str:
-    # case-insensitive + collapses repeated whitespace (e.g. "social   standing")
-    # Also works with tuples of strings.
-    if isinstance(name, Iterable) and not isinstance(name, str):
-        name = " ".join(name)
-
-    return " ".join(name.strip().casefold().split())
-
-
-class SkillDictAttributes:
-    __slots__ = ("highest_base_code", "highest_master_category_code", "highest_sub_category_code")
-
-    def __init__(
-        self,
-        highest_base_code: int,
-        highest_master_category_code: int,
-        highest_sub_category_code: int,
-    ) -> None:
-        self.highest_base_code = int(highest_base_code)
-        self.highest_master_category_code = int(highest_master_category_code)
-        self.highest_sub_category_code = int(highest_sub_category_code)
-
-
-class SkillSet:
-    """App-wide store for RPG skills.
-
-    - Default skills are loaded from `game.improvedmappings.skill_tables` once and then exposed read-only.
-    - Custom skills can be registered/removed at runtime.
-    - Custom master and sub category code tables can be extended/culled at runtime.
-    - Lookups are normalized (`casefold` + collapsed whitespace).
-
-    This is implemented as a singleton so all callers share the same store:
-
-        skills = SkillSet()  # always returns the same instance
+class Skills(AttributesBase):
+    """Handles populating default skills and managing the mapping of custom skills.
+    
     """
-
     __slots__ = (
-        "_default_alias_to_code",
-        "_default_view",
-        "_custom_alias_to_code",
-        "_custom_view",
-        "_custom_base_skill_code_to_aliases",
-        "default_skills_dict_attributes",
-        "custom_skills_dict_attributes",
+        "custom_skill_code_dict",
         "custom_master_category_dict",
         "custom_sub_category_dict",
-        "_is_initialized",
     )
 
-    _instance: Optional[SkillSet] = None
-
-    def __new__(cls) -> SkillSet:
-        if cls._instance is not None:
-            return cls._instance
-
-        self = super().__new__(cls)
-        object.__setattr__(self, "_default_alias_to_code", dict[NormalizedAlias, FullSkillCode]())
-        object.__setattr__(self, "_default_view", MappingProxyType(self._default_alias_to_code))
-        object.__setattr__(self, "_custom_alias_to_code", dict[NormalizedAlias, FullSkillCode]())
-        object.__setattr__(self, "_custom_view", MappingProxyType(self._custom_alias_to_code))
-        object.__setattr__(self, "_custom_base_skill_code_to_aliases", dict[int, StringAliases]())
-        object.__setattr__(
-            self,
-            "default_skills_dict_attributes",
-            SkillDictAttributes(
-                max(_BASE_SKILL_CODES), max(_MASTER_CATEGORY_CODES), max(_SUB_CATEGORY_CODES)
-            ),
-        )
-        object.__setattr__(
-            self,
-            "custom_skills_dict_attributes",
-            SkillDictAttributes(0, 0, 0),
-        )
-        object.__setattr__(self, "custom_master_category_dict", dict[int, StringAliases]())
-        object.__setattr__(self, "custom_sub_category_dict", dict[int, StringAliases]())
-        object.__setattr__(self, "_is_initialized", False)
-        cls._instance = self
-        return self
-
     def __init__(self) -> None:
-        if self._is_initialized:
-            return
-        self._initialise_defaults()
-        object.__setattr__(self, "_is_initialized", True)
+        try:
+            self.custom_skill_code_dict
+        except AttributeError:
+            object.__setattr__(self, "custom_skill_code_dict", dict[int, StringAliases]())
+            object.__setattr__(self, "custom_master_category_dict", dict[int, StringAliases]())
+            object.__setattr__(self, "custom_sub_category_dict", dict[int, StringAliases]())
 
-    @property
-    def default_skill_name_to_codes(self) -> Mapping[NormalizedAlias, FullSkillCode]:
-        """Read-only mapping of default normalized alias -> full skill code."""
-        return self._default_view
+        super().__init__()
 
-    @property
-    def custom_skill_name_to_codes(self) -> Mapping[NormalizedAlias, FullSkillCode]:
-        """Read-only mapping of custom normalized alias -> full skill code."""
-        return self._custom_view
-
-    def _generate_full_skill_code(self, base_code: int) -> FullSkillCode:
+    @staticmethod
+    def _generate_full_skill_code(base_code: int) -> FullSkillCode:
         """Given a base skill code, return (master_category, sub_category, base_skill)."""
-        base_code_int = int(base_code)
-        categories = _MAPPING_BASE_SKILL_CODE_TO_CATEGORIES.get(base_code_int)
+        BaseSkillInt = int(base_code)
+        categories = _MAPPING_BASE_SKILL_CODE_TO_CATEGORIES.get(BaseSkillInt)
         if categories is None:
-            return (-99, -99, base_code_int)
-        master_cat, sub_cat = categories
-        return (int(master_cat), int(sub_cat), base_code_int)
+            return (-99, -99, BaseSkillInt)
+        MasterCategoryInt, SubCategoryInt = categories
+        return (int(MasterCategoryInt), int(SubCategoryInt), BaseSkillInt)
 
     def _initialise_defaults(self) -> None:
         """Populate the default mapping from the skill tables.
 
         This runs once per process. It intentionally builds a dict and then exposes it read-only.
         """
-        default_map: dict[NormalizedAlias, FullSkillCode] = self._default_alias_to_code
-        for base_code, name_aliases in _BASE_SKILL_CODES.items():
-            full_skill_code = self._generate_full_skill_code(base_code)
+        self.default_view_header: AttributeViewHeader # to advertise the skill code-space.
+        self.default_view_header.primary_code = max(_MASTER_CATEGORY_CODES)
+        self.default_view_header.secondary_code = max(_SUB_CATEGORY_CODES)
+        self.default_view_header.tertiary_code = max(_BASE_SKILL_CODES)
+
+        default_map: dict[CanonicalAlias, FullSkillCode] = cast(
+            dict[CanonicalAlias, FullSkillCode],
+            self.default_canonical_alias_key_to_code,
+        )
+        for BaseSkillInt, name_aliases in _BASE_SKILL_CODES.items():
+            full_skill_code = self._generate_full_skill_code(BaseSkillInt)
             for alias in name_aliases:
                 norm_name = _normalize(alias)
                 existing = default_map.get(norm_name)
@@ -143,55 +77,59 @@ class SkillSet:
                     )
                 default_map[norm_name] = full_skill_code
 
-    def _return_string_names(self, codes: FullSkillCode) -> StringAliases:
+    def _return_skill_string_names(self, codes: FullSkillCode) -> StringAliases:
         """Given a full skill code, return canonical string aliases.
 
         Returns (master_category, sub_category, base_skill) aliases where possible.
         """
-        master_cat, sub_cat, base_code = codes
+        MasterCategoryInt, SubCategoryInt, BaseSkillInt = codes
         aliases: list[str] = []
-        master_aliases = _MASTER_CATEGORY_CODES.get(master_cat)
+        master_aliases = _MASTER_CATEGORY_CODES.get(MasterCategoryInt)
         if master_aliases:
             aliases.append(master_aliases[0])
         else:
-            custom_master_aliases = self.custom_master_category_dict.get(master_cat)
+            custom_master_aliases = self.custom_master_category_dict.get(MasterCategoryInt)
             if custom_master_aliases:
                 aliases.append(custom_master_aliases[0])
-        sub_aliases = _SUB_CATEGORY_CODES.get(sub_cat)
+        sub_aliases = _SUB_CATEGORY_CODES.get(SubCategoryInt)
         if sub_aliases:
             aliases.append(sub_aliases[0])
         else:
-            custom_sub_aliases = self.custom_sub_category_dict.get(sub_cat)
+            custom_sub_aliases = self.custom_sub_category_dict.get(SubCategoryInt)
             if custom_sub_aliases:
                 aliases.append(custom_sub_aliases[0])
-        base_aliases = _BASE_SKILL_CODES.get(base_code)
+        base_aliases = _BASE_SKILL_CODES.get(BaseSkillInt)
         if base_aliases:
             aliases.append(base_aliases[0])
         else:
-            custom_base_aliases = self._custom_base_skill_code_to_aliases.get(base_code)
+            custom_base_aliases = self.custom_skill_code_dict.get(
+                BaseSkillInt
+            )
             if custom_base_aliases:
                 aliases.append(custom_base_aliases[0])
 
         return tuple(aliases)
 
-    def resolve(self, name: str) -> tuple[FullSkillCode, StringAliases]:
+    def resolve_skill(self, name: str) -> tuple[FullSkillCode, StringAliases]:
         """Resolve a skill name/alias to its full skill code and string aliases.
 
         Custom skills take precedence *if* a custom alias exists.
         """
         norm = _normalize(name)
-        custom = self._custom_alias_to_code.get(norm)
+        custom = self.custom_canonical_alias_key_to_code.get(norm)
         if custom is not None:
-            aliases = self._return_string_names(custom)
+            aliases = self._return_skill_string_names(custom)
             return custom, aliases
-        default = self._default_alias_to_code.get(norm, _UNDEFINED_FULL_SKILL_CODE)
-        aliases = self._return_string_names(default)
+        default = self.default_canonical_alias_key_to_code.get(
+            norm, _UNDEFINED_FULL_SKILL_CODE
+        )
+        aliases = self._return_skill_string_names(default)
         return default, aliases
 
     def is_defined(self, name: str) -> bool:
-        code, _aliases = self.resolve(name)
+        code, _aliases = self.resolve_skill(name)
         return code != _UNDEFINED_FULL_SKILL_CODE
-
+    
     def register_custom_skill(
         self,
         *,
@@ -214,20 +152,20 @@ class SkillSet:
         if not skill_aliases or not master_aliases or not sub_aliases:
             raise ValueError("skill_name/master_category_name/sub_category_name must be non-empty")
 
-        normalized_skill_aliases: tuple[NormalizedAlias, ...] = tuple(
+        normalized_skill_aliases: tuple[CanonicalAlias, ...] = tuple(
             _normalize(a) for a in skill_aliases
         )
 
         # Validate collisions with defaults.
         if not allow_override_default:
             for norm in normalized_skill_aliases:
-                if norm in self._default_alias_to_code:
+                if norm in self.default_canonical_alias_key_to_code:
                     return f"Cannot override default skill alias: {skill_aliases!r}"
 
         # Validate collisions with existing customs.
         if not replace:
             for norm in normalized_skill_aliases:
-                if norm in self._custom_alias_to_code:
+                if norm in self.custom_canonical_alias_key_to_code:
                     return f"Custom skill alias already exists: {skill_aliases!r}"
 
         # Determine / allocate master category code.
@@ -251,7 +189,6 @@ class SkillSet:
                 + 1
             )
             self.custom_master_category_dict[master_cat_code] = master_aliases
-
         # Determine / allocate sub category code.
         norm_sub = tuple(_normalize(a) for a in sub_aliases)
         sub_cat_code: int | None = None
@@ -273,12 +210,11 @@ class SkillSet:
                 + 1
             )
             self.custom_sub_category_dict[sub_cat_code] = sub_aliases
-
         # Allocate a base skill code that does not collide.
         next_base_code = (
             max(
                 max(_BASE_SKILL_CODES.keys(), default=0),
-                max(self._custom_base_skill_code_to_aliases.keys(), default=0),
+                max(self.custom_skill_code_dict.keys(), default=0),
             )
             + 1
         )
@@ -291,16 +227,16 @@ class SkillSet:
         # If replacing, remove any of these aliases first.
         if replace:
             for norm in normalized_skill_aliases:
-                self._custom_alias_to_code.pop(norm, None)
+                self.custom_canonical_alias_key_to_code.pop(norm, None)
 
         for norm in normalized_skill_aliases:
-            self._custom_alias_to_code[norm] = new_full_code
+            self.custom_canonical_alias_key_to_code[norm] = new_full_code
 
         # Store canonical (display) aliases for the new base skill.
-        self._custom_base_skill_code_to_aliases[next_base_code] = skill_aliases
+        self.custom_skill_code_dict[next_base_code] = skill_aliases
 
-        self.custom_skills_dict_attributes.highest_base_code = max(
-            (code[2] for code in self._custom_alias_to_code.values()),
+        self.custom_view_header.highest_base_code = max(
+            (code[2] for code in self.custom_canonical_alias_key_to_code.values()),
             default=0,
         )
 
@@ -310,25 +246,21 @@ class SkillSet:
             f"\nUsing sub category code {sub_cat_code} for {sub_aliases!r}"
         )
 
-    def unregister_custom(self, name_or_alias: str) -> bool:
+    def unregister_custom_skill(self, name_or_alias: str) -> bool:
         """Remove a custom alias. Returns True if removed."""
         norm = _normalize(name_or_alias)
-        removed = self._custom_alias_to_code.pop(norm, None) is not None
+        removed = self.custom_canonical_alias_key_to_code.pop(norm, None) is not None
         if removed:
-            used_base_codes = {code[2] for code in self._custom_alias_to_code.values()}
-            for base_code in list(self._custom_base_skill_code_to_aliases.keys()):
+            used_base_codes = {code[2] for code in self.custom_canonical_alias_key_to_code.values()}
+            for base_code in list(self.custom_skill_code_dict.keys()):
                 if base_code not in used_base_codes:
-                    self._custom_base_skill_code_to_aliases.pop(base_code, None)
-            self.custom_skills_dict_attributes.highest_base_code = max(used_base_codes, default=0)
+                    self.custom_skill_code_dict.pop(base_code, None)
+            self.custom_view_header.highest_base_code = max(used_base_codes, default=0)
         return removed
 
-    def clear_custom(self) -> None:
-        self._custom_alias_to_code.clear()
-        self._custom_base_skill_code_to_aliases.clear()
+    def clear_custom_skills(self) -> None:
+        self.custom_canonical_alias_key_to_code.clear()
+        self.custom_skill_code_dict.clear()
         self.custom_master_category_dict.clear()
         self.custom_sub_category_dict.clear()
-        self.custom_skills_dict_attributes.highest_base_code = 0
-
-
-# Convenience singleton instance for app-wide usage.
-SKILLS: Final[SkillSet] = SkillSet()
+        self.custom_view_header.highest_base_code = 0

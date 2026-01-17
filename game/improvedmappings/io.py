@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final, Union
 
-from game.improvedmappings.skills import FullSkillCode, SkillSet, StringAliases
+from game.improvedmappings.aptitudes import AptitudesSet, FullSkillCode, StringAliases
 
 CUSTOM_SKILLS_SCHEMA_VERSION: Final[int] = 1
 
@@ -36,7 +36,7 @@ def _to_jsonable_custom_category_dicts(
 
 def save_custom_skills_json(
     path: Union[str, Path],
-    skills: Union[SkillSet, Mapping[str, FullSkillCode]],
+    skills: Union[AptitudesSet, Mapping[str, FullSkillCode]],
     master_categories: Union[Mapping[int, StringAliases], None] = None,
     sub_categories: Union[Mapping[int, StringAliases], None] = None,
     *,
@@ -67,10 +67,10 @@ def save_custom_skills_json(
     custom_master_categories: Mapping[int, StringAliases]
     custom_sub_categories: Mapping[int, StringAliases]
 
-    if isinstance(skills, SkillSet):
-        custom_mapping = skills.custom_skill_name_to_codes
-        custom_master_categories = skills.custom_master_category_dict
-        custom_sub_categories = skills.custom_sub_category_dict
+    if isinstance(skills, AptitudesSet):
+        custom_mapping = skills._custom_skills.custom_skill_name_to_codes
+        custom_master_categories = skills._custom_skills.custom_master_category_dict
+        custom_sub_categories = skills._custom_skills.custom_sub_category_dict
     else:
         custom_mapping = skills
         custom_master_categories = master_categories or {}
