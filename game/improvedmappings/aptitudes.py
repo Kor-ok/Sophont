@@ -5,24 +5,6 @@ from typing import Final, Optional
 from game.improvedmappings.knowledges import Knowledges
 from game.improvedmappings.skills import Skills
 
-# TODO: Streamline all of this.
-
-StringAliases = tuple[str, ...]
-
-MasterCategoryInt = int
-SubCategoryInt = int
-BaseSkillInt = int
-FullSkillCode = tuple[MasterCategoryInt, SubCategoryInt, BaseSkillInt]  # (master_category, sub_category, base_skill)
-BaseKnowledgeInt = int
-AssociatedSkillInt = int
-FocusInt = int
-FullKnowledgeCode = tuple[BaseKnowledgeInt, AssociatedSkillInt, FocusInt]  # (base_knowledge_code, associated_skill_code, focus_code)
-
-CanonicalAlias = str
-
-_UNDEFINED_FULL_KNOWLEDGE_CODE: Final[FullKnowledgeCode] = (-99, -99, -99)
-_UNDEFINED_FULL_SKILL_CODE: Final[FullSkillCode] = (-99, -99, -99)
-
 
 class AptitudesSet:
     """App-wide store for RPG skills, knowleges and future extensions like certifications.

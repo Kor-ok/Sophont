@@ -9,10 +9,12 @@ from game.improvedmappings.knowledge_tables import _BASE_KNOWLEDGE_CODES
 from game.improvedmappings.utils import _normalize
 
 StringAliases = tuple[str, ...]
+
 BaseKnowledgeInt = int
 AssociatedSkillInt = int
 FocusInt = int
 FullKnowledgeCode = tuple[BaseKnowledgeInt, AssociatedSkillInt, FocusInt]  # (base_knowledge_code, associated_skill_code, focus_code)
+
 CanonicalAlias = str
 
 

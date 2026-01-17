@@ -7,29 +7,29 @@ from typing import Union, cast
 from sortedcontainers import SortedKeyList
 
 from game.characteristic import Characteristic
-from game.characteristic_package import CharacteristicPackage
 from game.gene import Gene
+from game.package import AttributePackage
 from game.phene import Phene
 from game.species import Species
+from game.uid.guid import GUID
 
 GeneOrPhene = Union[Gene, Phene]
 
 
 class Acquired:
-    __slots__ = ('package', 'age_acquired_seconds', 'memo')
+    __slots__ = ('package', 'age_acquired_seconds', 'context')
 
-    def __init__(self, package: CharacteristicPackage, age_acquired_seconds: int, memo: list[str] | None = None):
+    def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: GUID):
         self.package = package
         self.age_acquired_seconds = age_acquired_seconds
-        self.memo = memo
+        self.context = context
 
     @classmethod
-    def by_age(cls, package: CharacteristicPackage, age_seconds: int, memo: list[str] | None = None) -> Acquired:
-        return cls(package=package, memo=memo, age_acquired_seconds=age_seconds)
+    def by_age(cls, package: AttributePackage, age_seconds: int, context: GUID) -> Acquired:
+        return cls(package=package, context=context, age_acquired_seconds=age_seconds)
     
     def __repr__(self) -> str:
-        return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, memo={repr(self.memo)})"
-
+        return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
 def _package_key(acquired: Acquired) -> tuple[int, int]:
     return (acquired.package.item.characteristic.upp_index, acquired.age_acquired_seconds)
 
@@ -68,27 +68,27 @@ class EpigeneticProfile:
         self.is_packages_dirty = False
 
         # === COLD DATA (rarely updated) ================================
-        self.parent_uuids: list[bytes] = [] # First entry should always be self UUID for cloning scenarios.
+        self.parent_uuids: list[GUID] = [] # First entry should always be self UUID for cloning scenarios.
         self.gender: tuple[int, int] = (-1, -1)  # -1 = unspecified where first=selected gender out of, second=max gene(non grafted) contributors
 
         # === NEVER UPDATED DATA === (But Frequently Read) ================
         self.species: Species = species
 
-    def insert_package_acquired(self, package: CharacteristicPackage, age_acquired_seconds: int, memo: list[str] | None = None, trigger_collation: bool = False) -> None:
-        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, memo=memo)
+    def insert_package_acquired(self, package: AttributePackage, age_acquired_seconds: int, context: GUID, trigger_collation: bool = False) -> None:
+        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)
         self.acquired_packages_collection.add(acquired)
         self.is_packages_dirty = True
         if trigger_collation:
             self.update_collation()
 
-    def remove_package_acquired(self, package: CharacteristicPackage, age_acquired_seconds: int, trigger_collation: bool = False) -> None:
-        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds)
+    def remove_package_acquired(self, package: AttributePackage, age_acquired_seconds: int, context: GUID, trigger_collation: bool = False) -> None:
+        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)
         self.acquired_packages_collection.remove(acquired)
         self.is_packages_dirty = True
         if trigger_collation:
             self.update_collation()
 
-    def get_acquired_packages(self) -> list[CharacteristicPackage]:
+    def get_acquired_packages(self) -> list[AttributePackage]:
         return [acquired.package for acquired in self.acquired_packages_collection]
     
     def auto_generate_inherited_packages(self) -> None:
@@ -98,7 +98,7 @@ class EpigeneticProfile:
         if not self.is_packages_dirty:
             return
         
-        # An Acquired package is a CharacteristicPackage whose item is a Gene or Phene.
+        # An Acquired package is a AttributePackage whose item is a Gene or Phene.
         # Both Gene and Phene have characteristic: Characteristic.
         # For each Acquired: 
         # sum up all the package levels where the Characteristic matches so that we create

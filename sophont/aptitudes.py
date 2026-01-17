@@ -5,27 +5,28 @@ from typing import Union, cast
 
 from sortedcontainers import SortedKeyList
 
-from game.aptitude_package import AptitudePackage
 from game.knowledge import Knowledge
+from game.package import AttributePackage
 from game.skill import Skill
+from game.uid.guid import GUID
 
 # Sophont > Aptitudes > [Acquired] > Package > Skill/Knowledge > Modifier Values
 # Sophont > Aptitudes > [UniqueAppliedAptitude] > Of Package Type (i.e. Skill|Knowledge) > Sum of Modifier Values
 
 class Acquired:
-    __slots__ = ('package', 'age_acquired_seconds', 'memo')
+    __slots__ = ('package', 'age_acquired_seconds', 'context')
 
-    def __init__(self, package: AptitudePackage, age_acquired_seconds: int, memo: list[str] | None = None):
+    def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: GUID):
         self.package = package
         self.age_acquired_seconds = age_acquired_seconds
-        self.memo = memo
+        self.context = context
 
     @classmethod
-    def by_age(cls, package: AptitudePackage, age_seconds: int, memo: list[str] | None = None) -> Acquired:
-        return cls(package=package, memo=memo, age_acquired_seconds=age_seconds)
+    def by_age(cls, package: AttributePackage, age_seconds: int, context: GUID) -> Acquired:
+        return cls(package=package, context=context, age_acquired_seconds=age_seconds)
     
     def __repr__(self) -> str:
-        return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, memo={repr(self.memo)})"
+        return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
     
 def _package_key(acquired: Acquired) -> tuple[int, int]:
     return (acquired.package.item.code, acquired.age_acquired_seconds)
@@ -67,12 +68,12 @@ class Aptitudes:
 
     def insert_package_acquired(
             self, 
-            package: AptitudePackage, 
+            package: AttributePackage, 
             age_acquired_seconds: int, 
-            memo: list[str] | None = None, 
+            context: GUID, 
             trigger_collation: bool = False
             ) -> None:
-        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, memo=memo)
+        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)
         self.acquired_packages_collection.add(acquired)
         self.is_packages_dirty = True
         if trigger_collation:

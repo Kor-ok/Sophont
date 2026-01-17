@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from game.genotype import Genotype
 from game.mappings.world_id import WorldID
-from game.uid.guid import uuid4
+from game.uid.guid import GUID
 
 
 class Species:
@@ -13,11 +13,11 @@ class Species:
         "genotype",
     )
 
-    def __init__(self, genotype: Genotype, uuid: None | bytes = None):
+    def __init__(self, genotype: Genotype, uuid: None | GUID = None):
         self.genotype: Genotype = genotype
         if uuid is None:
-            uuid = uuid4().bytes
-        self.uuid: bytes = uuid
+            uuid = GUID.generate()
+        self.uuid: GUID = uuid
 
     def __repr__(self) -> str:
         return f"Species(uuid={self.uuid!r}, genotype={self.genotype!r})"
@@ -28,11 +28,11 @@ class Genus:
         "species_collection",
     )
 
-    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_uuid: None | bytes = None):
+    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_uuid: None | GUID = None):
         self.species_collection: tuple[Species, ...] = tuple(species_collection)
         if tree_of_life_node_uuid is None:
-            tree_of_life_node_uuid = uuid4().bytes
-        self.tree_of_life_node_uuid: bytes = tree_of_life_node_uuid
+            tree_of_life_node_uuid = GUID.generate()
+        self.tree_of_life_node_uuid: GUID = tree_of_life_node_uuid
 
     def __repr__(self) -> str:
         return f"Genus(uuid={self.tree_of_life_node_uuid!r}, species_collection={self.species_collection!r})"
@@ -42,11 +42,11 @@ class TreeOfLifeNode:
         "uuid",
         "children",
     )
-    def __init__(self, children: Iterable[TreeOfLifeNode], uuid: None | bytes = None):
+    def __init__(self, children: Iterable[TreeOfLifeNode], uuid: None | GUID = None):
         self.children: tuple[TreeOfLifeNode, ...] = tuple(children)
         if uuid is None:
-            uuid = uuid4().bytes
-        self.uuid: bytes = uuid
+            uuid = GUID.generate()
+        self.uuid: GUID = uuid
 
     def add_child(self, path) -> None:
         node = self

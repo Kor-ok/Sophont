@@ -13,6 +13,7 @@ from game.improvedmappings.skill_tables import (
 from game.improvedmappings.utils import AttributeViewHeader, _normalize
 
 StringAliases = tuple[str, ...]
+
 MasterCategoryInt = int
 SubCategoryInt = int
 BaseSkillInt = int

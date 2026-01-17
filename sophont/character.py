@@ -3,7 +3,7 @@ from __future__ import annotations
 from textwrap import indent
 
 from game.species import Species
-from game.uid.guid import uuid4
+from game.uid.guid import GUID
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import EpigeneticProfile
 
@@ -18,7 +18,7 @@ class Sophont:
     )
 
     def __init__(self, species: Species, name: str = "Unnamed", age_seconds: int = -1):
-        self.uuid: bytes = uuid4().bytes
+        self.uuid: GUID = GUID.generate()
         self.name: str = name
         self.age_seconds: int = age_seconds
         self.aptitudes: Aptitudes = Aptitudes()
@@ -31,7 +31,7 @@ class Sophont:
         max_contributors = (self.epigenetic_profile.species.genotype
                             .compute_max_inheritance_contributors())
         while len(self.epigenetic_profile.parent_uuids) <= max_contributors:
-            self.epigenetic_profile.parent_uuids.append(uuid4().bytes)
+            self.epigenetic_profile.parent_uuids.append(GUID.generate())
 
         # Set Epigentic Profile Gender tuple to (selected_gender, max_contributors)
         self.epigenetic_profile.gender = (-1, max_contributors)
