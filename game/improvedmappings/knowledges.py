@@ -5,7 +5,9 @@ from types import MappingProxyType
 from typing import Final, cast
 
 from game.improvedmappings.attributes import AttributesBase
-from game.improvedmappings.deprecated.knowledge_tables import _BASE_KNOWLEDGE_CODES
+from game.improvedmappings.init_mappings import (
+    KNOWLEDGES_BASE_KNOWLEDGE_CODES,
+)
 from game.improvedmappings.utils import _normalize
 
 StringAliases = tuple[str, ...]
@@ -51,7 +53,7 @@ class Knowledges(AttributesBase):
         return (BaseKnowledgeInt, -99, -99)
     
     def _initialise_defaults(self) -> None:
-        """Populate the default knowledges from `knowledge_tables._BASE_KNOWLEDGE_CODES`.
+        """Populate the default knowledges from `init_mappings.KNOWLEDGES_BASE_KNOWLEDGE_CODES`.
         
         This runs once per process. It intentionally builds a dict and then exposes it read-only.
         """
@@ -60,7 +62,7 @@ class Knowledges(AttributesBase):
             self.default_canonical_alias_key_to_code,
         )
 
-        for BaseKnowledgeInt, name_aliases in _BASE_KNOWLEDGE_CODES.items():
+        for BaseKnowledgeInt, name_aliases in KNOWLEDGES_BASE_KNOWLEDGE_CODES.items():
             full_knowledge_code = self._generate_full_code(BaseKnowledgeInt)
             for alias in name_aliases:
                 norm_name = _normalize(alias)
