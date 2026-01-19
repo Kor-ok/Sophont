@@ -8,10 +8,10 @@ _MASTER_CATEGORY_CODES: Final[dict[int, StringAliases]] = {
     -99: ("undefined",),
     0: ("contextual",),
     1: ("base",),
-    2: ("starship skills",),
+    2: ("starship skills", "starship",),
     3: ("trades", "trade",),
     4: ("arts",),
-    5: ("soldier skills",),
+    5: ("soldier skills", "soldier",),
     6: ("extended",),
 }
 
@@ -117,7 +117,9 @@ _BASE_SKILL_CODES: Final[dict[int, StringAliases]] = {
 }
 
 BaseSkillCode = int
-CategoryCodesTuple = tuple[int, int]
+MasterCategoryInt = int
+SubCategoryInt = int
+CategoryCodesTuple = tuple[MasterCategoryInt, SubCategoryInt]
 _MAPPING_BASE_SKILL_CODE_TO_CATEGORIES: Final[dict[BaseSkillCode, CategoryCodesTuple]] = {
     -99: (-99, -99),
     -1: (0, 0),

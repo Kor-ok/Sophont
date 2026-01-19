@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from typing import Final, cast
 
 from game.improvedmappings.attributes import AttributesBase
-from game.improvedmappings.skill_tables import (
+from game.improvedmappings.deprecated.skill_tables import (
     _BASE_SKILL_CODES,
     _MAPPING_BASE_SKILL_CODE_TO_CATEGORIES,
     _MASTER_CATEGORY_CODES,

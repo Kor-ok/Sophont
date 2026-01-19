@@ -5,7 +5,7 @@ from types import MappingProxyType
 from typing import Final, cast
 
 from game.improvedmappings.attributes import AttributesBase
-from game.improvedmappings.knowledge_tables import _BASE_KNOWLEDGE_CODES
+from game.improvedmappings.deprecated.knowledge_tables import _BASE_KNOWLEDGE_CODES
 from game.improvedmappings.utils import _normalize
 
 StringAliases = tuple[str, ...]
