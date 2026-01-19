@@ -6,7 +6,7 @@ from game.improvedmappings.knowledges import Knowledges
 from game.improvedmappings.skills import Skills
 
 
-class AptitudesSet:
+class AttributesSet:
     """App-wide store for RPG skills, knowleges and future extensions like certifications.
 
     - Default skills are loaded from `game.improvedmappings.skill_tables` once and then exposed read-only.
@@ -29,9 +29,9 @@ class AptitudesSet:
         "_is_initialised",
     )
 
-    _instance: Optional[AptitudesSet] = None
+    _instance: Optional[AttributesSet] = None
 
-    def __new__(cls) -> AptitudesSet:
+    def __new__(cls) -> AttributesSet:
         if cls._instance is not None:
             return cls._instance
 
@@ -51,4 +51,4 @@ class AptitudesSet:
 
 
 # Convenience singleton instance for app-wide usage.
-APTITUDES: Final[AptitudesSet] = AptitudesSet()
+ATTRIBUTES: Final[AttributesSet] = AttributesSet()

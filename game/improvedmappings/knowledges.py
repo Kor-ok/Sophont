@@ -43,6 +43,13 @@ class Knowledges(AttributesBase):
                 out[norm_alias] = int(code)
         return MappingProxyType(out)
 
+    @staticmethod
+    def _generate_full_code(base_code: int) -> FullKnowledgeCode:
+        """Generate a full knowledge code tuple from a base knowledge code."""
+        BaseKnowledgeInt = int(base_code)
+
+        return (BaseKnowledgeInt, -99, -99)
+    
     def _initialise_defaults(self) -> None:
         """Populate the default knowledges from `knowledge_tables._BASE_KNOWLEDGE_CODES`.
         
@@ -53,12 +60,8 @@ class Knowledges(AttributesBase):
             self.default_canonical_alias_key_to_code,
         )
 
-        for BaseKnowledgeInt, (name_aliases, AssociatedSkillInt, FocusInt) in _BASE_KNOWLEDGE_CODES.items():
-            full_knowledge_code: FullKnowledgeCode = (
-                int(BaseKnowledgeInt),
-                int(AssociatedSkillInt),
-                int(FocusInt),
-            )
+        for BaseKnowledgeInt, name_aliases in _BASE_KNOWLEDGE_CODES.items():
+            full_knowledge_code = self._generate_full_code(BaseKnowledgeInt)
             for alias in name_aliases:
                 norm_name = _normalize(alias)
                 default_map[norm_name] = full_knowledge_code

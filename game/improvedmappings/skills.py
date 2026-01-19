@@ -44,7 +44,7 @@ class Skills(AttributesBase):
         super().__init__()
 
     @staticmethod
-    def _generate_full_skill_code(base_code: int) -> FullSkillCode:
+    def _generate_full_code(base_code: int) -> FullSkillCode:
         """Given a base skill code, return (master_category, sub_category, base_skill)."""
         BaseSkillInt = int(base_code)
         categories = _MAPPING_BASE_SKILL_CODE_TO_CATEGORIES.get(BaseSkillInt)
@@ -68,7 +68,7 @@ class Skills(AttributesBase):
             self.default_canonical_alias_key_to_code,
         )
         for BaseSkillInt, name_aliases in _BASE_SKILL_CODES.items():
-            full_skill_code = self._generate_full_skill_code(BaseSkillInt)
+            full_skill_code = self._generate_full_code(BaseSkillInt)
             for alias in name_aliases:
                 norm_name = _normalize(alias)
                 existing = default_map.get(norm_name)

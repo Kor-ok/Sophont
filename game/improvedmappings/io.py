@@ -5,13 +5,15 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final, Union
 
-from game.improvedmappings.aptitudes import AptitudesSet, FullSkillCode, StringAliases
+from game.improvedmappings.attributes import FullCode, StringAliases
+from game.improvedmappings.set import AttributesSet
+from game.improvedmappings.skills import Skills
 
 CUSTOM_SKILLS_SCHEMA_VERSION: Final[int] = 1
 
 
 def _to_jsonable_custom_skills(
-    custom: Mapping[str, FullSkillCode],
+    custom: Mapping[str, FullCode],
 ) -> dict[str, list[int]]:
     """Convert custom skills mapping to a JSON-serializable representation.
 
@@ -36,7 +38,7 @@ def _to_jsonable_custom_category_dicts(
 
 def save_custom_skills_json(
     path: Union[str, Path],
-    skills: Union[AptitudesSet, Mapping[str, FullSkillCode]],
+    skills: Union[AttributesSet, Mapping[str, FullCode]],
     master_categories: Union[Mapping[int, StringAliases], None] = None,
     sub_categories: Union[Mapping[int, StringAliases], None] = None,
     *,
@@ -63,16 +65,16 @@ def save_custom_skills_json(
     out_path = Path(path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
-    custom_mapping: Mapping[str, FullSkillCode]
+    custom_mapping: Mapping[str, FullCode]
     custom_master_categories: Mapping[int, StringAliases]
     custom_sub_categories: Mapping[int, StringAliases]
 
-    if isinstance(skills, AptitudesSet):
-        custom_mapping = skills._custom_skills.custom_skill_name_to_codes
-        custom_master_categories = skills._custom_skills.custom_master_category_dict
-        custom_sub_categories = skills._custom_skills.custom_sub_category_dict
+    if isinstance(skills, AttributesSet):
+        custom_mapping = Skills.custom_skill_code_dict
+        custom_master_categories = Skills.custom_master_category_dict
+        custom_sub_categories = Skills.custom_sub_category_dict
     else:
-        custom_mapping = skills
+        custom_mapping = {}
         custom_master_categories = master_categories or {}
         custom_sub_categories = sub_categories or {}
 

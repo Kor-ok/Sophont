@@ -138,6 +138,12 @@ class AttributesBase:
         self.custom_view_header.secondary_code = max(int(v[1]) for v in values)
         self.custom_view_header.tertiary_code = max(int(v[2]) for v in values)
 
+    @staticmethod
+    def _generate_full_code(base_code: int) -> FullCode:
+        """Generate a full code tuple from a base code."""
+        raise NotImplementedError("Subclasses must implement _generate_full_code method.")
+
     def _initialise_defaults(self) -> None:
         """Initialise the default alias to code mapping. To be implemented by subclasses."""
-        pass
+        raise NotImplementedError("Subclasses must implement _initialise_defaults method.")
+
