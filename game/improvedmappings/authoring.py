@@ -110,6 +110,6 @@ def load_characteristics_matrix_from_xlsx(path: str, table_name: str) -> dict[tu
             if pd.notna(value):
                 matrix[(y_code, x_code)] = float(value)
             else:
-                matrix[(y_code, x_code)] = 0.0  # Default value if missing
+                matrix[(y_code, x_code)] = 1.0  # Default value if missing
     
     return matrix
