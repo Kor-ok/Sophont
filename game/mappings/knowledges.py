@@ -8,7 +8,7 @@ from game.mappings import (
     KNOWLEDGES_BASE_KNOWLEDGE_CODES,
     KNOWLEDGES_DEFAULT_KNOWLEDGE_TO_SKILLS_ASSOCIATIONS,
 )
-from game.mappings.attributes import AttributesBase
+from game.mappings.deprecated.attributes import AttributesBase
 from game.mappings.utils import _normalize
 
 StringAliases = tuple[str, ...]

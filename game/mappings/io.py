@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final, Union
 
-from game.mappings.attributes import FullCode, StringAliases
+from game.mappings.deprecated.attributes import FullCode, StringAliases
 from game.mappings.set import AttributesSet
 from game.mappings.skills import Skills
 

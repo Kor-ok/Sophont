@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from typing import Final
 
 import pandas as pd
@@ -105,13 +106,16 @@ with pd.ExcelFile(XLSX_PATH) as excel:
         )
     )
 
-    CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES: Final[
-        dict[tuple[FullCharacteristicCodeTuple, StrCodeStr], StringAliases]
-    ] = load_full_characteristic_code_to_str_aliases_from_xlsx(
-        path=XLSX_PATH,
-        table_name=sheet_characteristics_base,
-        language_code=LANG_CODE,
-        excel=excel,
+    CanonicalStrKey = str
+    AliasMap = Mapping[CanonicalStrKey, StringAliases]
+    AliasMappedFullCode = tuple[AliasMap, FullCharacteristicCodeTuple]
+    CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES: Final[tuple[AliasMappedFullCode, ...]] = (
+        load_full_characteristic_code_to_str_aliases_from_xlsx(
+            path=XLSX_PATH,
+            table_name=sheet_characteristics_base,
+            language_code=LANG_CODE,
+            excel=excel,
+        )
     )
 
     CHARACTERISTICS_MATRIX: Final[

@@ -9,7 +9,7 @@ from game.mappings import (
     SKILLS_MASTER_CATEGORY_CODES,
     SKILLS_SUB_CATEGORY_CODES,
 )
-from game.mappings.attributes import AttributesBase
+from game.mappings.deprecated.attributes import AttributesBase
 from game.mappings.utils import AttributeViewHeader, _normalize
 
 StringAliases = tuple[str, ...]

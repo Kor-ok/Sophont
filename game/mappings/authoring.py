@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 from typing import Any
 
 import pandas as pd
@@ -129,8 +130,13 @@ def load_knowledge_to_skills_associations_from_xlsx(
 UPPIndexInt = int
 SubCodeInt = int
 MasterCodeInt = int
-FullCharacteristicCodeTuple = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
-StrCodeStr = str
+FullCharacteristicCodeTuple = tuple[
+    UPPIndexInt, SubCodeInt, MasterCodeInt
+]  # FullCode = tuple[int, int, int]
+
+CanonicalStrKey = str
+AliasMap = Mapping[CanonicalStrKey, StringAliases]
+AliasMappedFullCode = tuple[AliasMap, FullCharacteristicCodeTuple]
 
 
 def load_full_characteristic_code_to_str_aliases_from_xlsx(
@@ -139,7 +145,7 @@ def load_full_characteristic_code_to_str_aliases_from_xlsx(
     language_code: str,
     *,
     excel: pd.ExcelFile | None = None,
-) -> dict[tuple[FullCharacteristicCodeTuple, StrCodeStr], StringAliases]:
+) -> tuple[AliasMappedFullCode, ...]:
     """Load ((upp, sub, master), str_code) -> aliases mapping from an Excel file."""
     sheet_name = f"{table_name}.{language_code}"
     excel_or_path: pd.ExcelFile | str = excel if excel is not None else path
@@ -152,7 +158,7 @@ def load_full_characteristic_code_to_str_aliases_from_xlsx(
     )
     existing_alias_cols = [c for c in alias_cols if c in df.columns]
 
-    table: dict[tuple[FullCharacteristicCodeTuple, StrCodeStr], StringAliases] = {}
+    entries: list[AliasMappedFullCode] = []
     needed = ["UPP Index", "Sub Code", "Master Code", "Str Code", *existing_alias_cols]
     for row in df[needed].itertuples(index=False, name=None):
         upp_index = int(row[0])
@@ -160,8 +166,8 @@ def load_full_characteristic_code_to_str_aliases_from_xlsx(
         master_code = int(row[2])
         str_code = str(row[3]).strip()
         aliases = _coerce_aliases_row(row[4:])
-        table[((upp_index, sub_code, master_code), str_code)] = aliases
-    return table
+        entries.append((MappingProxyType({str_code: aliases}), (upp_index, sub_code, master_code)))
+    return tuple(entries)
 
 
 # Now for the more complex characteristics.matrix.data
