@@ -4,12 +4,12 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import Final, cast
 
-from game.improvedmappings import (
+from game.mappings import (
     KNOWLEDGES_BASE_KNOWLEDGE_CODES,
     KNOWLEDGES_DEFAULT_KNOWLEDGE_TO_SKILLS_ASSOCIATIONS,
 )
-from game.improvedmappings.attributes import AttributesBase
-from game.improvedmappings.utils import _normalize
+from game.mappings.attributes import AttributesBase
+from game.mappings.utils import _normalize
 
 StringAliases = tuple[str, ...]
 CodeNames = tuple[str, ...]

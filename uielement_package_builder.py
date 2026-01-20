@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from nicegui import ui
 
-from game.aptitude_package import T
+from game.deprecated.aptitude_package import T
 from game.mappings.skills import (
     _NORM_KNOWLEDGE_NAME_TO_CODES,
     _NORM_SKILL_NAME_TO_CODES,

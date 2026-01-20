@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Final, Optional
 
-from game.improvedmappings.characteristics import Characteristics
-from game.improvedmappings.knowledges import Knowledges
-from game.improvedmappings.skills import Skills
+from game.mappings.characteristics import Characteristics
+from game.mappings.knowledges import Knowledges
+from game.mappings.skills import Skills
 
 
 class AttributesSet:

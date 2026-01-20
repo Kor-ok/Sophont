@@ -6,11 +6,11 @@ from typing import Any, Optional, Union
 
 from nicegui import ui
 
-from game.aptitude_package import AptitudePackage
-from game.aptitude_package import T as Apt_Types
 from game.characteristic import Characteristic
-from game.characteristic_package import CharacteristicPackage
-from game.characteristic_package import T as Char_Types
+from game.deprecated.aptitude_package import AptitudePackage
+from game.deprecated.aptitude_package import T as Apt_Types
+from game.deprecated.characteristic_package import CharacteristicPackage
+from game.deprecated.characteristic_package import T as Char_Types
 from game.gene import Gene
 from game.knowledge import Knowledge
 from game.mappings.characteristics import (

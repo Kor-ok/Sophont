@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from game.mappings.set import ATTRIBUTES
+
 
 class Characteristic:
 
@@ -45,11 +47,8 @@ class Characteristic:
     
     @classmethod
     def by_name(cls, name: str) -> Characteristic:
-        from game.mappings.characteristics import name_to_position_code
-        upp_index, subtype = name_to_position_code(name)
-        if upp_index == -1 or subtype == -1:
-            raise ValueError(f"Could not match characteristic name: {name!r}")
-        return cls(upp_index, subtype)
+        ATTRIBUTES.characteristics.combined_view  # ensure initialisation
+        return cls(upp_index, subtype, category_code)
     
     def get_name(self) -> str:
         from game.mappings.characteristics import codes_to_name

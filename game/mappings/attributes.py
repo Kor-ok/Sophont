@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import ClassVar, TypeVar
 
-from game.improvedmappings.utils import AttributeViewHeader, DirtyDict
+from game.mappings.utils import AttributeViewHeader, DirtyDict
 
 StringAliases = tuple[str, ...]
 # Skill code is (master_category, sub_category, base_skill)

@@ -9,7 +9,7 @@ project_root = os.path.abspath(os.path.join(current_dir, '..', '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from game.improvedmappings import (  # noqa: E402
+from game.mappings import (  # noqa: E402
     CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES,
     CHARACTERISTICS_MASTER_CATEGORY_CODES,
     CHARACTERISTICS_MATRIX,

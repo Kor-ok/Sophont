@@ -5,9 +5,9 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final, Union
 
-from game.improvedmappings.attributes import FullCode, StringAliases
-from game.improvedmappings.set import AttributesSet
-from game.improvedmappings.skills import Skills
+from game.mappings.attributes import FullCode, StringAliases
+from game.mappings.set import AttributesSet
+from game.mappings.skills import Skills
 
 CUSTOM_SKILLS_SCHEMA_VERSION: Final[int] = 1
 
@@ -62,31 +62,5 @@ def save_custom_skills_json(
                             }
     }
     """
-    out_path = Path(path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    custom_mapping: Mapping[str, FullCode]
-    custom_master_categories: Mapping[int, StringAliases]
-    custom_sub_categories: Mapping[int, StringAliases]
-
-    if isinstance(skills, AttributesSet):
-        custom_mapping = Skills.custom_skill_code_dict
-        custom_master_categories = Skills.custom_master_category_dict
-        custom_sub_categories = Skills.custom_sub_category_dict
-    else:
-        custom_mapping = {}
-        custom_master_categories = master_categories or {}
-        custom_sub_categories = sub_categories or {}
-
-    payload: dict[str, Any] = {
-        "schema": CUSTOM_SKILLS_SCHEMA_VERSION,
-        "custom_skills": _to_jsonable_custom_skills(custom_mapping),
-        "custom_master_categories": _to_jsonable_custom_category_dicts(custom_master_categories),
-        "custom_sub_categories": _to_jsonable_custom_category_dicts(custom_sub_categories),
-    }
-
-    chars_written = out_path.write_text(
-        json.dumps(payload, indent=indent, sort_keys=True), encoding="utf-8"
-    )
-    print(f"{chars_written} chars - Custom skills saved to: {out_path.resolve()}")
-    return out_path
+    
+    return Path(NotImplemented)
