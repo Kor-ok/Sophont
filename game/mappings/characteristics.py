@@ -16,8 +16,9 @@ CanonicalStrKey = str
 UPPIndexInt = int
 SubCodeInt = int
 MasterCodeInt = int
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
 FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
+
+AliasMap = Mapping[CanonicalStrKey, StringAliases]
 AliasMappedFullCode = tuple[AliasMap, FullCode]
 
 
@@ -43,6 +44,8 @@ class Characteristics(AttributeBase):
         "custom_characteristic_master_category_name_aliases_dict",
         "custom_characteristic_code_name_aliases_dict",
     )
+    custom_characteristic_master_category_name_aliases_dict: dict[int, StringAliases]
+    custom_characteristic_code_name_aliases_dict: dict[FullCode, StringAliases]
 
     def __init__(self) -> None:
         # AttributeBase is a per-subclass singleton; __init__ can run multiple times.
@@ -68,32 +71,4 @@ class Characteristics(AttributeBase):
         self.default_collection = AliasMappedFullCodeCollection.from_iterable(
             entries=CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES,
             mutability=MutabilityLevel.DEFAULT,
-        )
-
-    def get_full_code(
-        self,
-        alias: str,
-        *,
-        canonical_only: bool = False,
-        default: FullCode | None = None,
-    ) -> FullCode:
-        return super().get_full_code(
-            alias,
-            canonical_only=canonical_only,
-            default=default,
-        )
-    
-    def get_aliases(
-        self,
-        code: FullCode,
-        *,
-        default: tuple[CanonicalStrKey, StringAliases] | None = None,
-    ) -> tuple[CanonicalStrKey, StringAliases]:
-        """
-        FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
-        returns tuple[CanonicalStrKey, StringAliases]
-        """
-        return super().get_aliases(
-            code,
-            default=default,
         )

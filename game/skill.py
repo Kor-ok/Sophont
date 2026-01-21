@@ -1,26 +1,28 @@
 from __future__ import annotations
 
-from game.mappings.skills import get_base_skill_code_from_name, get_category_codes_from_skill_code
-from game.uid.guid import uuid4
+from typing_extensions import TypeAlias
+
+from game.mappings.set import ATTRIBUTES
+
+CanonicalStrKey: TypeAlias = str
+StringAliases: TypeAlias = tuple[str, ...]
 
 
 class Skill:
     """Immutable, interned (flyweight) skill descriptor.
 
-    - Instantiate with just `code`: `Skill(38)`
-    - The same `code` always returns the same instance (flyweight)
-    - `master_category` and `sub_category` are derived once at creation
     """
 
-    __slots__ = ("code", "master_category", "sub_category", "unique_id")
+    __slots__ = ("master_category", "sub_category", "base_code")
 
     # Per-process interning cache: code -> Skill singleton
     _cache: dict[tuple[int, int, int], Skill] = {}
 
-    def __new__(cls, code: int = -99) -> Skill:
-        code_int = int(code)
-        master, sub = get_category_codes_from_skill_code(code_int)
-        key = (code_int, master, sub)
+    def __new__(cls, master_category: int = -99, sub_category: int = -99, base_code: int = -99) -> Skill:
+        master_int = int(master_category)
+        sub_int = int(sub_category)
+        code_int = int(base_code)
+        key = (master_int, sub_int, code_int)
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
@@ -28,16 +30,14 @@ class Skill:
         self = super().__new__(cls)
 
         # Bypass __setattr__ to initialize immutable slots.
-        object.__setattr__(self, "code", code_int)
-        object.__setattr__(self, "master_category", master)
-        object.__setattr__(self, "sub_category", sub)
-
-        object.__setattr__(self, "unique_id", uuid4().bytes)
+        object.__setattr__(self, "master_category", master_int)
+        object.__setattr__(self, "sub_category", sub_int)
+        object.__setattr__(self, "base_code", code_int)
 
         cls._cache[key] = self
         return self
 
-    def __init__(self, code: int = -99) -> None:
+    def __init__(self, master_category: int = -99, sub_category: int = -99, base_code: int = -99) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
 
@@ -45,26 +45,26 @@ class Skill:
         raise AttributeError("Skill instances are immutable")
 
     @classmethod
-    def of(cls, code: int) -> Skill:
-        """Explicit flyweight constructor (same as `Skill(code)`)."""
-        return cls(code)
+    def of(cls, master_category: int = -99, sub_category: int = -99, base_code: int = -99) -> Skill:
+        return cls(master_category, sub_category, base_code)
     
     @classmethod
-    def by_skill_name(cls, name: str) -> Skill:
+    def by_name(cls, name: str) -> Skill:
         """Construct Skill flyweight by skill name lookup."""
-        code = get_base_skill_code_from_name(name)
-        return cls.of(code)
+        master_category, sub_category, base_code = ATTRIBUTES.skills.get_full_code(name)
+        return cls(master_category, sub_category, base_code)
+    
+    def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
+        """Get the (canonical name, aliases) for this Skill."""
+        return ATTRIBUTES.skills.get_aliases(
+            (self.master_category, self.sub_category, self.base_code)
+        )
 
     def __repr__(self) -> str:
-        from game.mappings.skills import Table, code_to_string
-        return (
-            f"Skill(code={self.code}[{code_to_string(self.code, Table.BASE)}], "
-            f"master_category={self.master_category}[{code_to_string(self.master_category, Table.MASTER_CATEGORY)}], "
-            f"sub_category={self.sub_category}[{code_to_string(self.sub_category, Table.SUB_CATEGORY)}])"
+        display = []
+        skill_name = ATTRIBUTES.skills.get_aliases(
+            (self.master_category, self.sub_category, self.base_code)
         )
-    
-    def apply_knowledge(self, knowledge_code: int, focus: str | None = None):
-        """Create a Knowledge instance associated with this Skill."""
-        from game.knowledge import Knowledge  # Avoid circular import
-        return Knowledge.of(knowledge_code, focus=focus, associated_skill=self.code)
+        display.append(f"Skill(name={skill_name}, code=({self.master_category}, {self.sub_category}, {self.base_code}))")
+        return f"Skill({', '.join(display)})"
         

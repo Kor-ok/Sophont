@@ -127,7 +127,7 @@ class Aptitudes:
 
         def _sort_key(a: UniqueAppliedAptitude) -> tuple[int, int, int, str]:
             if isinstance(a.item, Skill):
-                return (0, a.item.code, 0, "")
+                return (0, a.item.base_code, 0, "")
             if isinstance(a.item, Knowledge):
                 return (1, int(a.item.associated_skill), int(a.item.code), str(a.item.focus))
             # Should never happen, but keeps sorting total.

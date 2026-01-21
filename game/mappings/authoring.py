@@ -73,28 +73,57 @@ def load_code_to_str_aliases_from_xlsx(
 BaseSkillCodeInt = int
 MasterCategoryInt = int
 SubCategoryInt = int
-CategoryCodesTuple = tuple[MasterCategoryInt, SubCategoryInt]
+FullSkillCode = tuple[MasterCategoryInt, SubCategoryInt, BaseSkillCodeInt]
 
 
 def load_skill_code_to_categories_from_xlsx(
     path: str,
     table_name: str,
+    language_code: str,
     *,
     excel: pd.ExcelFile | None = None,
-) -> dict[BaseSkillCodeInt, CategoryCodesTuple]:
-    """Load skill base-code -> (master, sub) categories mapping from an Excel file."""
-    sheet_name = f"{table_name}"
+) -> tuple[AliasMappedFullCode, ...]:
+    """"""
+    sheet_name_for_codes = f"{table_name}"
     excel_or_path: pd.ExcelFile | str = excel if excel is not None else path
 
-    df = _read_excel(
+    df_codes = _read_excel(
         excel_or_path,
-        sheet_name=sheet_name,
+        sheet_name=sheet_name_for_codes,
         usecols=["Base Code", "Master Code", "Sub Code"],
     )
-    table: dict[BaseSkillCodeInt, CategoryCodesTuple] = {}
-    for base_code, master_code, sub_code in df.itertuples(index=False, name=None):
-        table[int(base_code)] = (int(master_code), int(sub_code))
-    return table
+
+    sheet_name_for_aliases = f"skills.base.{language_code}"
+    alias_cols = [f"Alias{i}" for i in range(1, 6)]
+
+    df_aliases = _read_excel(
+        excel_or_path,
+        sheet_name=sheet_name_for_aliases,
+        usecols=["Code", *alias_cols],
+    )
+
+    entries: list[AliasMappedFullCode] = []
+    full_code: FullSkillCode
+
+    # For every entry in df_codes, use the Base Code in the column "Code" of df_aliases to find aliases.
+    for row_code in df_codes.itertuples(index=False, name=None):
+        base_code = int(row_code[0])
+        master_code = int(row_code[1])
+        sub_code = int(row_code[2])
+        full_code = (master_code, sub_code, base_code)
+
+        # Find aliases for this base_code
+        alias_row = df_aliases[df_aliases["Code"] == base_code]
+        if alias_row.empty:
+            # No aliases found; skip
+            continue
+        alias_row_values = alias_row.iloc[0].to_list()
+        aliases = _coerce_aliases_row(alias_row_values[1:])  # Skip the "Code" column
+
+        # Use the first alias as the canonical key string and the rest as aliases.
+        entries.append((MappingProxyType({aliases[0]: aliases[1:]}), full_code))
+
+    return tuple(entries)
 
 
 BaseKnowledgeCodeInt = int
@@ -125,6 +154,119 @@ def load_knowledge_to_skills_associations_from_xlsx(
             codes.append(int(value))
         table[base_code] = tuple(codes)
     return table
+
+
+def _disambiguate_knowledge_collisions(
+    entries: Iterable[AliasMappedFullCode],
+) -> tuple[AliasMappedFullCode, ...]:
+    """Disambiguate knowledge alias collisions by appending the associated skill code.
+
+    A knowledge entry's FullKnowledgeCode is:
+        `(base_knowledge_code, associated_skill_code, focus_code)`
+
+    If any alias string (canonical or alternate alias) appears more than once across
+    the provided entries, every occurrence of that alias is rewritten as:
+        `"{alias} ({associated_skill_code})"`
+
+    This ensures all aliases uniquely resolve back to their intended full code.
+    """
+
+    # Pass 1: count every alias string (canonical + alternates) across entries.
+    alias_counts: dict[str, int] = {}
+    for alias_map, _full_code in entries:
+        for canonical, aliases in alias_map.items():
+            alias_counts[canonical] = alias_counts.get(canonical, 0) + 1
+            for alias in aliases:
+                alias_counts[alias] = alias_counts.get(alias, 0) + 1
+
+    # Pass 2: rewrite only the colliding aliases for each entry.
+    disambiguated_entries: list[AliasMappedFullCode] = []
+    for alias_map, full_code in entries:
+        associated_skill_code = full_code[1]
+        rewritten: dict[str, StringAliases] = {}
+
+        for canonical, aliases in alias_map.items():
+            new_canonical = (
+                f"{canonical} ({associated_skill_code})"
+                if alias_counts.get(canonical, 0) > 1
+                else canonical
+            )
+
+            new_aliases = tuple(
+                f"{alias} ({associated_skill_code})" if alias_counts.get(alias, 0) > 1 else alias
+                for alias in aliases
+            )
+
+            rewritten[new_canonical] = new_aliases
+
+        disambiguated_entries.append((MappingProxyType(rewritten), full_code))
+
+    return tuple(disambiguated_entries)
+
+
+AssociatedSkillInt = int
+FocusInt = int
+FullKnowledgeCode = tuple[BaseKnowledgeCodeInt, AssociatedSkillInt, FocusInt]
+
+
+def load_full_knowledge_code_to_str_aliases_from_xlsx(
+    path: str,
+    table_name: str,
+    language_code: str,
+    *,
+    excel: pd.ExcelFile | None = None,
+) -> tuple[AliasMappedFullCode, ...]:
+
+    sheet_name_for_codes = f"{table_name}"
+    excel_or_path: pd.ExcelFile | str = excel if excel is not None else path
+
+    skill_association_cols = [f"Skill Code{i}" for i in range(1, 6)]
+
+    df_codes = _read_excel(
+        excel_or_path,
+        sheet_name=sheet_name_for_codes,
+        usecols=["Base Code", *skill_association_cols],
+    )
+
+    sheet_name_for_aliases = f"knowledges.base.{language_code}"
+    alias_cols = [f"Alias{i}" for i in range(1, 6)]
+
+    df_aliases = _read_excel(
+        excel_or_path,
+        sheet_name=sheet_name_for_aliases,
+        usecols=["Code", *alias_cols],
+    )
+
+    entries: list[AliasMappedFullCode] = []
+    DEFAULT_FOCUS_CODE = -99
+    full_code: FullKnowledgeCode
+
+    # In df_codes, the same Base Code may have multiple associated Skill Codes, and
+    # each combination of (Base Code, Associated Skill Code, DEFAULT_FOCUS_CODE) forms a FullKnowledgeCode
+    for row_code in df_codes.itertuples(index=False, name=None):
+        base_code = int(row_code[0])
+        associated_skill_codes: list[int] = []
+        for value in row_code[1:]:
+            if value is None or pd.isna(value):
+                continue
+            associated_skill_codes.append(int(value))
+
+        # For each associated skill code, form a FullKnowledgeCode and find aliases
+        for associated_skill_code in associated_skill_codes:
+            full_code = (base_code, associated_skill_code, DEFAULT_FOCUS_CODE)
+
+            # Find aliases for this base_code
+            alias_row = df_aliases[df_aliases["Code"] == base_code]
+            if alias_row.empty:
+                # No aliases found; skip
+                continue
+            alias_row_values = alias_row.iloc[0].to_list()
+            aliases = _coerce_aliases_row(alias_row_values[1:])  # Skip the "Code" column
+
+            # Use the first alias as the canonical key string and the rest as aliases.
+            entries.append((MappingProxyType({aliases[0]: aliases[1:]}), full_code))
+
+    return tuple(_disambiguate_knowledge_collisions(entries))
 
 
 UPPIndexInt = int

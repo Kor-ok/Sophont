@@ -2,21 +2,25 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from game.uid.guid import uuid4
+from typing_extensions import TypeAlias
 
+from game.mappings.set import ATTRIBUTES
+
+CanonicalStrKey: TypeAlias = str
+StringAliases: TypeAlias = tuple[str, ...]
 
 class Knowledge:
 
-    __slots__ = ("code", "focus", "associated_skill", "unique_id")
+    __slots__ = ("code", "associated_skill", "focus")
 
-    _cache: ClassVar[dict[tuple[int, str, int], Knowledge]] = {}
+    _cache: ClassVar[dict[tuple[int, int, int], Knowledge]] = {}
 
-    def __new__(cls, code: int = -99, focus: str | None = None, associated_skill: int = -99) -> Knowledge:
+    def __new__(cls, code: int = -99, associated_skill: int = -99, focus: int = -99) -> Knowledge:
         code_int = int(code)
-        focus_str = "" if focus is None else str(focus)
-        associated_skill_int = int(associated_skill) if associated_skill is not None else -99
+        associated_skill_int = int(associated_skill)
+        focus_int = int(focus)
         
-        key = (code_int, focus_str, associated_skill_int)
+        key = (code_int, associated_skill_int, focus_int)
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
@@ -24,15 +28,13 @@ class Knowledge:
         self = super().__new__(cls)
 
         object.__setattr__(self, "code", code_int)
-        object.__setattr__(self, "focus", focus_str)
         object.__setattr__(self, "associated_skill", associated_skill_int)
-        
-        object.__setattr__(self, "unique_id", uuid4().bytes)
+        object.__setattr__(self, "focus", focus_int)
 
         cls._cache[key] = self
         return self
     
-    def __init__(self, code: int = -99, focus: str | None = None, associated_skill: int = -99) -> None:
+    def __init__(self, code: int = -99, associated_skill: int = -99, focus: int = -99) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
         pass
 
@@ -40,16 +42,26 @@ class Knowledge:
         raise AttributeError("Knowledge instances are immutable")
     
     @classmethod
-    def of(cls, code: int, focus: str | None = None, associated_skill: int = -99) -> Knowledge:
+    def of(cls, code: int, associated_skill: int = -99, focus: int = -99) -> Knowledge:
         """Explicit flyweight constructor (same as `Knowledge(code)`)."""
-        return cls(code, focus, associated_skill)
+        return cls(code, associated_skill, focus)
+    
+    @classmethod
+    def by_name(cls, name: str) -> Knowledge:
+        """Construct Knowledge flyweight by knowledge name lookup."""
+        base_knowledge_code, associated_skill_code, focus_code = ATTRIBUTES.knowledges.get_full_code(name)
+        return cls(base_knowledge_code, associated_skill_code, focus_code)
+
+    def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
+        """Get the (canonical name, aliases) for this Knowledge."""
+        return ATTRIBUTES.knowledges.get_aliases(
+            (self.code, self.associated_skill, self.focus)
+        )
     
     def __repr__(self) -> str:
-        from game.mappings.skills import Table, code_to_string
-        return (
-            f"Knowledge(code={self.code}[{code_to_string(self.code, Table.KNOWLEDGES)}]," 
-            f' focus="{self.focus}", '
-            f"associated_skill={self.associated_skill}[{code_to_string(self.associated_skill, Table.BASE)}],"
-            f' unique_id="{self.unique_id}")'
+        display = []
+        knowledge_name = ATTRIBUTES.knowledges.get_aliases(
+            (self.code, self.associated_skill, self.focus)
         )
-
+        display.append(f"Knowledge(name={knowledge_name}, code=({self.code}, {self.associated_skill}, {self.focus}))")
+        return "<" + " ".join(display) + ">"

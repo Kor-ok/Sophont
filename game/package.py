@@ -16,9 +16,9 @@ T = TypeVar("T", Skill, Knowledge, Gene, Phene, Characteristic)  # Skill, Knowle
 class TypeCategory(Enum):
     SKILL = "Aptitude"
     KNOWLEDGE = "Aptitude"
-    GENE = "InVivo"
-    PHENE = "InVivo"
-    CHARACTERISTIC = "InSitu"
+    GENE = "Genetic"
+    PHENE = "Genetic"
+    CHARACTERISTIC = "Personal"
 
 _TYPE_CATEGORY_BY_CLASS: Final[dict[type[object], TypeCategory]] = {
     Skill: TypeCategory.SKILL,

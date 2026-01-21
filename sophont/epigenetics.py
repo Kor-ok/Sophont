@@ -42,7 +42,7 @@ class UniqueAppliedCharacteristic:
 
 UPPIndexAndLevel = tuple[int, int]
 UniqueIDAndLevel = dict[bytes, UPPIndexAndLevel]
-class EpigeneticProfile:
+class Epigenetics:
     """
     characteristics_collation: list[UniqueAppliedCharacteristic] | None - Cached list of unique applied characteristics with computed levels.
 

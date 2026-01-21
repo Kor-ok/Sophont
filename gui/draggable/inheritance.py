@@ -48,8 +48,8 @@ class InheritancePopchipDynamicContainer(ui.column):
         super().__init__()
         
         inheritance_cards = generate_inheritance_card_popchips(
-            genotype=character.epigenetic_profile.species.genotype,
-            parent_uuids=character.epigenetic_profile.parent_uuids,
+            genotype=character.epigenetics.species.genotype,
+            parent_uuids=character.epigenetics.parent_uuids,
         )
         with self:
             with ui.column(wrap=False, align_items="center").classes("q-py-lg") as card_column:

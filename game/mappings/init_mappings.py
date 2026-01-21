@@ -10,6 +10,7 @@ from game.mappings.authoring import (
     load_characteristics_matrix_from_xlsx,
     load_code_to_str_aliases_from_xlsx,
     load_full_characteristic_code_to_str_aliases_from_xlsx,
+    load_full_knowledge_code_to_str_aliases_from_xlsx,
     load_knowledge_to_skills_associations_from_xlsx,
     load_skill_code_to_categories_from_xlsx,
 )
@@ -47,6 +48,9 @@ MasterCodeInt = int
 FullCharacteristicCodeTuple = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
 StrCodeStr = str
 
+CanonicalStrKey = str
+AliasMap = Mapping[CanonicalStrKey, StringAliases]
+AliasMappedFullCode = tuple[AliasMap, FullCharacteristicCodeTuple]
 
 with pd.ExcelFile(XLSX_PATH) as excel:
     SKILLS_MASTER_CATEGORY_CODES: Final[dict[int, StringAliases]] = (
@@ -72,10 +76,11 @@ with pd.ExcelFile(XLSX_PATH) as excel:
         excel=excel,
     )
 
-    SKILLS_MAPPING_BASE_SKILL_CODE_TO_CATEGORIES: Final[dict[BaseSkillCode, CategoryCodesTuple]] = (
+    SKILLS_MAPPING_BASE_SKILL_CODE_TO_CATEGORIES: Final[tuple[AliasMappedFullCode, ...]] = (
         load_skill_code_to_categories_from_xlsx(
             path=XLSX_PATH,
             table_name=sheet_skills_fullcode_data,
+            language_code=LANG_CODE,
             excel=excel,
         )
     )
@@ -97,6 +102,15 @@ with pd.ExcelFile(XLSX_PATH) as excel:
         excel=excel,
     )
 
+    KNOWLEDGES_FULL_CODE_TO_STR_ALIASES: Final[tuple[AliasMappedFullCode, ...]] = (
+        load_full_knowledge_code_to_str_aliases_from_xlsx(
+            path=XLSX_PATH,
+            table_name=sheet_knowledges_with_skill_associations_data,
+            language_code=LANG_CODE,
+            excel=excel,
+        )
+    )
+
     CHARACTERISTICS_MASTER_CATEGORY_CODES: Final[dict[int, StringAliases]] = (
         load_code_to_str_aliases_from_xlsx(
             path=XLSX_PATH,
@@ -106,9 +120,7 @@ with pd.ExcelFile(XLSX_PATH) as excel:
         )
     )
 
-    CanonicalStrKey = str
-    AliasMap = Mapping[CanonicalStrKey, StringAliases]
-    AliasMappedFullCode = tuple[AliasMap, FullCharacteristicCodeTuple]
+    
     CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES: Final[tuple[AliasMappedFullCode, ...]] = (
         load_full_characteristic_code_to_str_aliases_from_xlsx(
             path=XLSX_PATH,

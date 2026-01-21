@@ -26,7 +26,7 @@ class UPPDisplay(ui.column):
         super().__init__()
         self.classes(styles.UPP_ROOT)
 
-        genotype = character.epigenetic_profile.species.genotype
+        genotype = character.epigenetics.species.genotype
         genes = genotype.get_genes_without_phenes()
         phenes = genotype.get_phenes_without_genes()
 

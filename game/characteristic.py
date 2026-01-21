@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from typing import ClassVar
 
+from typing_extensions import TypeAlias
+
 from game.mappings.set import ATTRIBUTES
 
+CanonicalStrKey: TypeAlias = str
+StringAliases: TypeAlias = tuple[str, ...]
 
 class Characteristic:
 
@@ -47,17 +51,20 @@ class Characteristic:
     
     @classmethod
     def by_name(cls, name: str) -> Characteristic:
-        ATTRIBUTES.characteristics.combined_view  # ensure initialisation
+        upp_index, subtype, category_code = ATTRIBUTES.characteristics.get_full_code(name)
         return cls(upp_index, subtype, category_code)
     
-    def get_name(self) -> str:
-        from game.mappings.characteristics import codes_to_name
-        return codes_to_name(self.upp_index, self.subtype)
+    def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
+        canonical_str_key, string_aliases = ATTRIBUTES.characteristics.get_aliases(
+            (self.upp_index, self.subtype, self.category_code)
+        )
+        return canonical_str_key, string_aliases
     
     def __repr__(self) -> str:
-        from game.mappings.characteristics import codes_to_name
         display = []
-        characteristic_name = codes_to_name(self.upp_index, self.subtype)
+        characteristic_name = ATTRIBUTES.characteristics.get_aliases(
+            (self.upp_index, self.subtype, self.category_code)
+            )
         display.append(f"name={characteristic_name!r}")
         memory_pointer_for_this_immutable_object = hex(id(self))
         display.append(f"memory_pointer={memory_pointer_for_this_immutable_object}:")

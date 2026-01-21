@@ -83,19 +83,19 @@ class CharacterCard(ui.column):
             ui.notify(f'Renamed to "{new_name}"', type="positive")
 
     def _commit_gender(self, new_gender_key: int) -> None:
-        original_selected, original_selection_size = self.character.epigenetic_profile.gender
+        original_selected, original_selection_size = self.character.epigenetics.gender
         if new_gender_key != original_selected:  # prevents redundant writes
-            self.character.epigenetic_profile.gender = (new_gender_key, original_selection_size)
+            self.character.epigenetics.gender = (new_gender_key, original_selection_size)
 #endregion
 #region: =================================================== UI SECTIONS =======================
     def _build_profile_picture(self) -> None:
         with ui.element("div").classes(styles.CHARACTER_IMAGE_FRAME):
                 image_set = "set2"  # 'set2' is alien-themed 'set4' is cats
                 # If SPECIES_MAP uuid matches "Human", use 'set5' which is human-themed
-                if self.character.epigenetic_profile.species.uuid == SPECIES_MAP["Human"]:
+                if self.character.epigenetics.species.uuid == SPECIES_MAP["Human"]:
                     image_set = "set5"
                 elif (
-                    self.character.epigenetic_profile.species.uuid == SPECIES_MAP["Aslan"]
+                    self.character.epigenetics.species.uuid == SPECIES_MAP["Aslan"]
                 ):
                     image_set = "set4"
                 ui.image(
@@ -107,7 +107,7 @@ class CharacterCard(ui.column):
                         ui.label("Character UUID:")
                         ui.label(self.character.uuid.hex())
                         ui.label("Species UUID:")
-                        ui.label(self.character.epigenetic_profile.species.uuid.hex())
+                        ui.label(self.character.epigenetics.species.uuid.hex())
 
     def _build_name_input(self) -> None:
         ui.label("Name:")
@@ -134,12 +134,12 @@ class CharacterCard(ui.column):
     def _build_parentage_display(self) -> None:
         ui.label("Parents:")
         ui.label(
-            str(len(self.character.epigenetic_profile.parent_uuids) - 1) # Exclude 'Self'
-        ).tooltip(f"UUIDs: {[pu.hex() for pu in self.character.epigenetic_profile.parent_uuids if pu != self.character.uuid]}")
+            str(len(self.character.epigenetics.parent_uuids) - 1) # Exclude 'Self'
+        ).tooltip(f"UUIDs: {[pu.hex() for pu in self.character.epigenetics.parent_uuids if pu != self.character.uuid]}")
 
     def _build_gender_display(self) -> None:
         ui.label("Gender:")
-        selected_gender, possible_genders = self.character.epigenetic_profile.gender
+        selected_gender, possible_genders = self.character.epigenetics.gender
         gender_map_slice = possible_genders + 2 
         gender_map_options = {k: v[0].capitalize() for k, v in list(gender_map.items())[0:gender_map_slice]}
         gender_select_input = (
@@ -151,7 +151,7 @@ class CharacterCard(ui.column):
         # Get Species Name by matching species.uuid to SPECIES_MAP
         species_name = "ERROR"
         for name, uuid in SPECIES_MAP.items():
-            if uuid == self.character.epigenetic_profile.species.uuid:
+            if uuid == self.character.epigenetics.species.uuid:
                 species_name = name
                 break
         ui.label(f"Genotype: {species_name}")
@@ -173,7 +173,7 @@ class CharacterCard(ui.column):
             with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
                 self._build_genotype_display()
                 ui.label("PLACEHOLDER: Epigenetic Collation")
-                raw_collation = repr(self.character.epigenetic_profile.characteristics_collation)
+                raw_collation = repr(self.character.epigenetics.characteristics_collation)
                 ui.label(raw_collation).classes()
 
             with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):

@@ -3,13 +3,25 @@ from __future__ import annotations
 from itertools import chain
 from typing import ClassVar, TypeVar
 
+from typing_extensions import TypeAlias
+
 from game.mappings.data import AliasMappedFullCodeCollection, MutabilityLevel
 
 TAttributeBase = TypeVar("TAttributeBase", bound="AttributeBase")
 
-StringAliases = tuple[str, ...]
-CanonicalStrKey = str
-FullCode = tuple[int, int, int]
+StringAliases: TypeAlias = tuple[str, ...]
+"""A set of alternative names for an attribute (normalized at lookup time)."""
+
+CanonicalStrKey: TypeAlias = str
+"""The canonical string key for an attribute (the primary/official name)."""
+
+FullCode: TypeAlias = tuple[int, int, int]
+"""A 3-part attribute code.
+
+In this repository, a "full code" is typically a 3-tuple of integers used to
+uniquely identify a characteristic/skill/knowledge entry.
+"""
+
 
 class AttributeBase:
     """Base Class for Skill, Knowledge, Characteristics Data.
@@ -119,21 +131,39 @@ class AttributeBase:
         canonical_only: bool = False,
         default: FullCode | None = None,
     ) -> FullCode:
-        """Resolve an input alias to a FullCode from the combined_collection."""
+        """Resolve an alias to a 3-part code.
+
+        Args:
+            alias: Any known alias (canonical name or alternate alias).
+            canonical_only: If True, only canonical names are considered valid.
+            default: Returned when the alias cannot be resolved.
+
+        Returns:
+            A 3-tuple full code identifying the matching entry.
+        """
         self._ensure_combined_collection()
         return self.combined_collection.get_full_code(
             alias,
             canonical_only=canonical_only,
             default=default,
         )
-    
+
     def get_aliases(
         self,
         code: FullCode,
         *,
         default: tuple[CanonicalStrKey, StringAliases] | None = None,
     ) -> tuple[CanonicalStrKey, StringAliases]:
-        """Retrieve the canonical name and aliases for a given FullCode from the combined_collection."""
+        """Retrieve the canonical name and all aliases for a full code.
+
+        Args:
+            code: A 3-tuple full code.
+            default: Returned when the code is not found.
+
+        Returns:
+            `(canonical_name, aliases)` where `aliases` includes the canonical name
+            and any alternate aliases known to the combined collection.
+        """
         self._ensure_combined_collection()
         return self.combined_collection.get_aliases(
             code,

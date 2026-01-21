@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Final, Union
+from typing import Final, Union
 
-from game.mappings.deprecated.attributes import FullCode, StringAliases
 from game.mappings.set import AttributesSet
-from game.mappings.skills import Skills
 
 CUSTOM_SKILLS_SCHEMA_VERSION: Final[int] = 1
-
+StringAliases = tuple[str, ...]
+FullCode = tuple[int, int, int]
 
 def _to_jsonable_custom_skills(
     custom: Mapping[str, FullCode],
