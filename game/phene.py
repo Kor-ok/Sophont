@@ -5,6 +5,10 @@ from typing import ClassVar
 
 from game.characteristic import Characteristic
 
+UPPIndexInt = int
+SubCodeInt = int
+MasterCodeInt = int
+FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
 
 class Phene:
     """
@@ -13,7 +17,7 @@ class Phene:
     Attributes:
         characteristic: Characteristic - The characteristic represented by this phene.
         expression_precidence: int - The value modifying the characteristic.
-        contributor_uuid: bytes - The context or source of the phene.
+        contributor_uuid: int - The context or source of the phene.
         is_grafted: bool - Indicates if the phene is grafted which will be used to determine permanence and other effects.
     """
     __slots__ = (
@@ -22,23 +26,26 @@ class Phene:
         'contributor_uuid',
         'is_grafted'
     )
-    Key = tuple[Characteristic, int, bytes, bool]
+    characteristic: Characteristic
+    contributor_uuid: int
+    
+    Key = tuple[Characteristic, int, int, bool]
     _cache: ClassVar[dict[Key, Phene]] = {}
 
     def __new__(
         cls,
         characteristic: Characteristic,
         expression_precidence: int = 1,
-        contributor_uuid: bytes = bytes(16),
+        contributor_uuid: int = -1,
         is_grafted: bool = False
     ) -> Phene:
         expression_precidence_int = int(expression_precidence)
-        contributor_uuid_bytes = bytes(contributor_uuid)
+        contributor_uuid_int = int(contributor_uuid)
         is_grafted_bool = bool(is_grafted) # Python bool/int behaviour enforcement for cache key consistency
         key = (
             characteristic,
             expression_precidence_int,
-            contributor_uuid_bytes,
+            contributor_uuid_int,
             is_grafted_bool
         )
         cached = cls._cache.get(key)
@@ -58,7 +65,7 @@ class Phene:
         self,
         characteristic: Characteristic,
         expression_precidence: int = 1,
-        contributor_uuid: bytes = bytes(16),
+        contributor_uuid: int = -1,
         is_grafted: bool = False
     ) -> None:
         # All initialization happens in __new__ (supports flyweight reuse).
@@ -72,7 +79,7 @@ class Phene:
         cls,
         characteristic_name: str,
         expression_precidence: int = 1, 
-        contributor_uuid: bytes = bytes(16),
+        contributor_uuid: int = -1,
         is_grafted: bool = False
     ) -> Phene:
         characteristic = Characteristic.by_name(characteristic_name)
@@ -83,9 +90,25 @@ class Phene:
             is_grafted=is_grafted
         )
     
+    @classmethod
+    def by_characteristic_code(
+        cls,
+        characteristic_code: FullCode,
+        expression_precidence: int = 1, 
+        contributor_uuid: int = -1,
+        is_grafted: bool = False
+    ) -> Phene:
+        characteristic = Characteristic.by_code(characteristic_code)
+        return cls(
+            characteristic=characteristic,
+            expression_precidence=expression_precidence,
+            contributor_uuid=contributor_uuid,
+            is_grafted=is_grafted
+        )
+    
     def __repr__(self) -> str:
         indentation = "  "
-        _blank_uuid = bytes(16)
+        _blank_uuid = -1
         display = []
 
         memory_pointer_for_this_immutable_object = hex(id(self))

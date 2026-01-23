@@ -3,10 +3,15 @@ from __future__ import annotations
 # from dataclasses import dataclass
 from nicegui import ui
 
-from gui.draggable.commands import RemoveFabCommand
 
+class Command:
+    """PLACEHOLDER"""
+    def undo(self) -> None:
+        """PLACEHOLDER"""
+        pass
+    pass
 
-def notify_undo(message: str, command: RemoveFabCommand, *, timeout_seconds: float = 60.0) -> None:
+def notify_undo(message: str, command: Command, *, timeout_seconds: float = 60.0) -> None:
     state = {'expired': False}
 
     def on_dismiss() -> None:

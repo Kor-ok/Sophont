@@ -3,8 +3,6 @@ from __future__ import annotations
 from nicegui import ui
 
 from gui.tabs.package_builder import package_builder_tab
-from gui.tabs.sophont import sophont_tab
-from gui.tabs.species import species_tab
 
 # https://quasar.dev/layout/grid/flex-playground
 
@@ -16,8 +14,6 @@ with ui.tabs().classes('w-full') as tabs:
     two = ui.tab('Sophont')
     three = ui.tab('Package Builder')
 with ui.tab_panels(tabs, value=three).classes('w-full'):
-    species_tab(one)
-    sophont_tab(two)
     package_builder_tab(three)
 
 ui.run(dark=True)

@@ -43,7 +43,7 @@ class Popchip(ui.fab):
         if color is None:
             color = styles.COLOUR_GENE if isinstance(item, Gene) else styles.COLOUR_PHENE
         
-        super().__init__(label=item.characteristic.get_name(), icon=icon, color=color, direction=direction)
+        super().__init__(label=item.characteristic.get_name()[0], icon=icon, color=color, direction=direction)
         self.item: Union[Gene, Phene] = item
         self.icon = icon
         self.color = color
@@ -59,7 +59,7 @@ class Popchip(ui.fab):
                 _build_fab_flyout(icon='family_restroom', label=str(item.inheritance_contributors), tooltip='Inheritance Contributors')
         elif isinstance(item, Phene):
             with self:
-                _build_fab_flyout(icon='bar_chart', label=str(item.expression_value), tooltip='Expression Value')
+                _build_fab_flyout(icon='bar_chart', label=str(item.expression_precidence), tooltip='Expression Value')
                 _build_fab_flyout(icon='medical_services', label=str(item.is_grafted), tooltip='Is Grafted')
                 if item.contributor_uuid != bytes(16):
                     _build_fab_flyout(icon='baby_changing_station', label=str(item.contributor_uuid), tooltip='Contributor UUID')

@@ -1,42 +1,57 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
-from re import M
-from typing import Any, Optional, Union
+from collections.abc import Callable, Iterable, Mapping
+from typing import Optional, Union
 
 from nicegui import ui
 
 from game.characteristic import Characteristic
-from game.deprecated.aptitude_package import AptitudePackage
-from game.deprecated.aptitude_package import T as Apt_Types
-from game.deprecated.characteristic_package import CharacteristicPackage
-from game.deprecated.characteristic_package import T as Char_Types
 from game.gene import Gene
 from game.knowledge import Knowledge
-from game.mappings.characteristics import (
-    _NORM_GENE_NAME_TO_CODES,
-    _NORM_PHENE_NAME_TO_CODES,
-    codes_to_name,
-)
-from game.mappings.skills import (
-    _NORM_KNOWLEDGE_NAME_TO_CODES,
-    _NORM_SKILL_NAME_TO_CODES,
-    Table,
-    code_to_string,
-)
+from game.mappings.set import ATTRIBUTES
+from game.package import AttributePackage, T
 from game.phene import Phene
 from game.skill import Skill
 
-ItemType = Union[type[Skill], type[Knowledge], type[Gene], type[Phene]]
-AttributeValue = Union[int, tuple[int, int]]
+CanonicalStrKey = str
+StringAliases = tuple[str, ...]
+AliasMap = Mapping[CanonicalStrKey, StringAliases]
+
+PrimaryCodeInt = int
+SecondaryCodeInt = int
+TertiaryCodeInt = int
+FullCode = tuple[PrimaryCodeInt, SecondaryCodeInt, TertiaryCodeInt]
+
+AliasMappedFullCode = tuple[AliasMap, FullCode]
+
+ItemType = Union[type[Skill], type[Knowledge], type[Gene], type[Phene], type[Characteristic]]
+
 BuiltPackage = Union[
-    AptitudePackage[Skill],
-    AptitudePackage[Knowledge],
-    CharacteristicPackage[Gene],
-    CharacteristicPackage[Phene],
+    AttributePackage[Skill],
+    AttributePackage[Knowledge],
+    AttributePackage[Gene],
+    AttributePackage[Phene],
+    AttributePackage[Characteristic],
 ]
-ReturnedMapping = Mapping[Any, Any]
-MAPPING_PATTERN = r'_NORM_{{ItemType.upper}}_NAME_TO_CODES'
+
+
+def _full_code_key(code: FullCode) -> str:
+    a, b, c = code
+    return f"{a}.{b}.{c}"
+
+
+def _canonical_from_alias_map(alias_map: AliasMap) -> str:
+    return next(iter(alias_map.keys()), "")
+
+
+def _call_mapper_and_validation(item_type: ItemType) -> Iterable[AliasMappedFullCode]:
+    if item_type is Skill:
+        return ATTRIBUTES.skills.get_all()
+    if item_type is Knowledge:
+        return ATTRIBUTES.knowledges.get_all()
+    if item_type in (Gene, Phene, Characteristic):
+        return ATTRIBUTES.characteristics.get_all()
+    raise TypeError(f"Unsupported item type: {item_type}")
 
 
 def _event_value(e: object) -> Optional[object]:
@@ -57,19 +72,6 @@ def _type_key(t: type) -> str:
     # Stable, collision-resistant key that is JSON-safe for the client.
     return f"{t.__module__}.{t.__qualname__}"
 
-
-def _parse_characteristic_key(key: str) -> Optional[tuple[int, int]]:
-    try:
-        pos_str, sub_str = key.split(":", 1)
-        return (int(pos_str), int(sub_str))
-    except Exception:
-        return None
-
-def _call_mapper_and_validation(item_type: ItemType) -> ReturnedMapping:
-    mapping_call = globals().get(MAPPING_PATTERN.replace('{{ItemType.upper}}', item_type.__name__.upper()))
-    if mapping_call is None:
-        raise ValueError(f"No mapping found for item type: {item_type.__name__}")
-    return mapping_call
 
 class TypeSelector(ui.select):
     def __init__(
@@ -110,10 +112,10 @@ class CharacterAttributeSelector(ui.select):
     def __init__(
         self,
         item_type: Optional[ItemType] = None,
-        on_change: Optional[Callable[[Optional[AttributeValue]], None]] = None,
+        on_change: Optional[Callable[[Optional[AliasMappedFullCode]], None]] = None,
     ) -> None:
         self._item_type: Optional[ItemType] = item_type
-        self._characteristic_by_key: dict[str, tuple[int, int]] = {}
+        self._attribute_by_key: dict[str, AliasMappedFullCode] = {}
 
         super().__init__(
             label=self._label_for_item_type(item_type),
@@ -126,26 +128,23 @@ class CharacterAttributeSelector(ui.select):
 
     def _handle_selection_change(self, e) -> None:
         selected = _event_value(e)
-
-        value: Optional[AttributeValue] = None
-        if isinstance(selected, int):
-            value = selected
-        elif isinstance(selected, str):
-            parsed = _parse_characteristic_key(selected)
-            if parsed is not None:
-                value = parsed
-
+        attribute: AliasMappedFullCode | None = None
+        if isinstance(selected, str):
+            attribute = self._attribute_by_key.get(selected)
         if self._external_on_change is not None:
-            self._external_on_change(value)
+            self._external_on_change(attribute)
 
     def set_item_type(self, item_type: Optional[ItemType]) -> None:
         self._item_type = item_type
-        self._characteristic_by_key = {}
+        self._attribute_by_key = {}
         label = self._label_for_item_type(item_type)
         self.props(f'label="{label}"')
-        # NiceGUI supports updating `options` after creation.
-        self.options = self._compile_attribute_options(item_type)
+        # When changing the option set, clear the selection first.
         self.set_value(None)
+        # NiceGUI supports updating `options` after creation, but the client
+        # won't refresh reliably unless we trigger an update.
+        self.options = self._compile_attribute_options(item_type)
+        self.update()
 
     @staticmethod
     def _label_for_item_type(item_type: Optional[ItemType]) -> str:
@@ -153,27 +152,19 @@ class CharacterAttributeSelector(ui.select):
             return "Select Attribute"
         return f"Select {item_type.__name__}"
 
-    def _compile_attribute_options(
-        self, item_type: Optional[ItemType]
-    ) -> Union[dict[int, str], dict[str, str]]:
+    def _compile_attribute_options(self, item_type: Optional[ItemType]) -> dict[str, str]:
+        options: dict[str, str] = {}
         if item_type is None:
             return {}
-        
+
         mapping_call = _call_mapper_and_validation(item_type)
-        
-        if item_type is Skill or item_type is Knowledge:
-            return {
-                code: name_norm.title() for name_norm, code in mapping_call.items()
-            }
-        
-        # else Gene/Phene select a characteristic target.
-        options: dict[str, str] = {}
-        for _, codes in mapping_call.items():
-            pos, sub = codes
-            key = f"{pos}:{sub}"
-            self._characteristic_by_key[key] = (pos, sub)
-            options[key] = codes_to_name(pos, sub)
-            
+        for alias_map, full_code in mapping_call:
+            key = _full_code_key(full_code)
+            canonical = _canonical_from_alias_map(alias_map)
+            label = canonical if canonical else str(full_code)
+            options[key] = label
+            self._attribute_by_key[key] = (alias_map, full_code)
+
         return options
 
 
@@ -186,7 +177,7 @@ class PackageBuilder(ui.card):
         self.on_package_built = on_package_built
 
         self._selected_item_type: Optional[ItemType] = None
-        self._selected_attribute: Optional[AttributeValue] = None
+        self._selected_attribute: Optional[AliasMappedFullCode] = None
 
         self._type_options: list[ItemType] = self._get_item_types_from_constraints()
 
@@ -218,7 +209,6 @@ class PackageBuilder(ui.card):
             self._level_input = ui.number(
                 label="Level Modifier",
                 value=None,
-                validation={"Cannot be 0": lambda v: v != 0},
             )
             self._context_input = ui.input(
                 label="Context (optional)",
@@ -226,7 +216,7 @@ class PackageBuilder(ui.card):
             )
 
             with ui.row(wrap=False, align_items="end") as action_button_row:  # noqa: F841
-                ui.button("Save", on_click=self._on_save_clicked, color="dark").classes("q-mr-sm")
+                ui.button("Save", color="dark").classes("q-mr-sm")
 
     def _on_item_type_changed(self, item_type: Optional[ItemType]) -> None:
         self._selected_item_type = item_type
@@ -236,7 +226,7 @@ class PackageBuilder(ui.card):
             self._attribute_selector.set_item_type(item_type)
         self._render_attribute_display()
 
-    def _on_attribute_changed(self, attribute: Optional[AttributeValue]) -> None:
+    def _on_attribute_changed(self, attribute: Optional[AliasMappedFullCode]) -> None:
         self._selected_attribute = attribute
         self._render_attribute_display()
 
@@ -254,90 +244,16 @@ class PackageBuilder(ui.card):
         attribute = self._selected_attribute
 
         with self._attribute_display_row:
-            if item_type is Skill and isinstance(attribute, int):
-                ui.label(f"Skill: {code_to_string(attribute, Table.BASE, capitalise=True)}")
-            elif item_type is Knowledge and isinstance(attribute, int):
-                ui.label(
-                    f"Knowledge: {code_to_string(attribute, Table.KNOWLEDGES, capitalise=True)}"
-                )
-            elif item_type in (Gene, Phene) and isinstance(attribute, tuple):
-                pos, sub = attribute
-                ui.label(f"Characteristic: {codes_to_name(pos, sub)}")
-            else:
-                ui.label("Invalid selection").classes("text-negative")
-
-    def _on_save_clicked(self) -> None:
-        if self._selected_item_type is None:
-            ui.notify("Pick an attribute type first")
-            return
-        if self._selected_attribute is None:
-            ui.notify("Pick an attribute first")
-            return
-
-        level = int(self._level_input.value or 0) if self._level_input is not None else 0
-        if level == 0:
-            ui.notify("Level modifier cannot be 0")
-            return
-
-        context = (self._context_input.value or "") if self._context_input is not None else ""
-        context = context.strip() or None
-
-        try:
-            package = self._build_package(
-                item_type=self._selected_item_type,
-                attribute=self._selected_attribute,
-                level=level,
-                context=context,
-            )
-        except Exception as exc:  # NiceGUI callback boundary
-            ui.notify(f"Failed to build package: {exc}")
-            return
-
-        self.on_package_built(package)
-        ui.notify("Package built")
-
-    @staticmethod
-    def _build_package(
-        *,
-        item_type: ItemType,
-        attribute: AttributeValue,
-        level: int,
-        context: Optional[str],
-    ) -> BuiltPackage:
-        if item_type is Skill:
-            if not isinstance(attribute, int):
-                raise TypeError("Skill attribute must be an int code")
-            item = Skill.of(attribute)
-            return AptitudePackage(item=item, level=level, context=context)
-
-        if item_type is Knowledge:
-            if not isinstance(attribute, int):
-                raise TypeError("Knowledge attribute must be an int code")
-            item = Knowledge.of(attribute)
-            return AptitudePackage(item=item, level=level, context=context)
-
-        if not isinstance(attribute, tuple):
-            raise TypeError("Gene/Phene attribute must be a (pos, sub) tuple")
-        pos, sub = attribute
-        characteristic = Characteristic.of(pos, sub)
-
-        if item_type is Gene:
-            item = Gene(characteristic=characteristic)
-            return CharacteristicPackage(item=item, level=level, context=context)
-
-        if item_type is Phene:
-            item = Phene(characteristic=characteristic)
-            return CharacteristicPackage(item=item, level=level, context=context)
-
-        raise TypeError(f"Unsupported item type: {item_type}")
+            alias_map, full_code = attribute
+            canonical = _canonical_from_alias_map(alias_map)
+            display_name = canonical if canonical else str(full_code)
+            ui.label(f"{item_type.__name__}: {display_name} ({full_code})")
 
     @staticmethod
     def _get_item_types_from_constraints() -> list[ItemType]:
         item_types: list[ItemType] = []
-        for t in Apt_Types.__constraints__:
+        for t in T.__constraints__:
             if isinstance(t, type):
                 item_types.append(t)  # type: ignore[arg-type]
-        for t in Char_Types.__constraints__:
-            if isinstance(t, type):
-                item_types.append(t)  # type: ignore[arg-type]
+
         return item_types

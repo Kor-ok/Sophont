@@ -5,6 +5,10 @@ from typing import ClassVar
 
 from game.characteristic import Characteristic
 
+UPPIndexInt = int
+SubCodeInt = int
+MasterCodeInt = int
+FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
 
 class Gene:
     """
@@ -19,6 +23,8 @@ class Gene:
         "caste_link", # Added
         "inheritance_contributors"
     )
+    characteristic: Characteristic
+
     Key = tuple[Characteristic, int, int, int, int, int]
     _cache: ClassVar[dict[Key, Gene]] = {}
 
@@ -95,6 +101,27 @@ class Gene:
             caste_link,  # Added
             inheritance_contributors
         )
+    
+    @classmethod
+    def by_characteristic_code(
+        cls,
+        characteristic_code: FullCode,
+        die_mult: int = 1,
+        precidence: int = 0,
+        gender_link: int = -1,
+        caste_link: int = -1,  # Added
+        inheritance_contributors: int = 2
+    ) -> Gene:
+        characteristic = Characteristic.by_code(characteristic_code)
+        return cls(
+            characteristic,
+            die_mult,
+            precidence,
+            gender_link,
+            caste_link,  # Added
+            inheritance_contributors
+        )
+
     
     def __repr__(self) -> str:
         indentation = "  "

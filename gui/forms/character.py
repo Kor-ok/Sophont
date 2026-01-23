@@ -99,15 +99,15 @@ class CharacterCard(ui.column):
                 ):
                     image_set = "set4"
                 ui.image(
-                    f"https://robohash.org/{self.character.uuid.hex()}?set={image_set}"
+                    f"https://robohash.org/{self.character.uuid}?set={image_set}"
                 ).classes(styles.CHARACTER_IMAGE)
 
     def _build_debug_info(self) -> None:
         if IS_DEBUG:
                         ui.label("Character UUID:")
-                        ui.label(self.character.uuid.hex())
+                        ui.label(str(self.character.uuid))
                         ui.label("Species UUID:")
-                        ui.label(self.character.epigenetics.species.uuid.hex())
+                        ui.label(str(self.character.epigenetics.species.uuid))
 
     def _build_name_input(self) -> None:
         ui.label("Name:")
@@ -135,7 +135,7 @@ class CharacterCard(ui.column):
         ui.label("Parents:")
         ui.label(
             str(len(self.character.epigenetics.parent_uuids) - 1) # Exclude 'Self'
-        ).tooltip(f"UUIDs: {[pu.hex() for pu in self.character.epigenetics.parent_uuids if pu != self.character.uuid]}")
+        ).tooltip(f"UUIDs: {[pu for pu in self.character.epigenetics.parent_uuids if pu != self.character.uuid]}")
 
     def _build_gender_display(self) -> None:
         ui.label("Gender:")

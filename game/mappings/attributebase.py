@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from itertools import chain
 from typing import ClassVar, TypeVar
 
@@ -15,12 +16,21 @@ StringAliases: TypeAlias = tuple[str, ...]
 CanonicalStrKey: TypeAlias = str
 """The canonical string key for an attribute (the primary/official name)."""
 
-FullCode: TypeAlias = tuple[int, int, int]
+AliasMap: TypeAlias = Mapping[CanonicalStrKey, StringAliases]
+"""Mapping of canonical names to their aliases."""
+
+PrimaryCodeInt = int
+SecondaryCodeInt = int
+TertiaryCodeInt = int
+FullCode: TypeAlias = tuple[PrimaryCodeInt, SecondaryCodeInt, TertiaryCodeInt]
 """A 3-part attribute code.
 
 In this repository, a "full code" is typically a 3-tuple of integers used to
 uniquely identify a characteristic/skill/knowledge entry.
 """
+
+AliasMappedFullCode: TypeAlias = tuple[AliasMap, FullCode]
+"""The shape of the data stored in AliasMappedFullCodeCollection."""
 
 
 class AttributeBase:
@@ -40,6 +50,10 @@ class AttributeBase:
         "_combined_default_id",
         "_combined_custom_id",
     )
+
+    default_collection: AliasMappedFullCodeCollection
+    custom_collection: AliasMappedFullCodeCollection
+    combined_collection: AliasMappedFullCodeCollection
 
     _instances: ClassVar[dict[type[AttributeBase], AttributeBase]] = {}
 
@@ -169,7 +183,40 @@ class AttributeBase:
             code,
             default=default,
         )
+    
+    def get_header_data(self) -> tuple[int, int, int]:
+        """
+        - Skill code is (master_category, sub_category, base_skill)
+        - Knowledge code is (base_knowledge_code, associated_skill_code, focus_code)
+        - Characteristic code is (position_code, subtype_code, master_code)
+        """
+        self._ensure_combined_collection()
+        
+        return (
+            self.combined_collection.header.primary_code,
+            self.combined_collection.header.secondary_code,
+            self.combined_collection.header.tertiary_code,
+        )
 
+    def add_custom_entry(
+        self,
+        alias_map: Mapping[CanonicalStrKey, StringAliases],
+        full_code: FullCode,
+    ) -> None:
+        """Add a custom entry to the custom collection.
+
+        Args:
+            alias_map: Mapping of canonical name to aliases.
+            full_code: 3-tuple full code for the entry.
+        """
+        self.custom_collection.add_custom_entry(alias_map, full_code)
+        self._ensure_combined_collection(force=True)
+    
+    def get_all(self) -> Iterable[AliasMappedFullCode]:
+        """Retrieve all entries in the combined collection."""
+        self._ensure_combined_collection()
+        return self.combined_collection.collection
+    
     def _initialise_defaults(self) -> None:
         """Initialise the default alias to code mapping. To be implemented by subclasses."""
         raise NotImplementedError("Subclasses must implement _initialise_defaults method.")

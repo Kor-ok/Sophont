@@ -9,23 +9,21 @@ from game.gene import Gene
 from game.knowledge import Knowledge
 from game.phene import Phene
 from game.skill import Skill
-from game.uid.guid import GUID
+from game.uid.guid import GUID, NameSpaces
 
-T = TypeVar("T", Skill, Knowledge, Gene, Phene, Characteristic)  # Skill, Knowledge, Gene or Phene
+T = TypeVar("T", Skill, Knowledge, Gene, Phene, Characteristic)
 
 class TypeCategory(Enum):
-    SKILL = "Aptitude"
-    KNOWLEDGE = "Aptitude"
-    GENE = "Genetic"
-    PHENE = "Genetic"
-    CHARACTERISTIC = "Personal"
+    APTITUDE = "Aptitude"
+    GENETIC = "Genetic"
+    PERSONAL = "Personal"
 
 _TYPE_CATEGORY_BY_CLASS: Final[dict[type[object], TypeCategory]] = {
-    Skill: TypeCategory.SKILL,
-    Knowledge: TypeCategory.KNOWLEDGE,
-    Gene: TypeCategory.GENE,
-    Phene: TypeCategory.PHENE,
-    Characteristic: TypeCategory.CHARACTERISTIC,
+    Skill: TypeCategory.APTITUDE,
+    Knowledge: TypeCategory.APTITUDE,
+    Gene: TypeCategory.GENETIC,
+    Phene: TypeCategory.GENETIC,
+    Characteristic: TypeCategory.PERSONAL,
 }
 
 class AttributePackage(Generic[T]):
@@ -39,14 +37,14 @@ class AttributePackage(Generic[T]):
         If omitted/None, a fresh UUID string is generated for each new package.
     :type item: Skill|Knowledge|Gene|Phene|Characteristic
     :type level: int
-    :type context: bytes
+    :type context: int
     """
     __slots__ = ("item", "level", "context")
-    _cache: ClassVar[dict[tuple[object, int, GUID], AttributePackage]] = {}
+    _cache: ClassVar[dict[tuple[object, int, int], AttributePackage]] = {}
 
-    def __new__(cls, item: T, level: int = 0, context_id: GUID | None = None) -> AttributePackage[T]:
-        context_id = GUID.generate() if context_id is None else context_id
-        key = (item, int(level), context_id)  # item is already a flyweight => stable identity
+    def __new__(cls, item: T, level: int = 0, context_id: int | None = None) -> AttributePackage[T]:
+        context_id = GUID.generate(NameSpaces.Entity.PACKAGES, NameSpaces.Owner.PLAYER) if context_id is None else context_id
+        key = (item, int(level), int(context_id))  # item is already a flyweight => stable identity
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
@@ -54,12 +52,12 @@ class AttributePackage(Generic[T]):
         self = super().__new__(cls)
         object.__setattr__(self, "item", item)
         object.__setattr__(self, "level", int(level))
-        object.__setattr__(self, "context", context_id)
+        object.__setattr__(self, "context", int(context_id))
 
         cls._cache[key] = self
         return self
 
-    def __init__(self, item: T, level: int = 0, context: GUID | None = None) -> None:
+    def __init__(self, item: T, level: int = 0, context: int | None = None) -> None:
         pass
 
     def __setattr__(self, key: str, value: object) -> None:

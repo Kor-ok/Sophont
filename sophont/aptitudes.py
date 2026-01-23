@@ -8,7 +8,6 @@ from sortedcontainers import SortedKeyList
 from game.knowledge import Knowledge
 from game.package import AttributePackage
 from game.skill import Skill
-from game.uid.guid import GUID
 
 # Sophont > Aptitudes > [Acquired] > Package > Skill/Knowledge > Modifier Values
 # Sophont > Aptitudes > [UniqueAppliedAptitude] > Of Package Type (i.e. Skill|Knowledge) > Sum of Modifier Values
@@ -16,13 +15,13 @@ from game.uid.guid import GUID
 class Acquired:
     __slots__ = ('package', 'age_acquired_seconds', 'context')
 
-    def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: GUID):
+    def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
         self.package = package
         self.age_acquired_seconds = age_acquired_seconds
         self.context = context
 
     @classmethod
-    def by_age(cls, package: AttributePackage, age_seconds: int, context: GUID) -> Acquired:
+    def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
         return cls(package=package, context=context, age_acquired_seconds=age_seconds)
     
     def __repr__(self) -> str:
@@ -70,7 +69,7 @@ class Aptitudes:
             self, 
             package: AttributePackage, 
             age_acquired_seconds: int, 
-            context: GUID, 
+            context: int, 
             trigger_collation: bool = False
             ) -> None:
         acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)

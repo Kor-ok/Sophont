@@ -1,44 +1,62 @@
 from __future__ import annotations
 
-from uuid import UUID
+from enum import Enum
+from random import randint
 
-from game.uid.guid import uuid4 as random_uuid
-from game.uid.guid import uuid5 as namespace_uuid
-
-"""Utility functions for generating and handling Unique Identifiers (GUID) in the game.
-
-Currently, this module provides a function to generate random UUID4 identifiers as a placeholder for future GUID implementations.
+"""Utility functions for generating and handling 32-bit Unique Identifiers (GUID) in the game.
 """
 
-_NAMESPACE_MAP: dict[str, UUID] = {
-    # Placeholder for future namespace UUIDs.
-    # "example_namespace": UUID("12345678-1234-5678-1234-567812345678"),
-}
+GLOBAL_UID_STORE = set()
+class NameSpaces:
+    """Totalling 16 bits, defines the branching namespaces for GUID generation and lookup.
+    """
+    class Entity(Enum):
+        """Of 8 bits, defines the first namespace for the GUID.
+        """
+        CHARACTERS = 0o0
+        SPECIES = 0o1
+        PACKAGES = 0o2
+        EVENTS = 0o3
+
+    class Owner(Enum):
+        """Of 8 bits, defines the second namespace branching from the first for the GUID.
+        """
+        PLAYER = 0o0
+        NPC = 0o1
+        ENV = 0o2
 
 class GUID:
-    """Class representing a Global Unique Identifier (GUID) for game entities.
+    """Stateless utility class managing the creation of non-clashing Global Unique Identifiers (GUID) for game entities.
 
-    This is a placeholder implementation that currently uses UUID4 for uniqueness.
-    Future implementations may include additional features or formats.
+    Namespaces are 8-bits each. The last 16-bits are randomly generated.
     """
-    __slots__ = ('uid',)
+    @staticmethod
+    def _check_store_clash(uid: int) -> bool:
+        if uid in GLOBAL_UID_STORE:
+            return True
+        GLOBAL_UID_STORE.add(uid)
+        return False
+    
+    @staticmethod
+    def _constructor(ns1: NameSpaces.Entity, ns2: NameSpaces.Owner, unique_id: int | None = None) -> int:
+        if unique_id is None:
+            unique_id = randint(0, 0xFFFF)
+        uid = (ns1.value << 24) | (ns2.value << 16) | unique_id
+        return uid
+    
+    @staticmethod
+    def generate(ns1: NameSpaces.Entity, ns2: NameSpaces.Owner, unique_id: int | None = None) -> int:
 
-    def __init__(self, uid: bytes):
-        self.uid = uid
+        uid = GUID._constructor(ns1, ns2, unique_id)
 
-    @classmethod
-    def generate(cls, purpose: str | None = None) -> GUID:
-        """Generate a uuid4 if purpose is None, else uuid5."""
-        if purpose is not None:
-            namespace = UUID("12345678-1234-5678-1234-567812345678")  # Example fixed namespace UUID
-            return cls(uid=namespace_uuid(namespace, purpose).bytes)
-        else:
-            return cls(uid=random_uuid().bytes)
+        while GUID._check_store_clash(uid):
+            uid = GUID._constructor(ns1, ns2, unique_id)
 
-def uuid4() -> UUID:
-    """Generate a random UUID4."""
-    return random_uuid()
-
-def uuid5(namespace: UUID, name: str) -> UUID:
-    """Generate a UUID5 based on a namespace and name."""
-    return namespace_uuid(namespace, name)
+        return uid
+    
+    @staticmethod
+    def parse(uid: int) -> tuple[NameSpaces.Entity, NameSpaces.Owner, int]:
+        ns1 = NameSpaces.Entity((uid >> 24) & 0xFF)
+        ns2 = NameSpaces.Owner((uid >> 16) & 0xFF)
+        unique_id = uid & 0xFFFF
+        return ns1, ns2, unique_id

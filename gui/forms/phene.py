@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import Callable, Optional
-from uuid import UUID
 
 from nicegui import ui
 
@@ -30,10 +29,10 @@ def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = N
                 return
 
             uuid_text = (contributor_uuid_input.value or '').strip()
-            contributor_uuid = bytes(16)
+            contributor_uuid: int = -1
             if uuid_text:
                 try:
-                    contributor_uuid = UUID(uuid_text).bytes
+                    contributor_uuid = int(uuid_text)
                 except Exception:
                     ui.notify('Contributor UUID must be a valid UUID')
                     return
@@ -41,7 +40,7 @@ def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = N
             try:
                 phene = Phene.by_characteristic_name(
                     characteristic_name=str(characteristic_name),
-                    expression_value=int(expression_value_input.value or 0),
+                    expression_precidence=int(expression_value_input.value or 0),
                     contributor_uuid=contributor_uuid,
                     is_grafted=bool(is_grafted_checkbox.value),
                 )

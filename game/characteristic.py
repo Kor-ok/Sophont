@@ -8,7 +8,10 @@ from game.mappings.set import ATTRIBUTES
 
 CanonicalStrKey: TypeAlias = str
 StringAliases: TypeAlias = tuple[str, ...]
-
+UPPIndexInt = int
+SubCodeInt = int
+MasterCodeInt = int
+FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
 class Characteristic:
 
     __slots__ = (
@@ -54,7 +57,13 @@ class Characteristic:
         upp_index, subtype, category_code = ATTRIBUTES.characteristics.get_full_code(name)
         return cls(upp_index, subtype, category_code)
     
+    @classmethod
+    def by_code(cls, code: FullCode) -> Characteristic:
+        upp_index, subtype, category_code = code
+        return cls(upp_index, subtype, category_code)
+
     def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
+        """Get the canonical name and aliases for this characteristic."""
         canonical_str_key, string_aliases = ATTRIBUTES.characteristics.get_aliases(
             (self.upp_index, self.subtype, self.category_code)
         )

@@ -1,27 +1,37 @@
 from __future__ import annotations
 
-from random import randint
+from collections import defaultdict
+from collections.abc import Mapping
+from random import choice, randint
 
-from nicegui import ui
-
-import gui.draggable.fab as d_fab
 from game.characteristic import Characteristic
 from game.gene import Gene
 from game.genotype import Genotype
+from game.mappings.set import ATTRIBUTES
 from game.phene import Phene
 from game.species import Species
-from game.uid.guid import uuid4
-from gui.draggable.drop_container import (
-    handle_remove_requested,
-    species_genotype_widget,
-)
+from game.uid.guid import GUID, NameSpaces
 from sophont.character import Sophont
 
-HUMAN_UUID = uuid4().bytes
-ALIEN_UUID = uuid4().bytes
-ASLAN_UUID = uuid4().bytes
+CanonicalStrKey = str
+StringAliases = tuple[str, ...]
+AliasMap = Mapping[CanonicalStrKey, StringAliases]
 
-SPECIES_MAP: dict[str, bytes] = {
+UPPIndexInt = int
+SubCodeInt = int
+MasterCodeInt = int
+FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
+
+AliasMappedFullCode = tuple[AliasMap, FullCode]
+
+CharacteristicName = str
+CharacteristicCodeCollection = list[FullCode]
+
+HUMAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV)
+ALIEN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV)
+ASLAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV)
+
+SPECIES_MAP: dict[str, int] = {
     "Human": HUMAN_UUID,
     "Alien": ALIEN_UUID,
     "Aslan": ASLAN_UUID,
@@ -35,13 +45,13 @@ def create_human_genotype() -> Genotype:
         "Dexterity", 
         "Strength", 
         "Intelligence", 
-        "Endurance"
+        "Endurance",
+        "Psionics"
         ] # Purposefully disordered compared to classical Traveller UPP indices.
     
     human_phenes_by_name = [
         "Education",
         "Social Standing",
-        "Psionics",
         "Sanity"
         ]
 
@@ -50,21 +60,77 @@ def create_human_genotype() -> Genotype:
     return human_genotype
 
 def create_random_genotype() -> Genotype:
-    from game.mappings.characteristics import codes_to_name
 
-    collection = []
-    for i in range(1, 9):
-        char_name = codes_to_name(i, randint(0, 2))
-        # if char_name == "Undefined": try again
-        if char_name == "Undefined":
-            i -= 1
-            continue
-        collection.append(char_name)
+    def _choose_random_codes_by_upp_index(
+        entries: list[AliasMappedFullCode],
+        *,
+        expected_upp_indices: set[int] | None = None,
+    ) -> CharacteristicCodeCollection:
+        """Pick one FullCode per UPPIndexInt from a filtered view.
+
+        The filtered view contains (alias_map, full_code) entries.
+        We group by `full_code[0]` (UPPIndexInt) and choose a random option from the
+        available sub_code variants.
+        """
+        by_upp_index: dict[int, list[FullCode]] = defaultdict(list)
+        for _alias_map, code in entries:
+            by_upp_index[int(code[0])].append(code)
+
+        selected: CharacteristicCodeCollection = []
+        upp_indices = sorted(by_upp_index.keys())
+        for upp_index in upp_indices:
+            selected.append(choice(by_upp_index[upp_index]))
+
+        if expected_upp_indices is not None:
+            missing = sorted(set(expected_upp_indices) - set(by_upp_index.keys()))
+            if missing:
+                raise RuntimeError(
+                    "Filtered view did not contain any entries for upp_indices="
+                    f"{missing}. Present={upp_indices}"
+                )
+
+        return selected
+
+    def _random_bag() -> tuple[set[int], set[int]]:
+        gene_rand_1 = {1, 2, 3, 4, 7}
+        phene_rand_1 = {5, 6, 8}
+
+        gene_rand_2 = {1, 2, 3, 4, 5, 7}
+        phene_rand_2 = {6, 8}
+        return choice([(gene_rand_1, phene_rand_1), (gene_rand_2, phene_rand_2)])
+
+    gene_filter, phene_filter = _random_bag()
+
+    filter_criteria_for_genes = {0: gene_filter}
+
+    filtered_view_for_genes = (
+        ATTRIBUTES.characteristics.combined_collection.get_filtered_collection(
+            criteria=filter_criteria_for_genes
+        )
+    )
+
+    filter_criteria_for_phenes = {0: phene_filter}
+
+    filtered_view_for_phenes = (
+        ATTRIBUTES.characteristics.combined_collection.get_filtered_collection(
+            criteria=filter_criteria_for_phenes
+        )
+    )
+
+    characteristics_by_upp_index_genes = _choose_random_codes_by_upp_index(
+        list(filtered_view_for_genes),
+        expected_upp_indices=gene_filter,
+    )
+
+    characteristics_by_upp_index_phenes = _choose_random_codes_by_upp_index(
+        list(filtered_view_for_phenes),
+        expected_upp_indices=phene_filter,
+    )
 
     _inheritance_contributors = randint(0, 10)
 
-    def _create_random_gene(name: str) -> Gene:
-        characteristic = Characteristic.by_name(name)
+    def _create_random_gene(code: FullCode) -> Gene:
+        characteristic = Characteristic.by_code(code)
         die_mult = randint(1, 6)
         precidence = randint(-1, 1)
         inheritance_contributors = _inheritance_contributors
@@ -76,11 +142,11 @@ def create_random_genotype() -> Genotype:
             precidence=precidence,
             gender_link=gender_link,
             caste_link=caste_link,
-            inheritance_contributors=inheritance_contributors
+            inheritance_contributors=inheritance_contributors,
         )
-    bisect_at = randint(4, 6)
-    genes = [_create_random_gene(name) for name in collection[:bisect_at]]
-    phenes = [Phene.by_characteristic_name(name) for name in collection[bisect_at:]]
+
+    genes = [_create_random_gene(code) for code in characteristics_by_upp_index_genes]
+    phenes = [Phene.by_characteristic_code(code) for code in characteristics_by_upp_index_phenes]
     return Genotype.of(genes, phenes)
 
 def create_alien_genotype() -> Genotype:
@@ -120,7 +186,11 @@ def create_aslan_genotype() -> Genotype:
     # of the same UPP Index is NOT allowed, but multiple Phenes of the same UPP
     # Index is allowed.
 
-    ter_characteristic = Characteristic.of(upp_index=6, subtype=3, category_code=3) # This subtype is not in the base mappings.
+    ATTRIBUTES.characteristics.add_custom_entry(
+        alias_map={"ter": ("territory", "territoriality")},
+        full_code=(6, 3, 3),
+    )
+    ter_characteristic = Characteristic.by_name("ter") # This subtype is not in the base mappings.
     ter_phene = Phene(characteristic=ter_characteristic)
     aslan_genes_by_name = [
         "Strength", 
@@ -131,7 +201,6 @@ def create_aslan_genotype() -> Genotype:
     aslan_phenes_by_name = [
         "Education",
         "Social Standing",
-        "Psionics",
         "Sanity",
     ]
     aslan_genotype = Genotype.by_characteristic_names(
@@ -174,16 +243,3 @@ CHARACTER_OPTIONS: dict[Sophont, str] = {
     example_sophont_2: "Human Sophont 2",
     example_sophont_4: "Aslan Sophont",
 }
-
-class premade_non_editable_species_card(ui.column):
-    def __init__(self, species_name: str, genotype: Genotype) -> None:
-        super().__init__()
-        self.genotype = genotype
-        with self:
-            widget = species_genotype_widget(name=species_name, is_instantiated=True, genotype=genotype)
-            for gene in genotype.genes:
-                with widget.collection:
-                    d_fab.draggable(gene=gene, on_remove=handle_remove_requested, is_draggable_active=False).tooltip('Gene')
-            for phene in genotype.phenes:
-                with widget.collection:
-                    d_fab.draggable(gene=phene, on_remove=handle_remove_requested, is_draggable_active=False).tooltip('Phene')
