@@ -5,13 +5,13 @@ from typing import Optional
 
 from nicegui import ui
 
-from game.characteristic import Characteristic
 from game.mappings.data import FullCode
 from game.mappings.set import ATTRIBUTES
+from game.skill import Skill
 
 
 def _master_category_display_option_builder(code: int) -> str:
-    aliases = ATTRIBUTES.characteristics.master_category_name_aliases_dict.get(
+    aliases = ATTRIBUTES.skills.master_category_name_aliases_dict.get(
         code, ("Unknown",)
     )
     return f"{code} - {aliases[0]}"
@@ -31,36 +31,36 @@ def _event_value(e: object) -> Optional[object]:
     return None
 
 
-class SelectedCharacteristicDisplay(ui.card):
-    """Display for a selected Characteristic."""
+class SelectedSkillDisplay(ui.card):
+    """Display for a selected Skill."""
 
     def __init__(self, full_code: FullCode) -> None:
         super().__init__()
         self.classes("q-pa-md").props("flat outlined")
 
-        canonical, aliases = ATTRIBUTES.characteristics.get_aliases(full_code)
+        canonical, aliases = ATTRIBUTES.skills.get_aliases(full_code)
         with ui.column().classes("q-gutter-xs"):
-            ui.label("Characteristic Selected:").classes("text-bold")
+            ui.label("Skill Selected:").classes("text-bold")
             ui.label(f"Name: {canonical}")
             if aliases:
                 ui.label(f"Aliases: {', '.join(aliases)}").classes("text-grey")
 
             ui.separator()
-            ui.label(f"UPP Index: {full_code[0]}")
-            ui.label(f"Subtype: {full_code[1]}")
-            ui.label(f"Master Category: {full_code[2]}")
+            ui.label(f"Master Category: {full_code[0]}")
+            ui.label(f"Sub Category: {full_code[1]}")
+            ui.label(f"Base Skill ID: {full_code[2]}")
 
 
-class CharacteristicBuilder(ui.card):
-    """Form to build a Characteristic selection."""
+class SkillBuilder(ui.card):
+    """Form to build a Skill selection."""
 
     def __init__(
         self,
         *,
-        on_characteristic_built: Optional[Callable[[Characteristic], None]] = None,
+        on_skill_built: Optional[Callable[[Skill], None]] = None,
     ) -> None:
         super().__init__()
-        self.on_characteristic_built = on_characteristic_built
+        self.on_skill_built = on_skill_built
         self.classes("q-pa-md").props("flat outlined")
 
         self._attribute_display_row: ui.row | None = None
@@ -70,22 +70,22 @@ class CharacteristicBuilder(ui.card):
 
         self._valid_codes: set[FullCode] = {code for _, code in collection}
 
-        upp_options = sorted({code[0] for _, code in collection})
+        master_options = sorted({code[0] for _, code in collection})
         sub_options = sorted({code[1] for _, code in collection})
-        master_category_codes = sorted({code[2] for _, code in collection})
-        master_category_options: dict[int, str] = {
+        base_skill_codes = sorted({code[2] for _, code in collection})
+        skill_options: dict[int, str] = {
             code: _master_category_display_option_builder(code)
-            for code in master_category_codes
+            for code in base_skill_codes
         }
         
         with ui.row() as attribute_display_row:
             self._attribute_display_row = attribute_display_row
-            ui.label("No Characteristic Selected").classes("text-gray-500 italic")
+            ui.label("No Skill Selected").classes("text-gray-500 italic")
 
-        self._upp_index_select = (
+        self._master_category_select = (
             ui.select(
-                label="UPP Index",
-                options=upp_options,
+                label="Master Category",
+                options=master_options,
                 value=None,
                 on_change=self._on_any_select_changed,
             )
@@ -93,9 +93,9 @@ class CharacteristicBuilder(ui.card):
             .props("clearable")
         )
 
-        self._subtype_select = (
+        self._sub_category_select = (
             ui.select(
-                label="Subtype",
+                label="Sub Category",
                 options=sub_options,
                 value=None,
                 on_change=self._on_any_select_changed,
@@ -104,10 +104,10 @@ class CharacteristicBuilder(ui.card):
             .props("clearable")
         )
 
-        self._master_category_select = (
+        self._base_skill_id_select = (
             ui.select(
-                label="Master Category",
-                options=master_category_options,
+                label="Base Skill ID",
+                options=skill_options,
                 value=None,
                 on_change=self._on_any_select_changed,
             )
@@ -116,29 +116,29 @@ class CharacteristicBuilder(ui.card):
         )
 
         ui.button(
-            "Save New Characteristic",
+            "Save New Skill",
             color="dark",
-            on_click=self._save_characteristic,
+            on_click=self._save_skill,
         ).classes("q-mt-md")
 
-        self._render_selected_characteristic()
+        self._render_selected_skill()
 
     def _on_any_select_changed(self, e) -> None:
         # Ensure we always compute from the current widget values.
         _ = _event_value(e)
         self._selected_full_code = self._compute_selected_full_code()
-        self._render_selected_characteristic()
+        self._render_selected_skill()
 
     def _compute_selected_full_code(self) -> FullCode | None:
-        upp = self._upp_index_select.value
-        subtype = self._subtype_select.value
-        master_category = self._master_category_select.value
+        master = self._master_category_select.value
+        sub_category = self._sub_category_select.value
+        base_skill_id = self._base_skill_id_select.value
 
-        if upp is None or subtype is None or master_category is None:
+        if master is None or sub_category is None or base_skill_id is None:
             return None
 
         try:
-            full_code: FullCode = (int(upp), int(subtype), int(master_category))
+            full_code: FullCode = (int(master), int(sub_category), int(base_skill_id))
         except (TypeError, ValueError):
             return None
 
@@ -146,7 +146,7 @@ class CharacteristicBuilder(ui.card):
             return None
         return full_code
 
-    def _render_selected_characteristic(self) -> None:
+    def _render_selected_skill(self) -> None:
         if self._attribute_display_row is None:
             return
 
@@ -161,17 +161,17 @@ class CharacteristicBuilder(ui.card):
                 ).classes("text-gray-500")
                 return
 
-            SelectedCharacteristicDisplay(full_code)
+            SelectedSkillDisplay(full_code)
 
-    def _save_characteristic(self) -> None:
+    def _save_skill(self) -> None:
         full_code = self._selected_full_code
         if full_code is None:
-            ui.notify("Select a valid characteristic first.", type="warning")
+            ui.notify("Select a valid skill first.", type="warning")
             return
 
-        characteristic = Characteristic.by_code(full_code)
-        if self.on_characteristic_built is not None:
-            self.on_characteristic_built(characteristic)
+        skill = Skill.of(full_code)
+        if self.on_skill_built is not None:
+            self.on_skill_built(skill)
 
-        canonical, _aliases = characteristic.get_name()
+        canonical, _aliases = skill.get_name()
         ui.notify(f"Saved: {canonical}", type="positive")

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
 from typing import Final
 
 import pandas as pd
@@ -14,6 +13,12 @@ from game.mappings.authoring import (
     load_knowledge_to_skills_associations_from_xlsx,
     load_skill_code_to_categories_from_xlsx,
 )
+from game.mappings.data import (
+    AliasMappedFullCode,
+    CanonicalCodeInt,
+    FullCode,
+    StringAliases,
+)
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -25,32 +30,12 @@ sheet_skills_base = "skills.base"
 sheet_skills_master = "skills.master"
 sheet_skills_sub = "skills.sub"
 
-StringAliases = tuple[str, ...]
-
 sheet_skills_fullcode_data = "skills.fullcode.data"
 sheet_knowledges_base = "knowledges.base"
 sheet_knowledges_with_skill_associations_data = "knowledges.skills.data"
 sheet_characteristics_master = "characteristics.master"
 sheet_characteristics_base = "characteristics.base"
 sheet_characteristics_matrix_data = "characteristics.matrix.data"
-
-BaseSkillCode = int
-MasterCategoryInt = int
-SubCategoryInt = int
-CategoryCodesTuple = tuple[MasterCategoryInt, SubCategoryInt]
-
-BaseKnowledgeCodeInt = int
-AssociatedSkillCodes = tuple[int, ...]
-
-UPPIndexInt = int
-SubCodeInt = int
-MasterCodeInt = int
-FullCharacteristicCodeTuple = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
-StrCodeStr = str
-
-CanonicalStrKey = str
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
-AliasMappedFullCode = tuple[AliasMap, FullCharacteristicCodeTuple]
 
 with pd.ExcelFile(XLSX_PATH) as excel:
     SKILLS_MASTER_CATEGORY_CODES: Final[dict[int, StringAliases]] = (
@@ -95,7 +80,7 @@ with pd.ExcelFile(XLSX_PATH) as excel:
     )
 
     KNOWLEDGES_DEFAULT_KNOWLEDGE_TO_SKILLS_ASSOCIATIONS: Final[
-        dict[BaseKnowledgeCodeInt, AssociatedSkillCodes]
+        dict[CanonicalCodeInt, tuple[CanonicalCodeInt, ...]]
     ] = load_knowledge_to_skills_associations_from_xlsx(
         path=XLSX_PATH,
         table_name=sheet_knowledges_with_skill_associations_data,
@@ -131,7 +116,7 @@ with pd.ExcelFile(XLSX_PATH) as excel:
     )
 
     CHARACTERISTICS_MATRIX: Final[
-        dict[tuple[FullCharacteristicCodeTuple, FullCharacteristicCodeTuple], float]
+        dict[tuple[FullCode, FullCode], float]
     ] = load_characteristics_matrix_from_xlsx(
         path=XLSX_PATH,
         table_name=sheet_characteristics_matrix_data,

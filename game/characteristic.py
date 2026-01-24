@@ -2,16 +2,10 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from typing_extensions import TypeAlias
-
+from game.mappings.data import CanonicalStrKey, FullCode, StringAliases
 from game.mappings.set import ATTRIBUTES
 
-CanonicalStrKey: TypeAlias = str
-StringAliases: TypeAlias = tuple[str, ...]
-UPPIndexInt = int
-SubCodeInt = int
-MasterCodeInt = int
-FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
+
 class Characteristic:
 
     __slots__ = (
@@ -19,7 +13,7 @@ class Characteristic:
         "subtype",
         "category_code",
     )
-    Key = tuple[int, int, int]
+    Key = FullCode
     _cache: ClassVar[dict[Key, Characteristic]] = {}
 
     def __new__(cls, upp_index: int = 0, subtype: int = 0, category_code: int = 0) -> Characteristic:

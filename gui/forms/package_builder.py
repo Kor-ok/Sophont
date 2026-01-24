@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable
 from typing import Optional, Union
 
 from nicegui import ui
@@ -8,21 +8,15 @@ from nicegui import ui
 from game.characteristic import Characteristic
 from game.gene import Gene
 from game.knowledge import Knowledge
+from game.mappings.data import (
+    AliasMap,
+    AliasMappedFullCode,
+    FullCode,
+)
 from game.mappings.set import ATTRIBUTES
 from game.package import AttributePackage, T
 from game.phene import Phene
 from game.skill import Skill
-
-CanonicalStrKey = str
-StringAliases = tuple[str, ...]
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
-
-PrimaryCodeInt = int
-SecondaryCodeInt = int
-TertiaryCodeInt = int
-FullCode = tuple[PrimaryCodeInt, SecondaryCodeInt, TertiaryCodeInt]
-
-AliasMappedFullCode = tuple[AliasMap, FullCode]
 
 ItemType = Union[type[Skill], type[Knowledge], type[Gene], type[Phene], type[Characteristic]]
 

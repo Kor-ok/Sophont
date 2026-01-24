@@ -1,23 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-
 from game.mappings import (
     SKILLS_MAPPING_BASE_SKILL_CODE_TO_CATEGORIES,
 )
 from game.mappings.attributebase import AttributeBase
-from game.mappings.data import AliasMappedFullCodeCollection, MutabilityLevel
-
-StringAliases = tuple[str, ...]
-CanonicalStrKey = str
-
-MasterCategoryInt = int
-SubCategoryInt = int
-BaseSkillInt = int
-FullCode = tuple[MasterCategoryInt, SubCategoryInt, BaseSkillInt]
-
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
-AliasMappedFullCode = tuple[AliasMap, FullCode]
+from game.mappings.data import (
+    AliasMappedFullCodeCollection,
+    MutabilityLevel,
+    StringAliases,
+)
 
 
 class Skills(AttributeBase):

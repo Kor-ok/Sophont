@@ -4,33 +4,16 @@ from collections.abc import Iterable, Mapping
 from itertools import chain
 from typing import ClassVar, TypeVar
 
-from typing_extensions import TypeAlias
-
-from game.mappings.data import AliasMappedFullCodeCollection, MutabilityLevel
+from game.mappings.data import (
+    AliasMappedFullCode,
+    AliasMappedFullCodeCollection,
+    CanonicalStrKey,
+    FullCode,
+    MutabilityLevel,
+    StringAliases,
+)
 
 TAttributeBase = TypeVar("TAttributeBase", bound="AttributeBase")
-
-StringAliases: TypeAlias = tuple[str, ...]
-"""A set of alternative names for an attribute (normalized at lookup time)."""
-
-CanonicalStrKey: TypeAlias = str
-"""The canonical string key for an attribute (the primary/official name)."""
-
-AliasMap: TypeAlias = Mapping[CanonicalStrKey, StringAliases]
-"""Mapping of canonical names to their aliases."""
-
-PrimaryCodeInt = int
-SecondaryCodeInt = int
-TertiaryCodeInt = int
-FullCode: TypeAlias = tuple[PrimaryCodeInt, SecondaryCodeInt, TertiaryCodeInt]
-"""A 3-part attribute code.
-
-In this repository, a "full code" is typically a 3-tuple of integers used to
-uniquely identify a characteristic/skill/knowledge entry.
-"""
-
-AliasMappedFullCode: TypeAlias = tuple[AliasMap, FullCode]
-"""The shape of the data stored in AliasMappedFullCodeCollection."""
 
 
 class AttributeBase:
@@ -38,6 +21,8 @@ class AttributeBase:
 
     Handles the retrieval of default data, user-defined custom data and the collation of both
     so that all functions downstream don't need to care about the source of the data.
+
+    "default_collection", "custom_collection", "combined_collection", "_is_initialised"
     """
 
     __slots__ = (
@@ -184,7 +169,7 @@ class AttributeBase:
             default=default,
         )
     
-    def get_header_data(self) -> tuple[int, int, int]:
+    def get_header_data(self) -> FullCode:
         """
         - Skill code is (master_category, sub_category, base_skill)
         - Knowledge code is (base_knowledge_code, associated_skill_code, focus_code)

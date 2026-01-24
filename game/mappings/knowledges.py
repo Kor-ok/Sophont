@@ -2,19 +2,11 @@ from __future__ import annotations
 
 from game.mappings import KNOWLEDGES_FULL_CODE_TO_STR_ALIASES
 from game.mappings.attributebase import AttributeBase
-from game.mappings.data import AliasMappedFullCodeCollection, MutabilityLevel
-
-StringAliases = tuple[str, ...]
-CodeNames = tuple[str, ...]
-
-BaseKnowledgeInt = int
-AssociatedSkillInt = int
-FocusInt = int
-FullKnowledgeCode = tuple[BaseKnowledgeInt, AssociatedSkillInt, FocusInt]  # (base_knowledge_code, associated_skill_code, focus_code)
-
-AssociatedSkillCodes = tuple[int, ...]
-
-CanonicalAlias = str
+from game.mappings.data import (
+    AliasMappedFullCodeCollection,
+    MutabilityLevel,
+    StringAliases,
+)
 
 
 class Knowledges(AttributeBase):

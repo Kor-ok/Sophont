@@ -5,6 +5,8 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Any, Final
 
+from typing_extensions import TypeAlias
+
 from game.mappings.utils import AttributeViewHeader, _normalize
 
 
@@ -14,16 +16,22 @@ class MutabilityLevel(Enum):
     COMBINED = "combined"
 
 
-CanonicalStrKey = str
-StringAliases = tuple[str, ...]
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
+CanonicalStrKey: TypeAlias = str
+CanonicalCodeInt: TypeAlias = int
+StringAliases: TypeAlias = tuple[str, ...]
+AliasMap: TypeAlias = Mapping[CanonicalStrKey, StringAliases]
 
-PrimaryCodeInt = int
-SecondaryCodeInt = int
-TertiaryCodeInt = int
-FullCode = tuple[PrimaryCodeInt, SecondaryCodeInt, TertiaryCodeInt]
+PrimaryCodeInt: TypeAlias = int
+SecondaryCodeInt: TypeAlias = int
+TertiaryCodeInt: TypeAlias = int
+FullCode: TypeAlias = tuple[PrimaryCodeInt, SecondaryCodeInt, TertiaryCodeInt]
+"""
+- Skill code is (master_category, sub_category, base_skill)
+- Knowledge code is (base_knowledge_code, associated_skill_code, focus_code)
+- Characteristic code is (position_code, subtype_code, master_code)
+"""
 
-AliasMappedFullCode = tuple[AliasMap, FullCode]
+AliasMappedFullCode: TypeAlias = tuple[AliasMap, FullCode]
 
 # Shape of the Data:
 # - AliasMap: { canonical_key: (alias1, alias2, ...) }

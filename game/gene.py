@@ -4,11 +4,10 @@ from textwrap import indent
 from typing import ClassVar
 
 from game.characteristic import Characteristic
+from game.mappings.data import (
+    FullCode,
+)
 
-UPPIndexInt = int
-SubCodeInt = int
-MasterCodeInt = int
-FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
 
 class Gene:
     """

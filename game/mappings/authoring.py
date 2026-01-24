@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from types import MappingProxyType
 from typing import Any
 
@@ -11,8 +11,12 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     np = None  # type: ignore[assignment]
 
-StringAliases = tuple[str, ...]
-CodeInt = int
+from game.mappings.data import (
+    AliasMappedFullCode,
+    CanonicalCodeInt,
+    FullCode,
+    StringAliases,
+)
 
 
 def _read_excel(
@@ -46,7 +50,7 @@ def load_code_to_str_aliases_from_xlsx(
     language_code: str,
     *,
     excel: pd.ExcelFile | None = None,
-) -> dict[CodeInt, StringAliases]:
+) -> dict[CanonicalCodeInt, StringAliases]:
     """Load code -> aliases table from an Excel file.
 
     If `excel` is provided, the already-open workbook is reused.
@@ -58,7 +62,7 @@ def load_code_to_str_aliases_from_xlsx(
     df = _read_excel(excel_or_path, sheet_name=sheet_name, usecols=["Code", *alias_cols])
 
     # Fast path: columns exist as expected.
-    table: dict[CodeInt, StringAliases] = {}
+    table: dict[CanonicalCodeInt, StringAliases] = {}
     code_series = df.get("Code")
     if code_series is None:
         return table
@@ -68,12 +72,6 @@ def load_code_to_str_aliases_from_xlsx(
         code = int(row[0])
         table[code] = _coerce_aliases_row(row[1:])
     return table
-
-
-BaseSkillCodeInt = int
-MasterCategoryInt = int
-SubCategoryInt = int
-FullSkillCode = tuple[MasterCategoryInt, SubCategoryInt, BaseSkillCodeInt]
 
 
 def load_skill_code_to_categories_from_xlsx(
@@ -103,7 +101,7 @@ def load_skill_code_to_categories_from_xlsx(
     )
 
     entries: list[AliasMappedFullCode] = []
-    full_code: FullSkillCode
+    full_code: FullCode
 
     # For every entry in df_codes, use the Base Code in the column "Code" of df_aliases to find aliases.
     for row_code in df_codes.itertuples(index=False, name=None):
@@ -126,16 +124,14 @@ def load_skill_code_to_categories_from_xlsx(
     return tuple(entries)
 
 
-BaseKnowledgeCodeInt = int
-AssociatedSkillCodes = tuple[int, ...]
-
+AssociatedSkillCodes = tuple[CanonicalCodeInt, ...]
 
 def load_knowledge_to_skills_associations_from_xlsx(
     path: str,
     table_name: str,
     *,
     excel: pd.ExcelFile | None = None,
-) -> dict[BaseKnowledgeCodeInt, AssociatedSkillCodes]:
+) -> dict[CanonicalCodeInt, AssociatedSkillCodes]:
     """Load knowledge base-code -> associated skill codes from an Excel file."""
     sheet_name = f"{table_name}"
     excel_or_path: pd.ExcelFile | str = excel if excel is not None else path
@@ -144,7 +140,7 @@ def load_knowledge_to_skills_associations_from_xlsx(
     df = _read_excel(excel_or_path, sheet_name=sheet_name, usecols=["Base Code", *skill_cols])
     existing_skill_cols = [c for c in skill_cols if c in df.columns]
 
-    table: dict[BaseKnowledgeCodeInt, AssociatedSkillCodes] = {}
+    table: dict[CanonicalCodeInt, AssociatedSkillCodes] = {}
     for row in df[["Base Code", *existing_skill_cols]].itertuples(index=False, name=None):
         base_code = int(row[0])
         codes: list[int] = []
@@ -204,11 +200,6 @@ def _disambiguate_knowledge_collisions(
     return tuple(disambiguated_entries)
 
 
-AssociatedSkillInt = int
-FocusInt = int
-FullKnowledgeCode = tuple[BaseKnowledgeCodeInt, AssociatedSkillInt, FocusInt]
-
-
 def load_full_knowledge_code_to_str_aliases_from_xlsx(
     path: str,
     table_name: str,
@@ -239,7 +230,7 @@ def load_full_knowledge_code_to_str_aliases_from_xlsx(
 
     entries: list[AliasMappedFullCode] = []
     DEFAULT_FOCUS_CODE = -99
-    full_code: FullKnowledgeCode
+    full_code: FullCode
 
     # In df_codes, the same Base Code may have multiple associated Skill Codes, and
     # each combination of (Base Code, Associated Skill Code, DEFAULT_FOCUS_CODE) forms a FullKnowledgeCode
@@ -267,18 +258,6 @@ def load_full_knowledge_code_to_str_aliases_from_xlsx(
             entries.append((MappingProxyType({aliases[0]: aliases[1:]}), full_code))
 
     return tuple(_disambiguate_knowledge_collisions(entries))
-
-
-UPPIndexInt = int
-SubCodeInt = int
-MasterCodeInt = int
-FullCharacteristicCodeTuple = tuple[
-    UPPIndexInt, SubCodeInt, MasterCodeInt
-]  # FullCode = tuple[int, int, int]
-
-CanonicalStrKey = str
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
-AliasMappedFullCode = tuple[AliasMap, FullCharacteristicCodeTuple]
 
 
 def load_full_characteristic_code_to_str_aliases_from_xlsx(
@@ -325,7 +304,7 @@ def load_characteristics_matrix_from_xlsx(
     table_name: str,
     *,
     excel: pd.ExcelFile | None = None,
-) -> dict[tuple[FullCharacteristicCodeTuple, FullCharacteristicCodeTuple], float]:
+) -> dict[tuple[FullCode, FullCode], float]:
     """Load characteristics matrix from an Excel file."""
     sheet_name = f"{table_name}"
     excel_or_path: pd.ExcelFile | str = excel if excel is not None else path
@@ -354,7 +333,7 @@ def load_characteristics_matrix_from_xlsx(
         # Default value is 1.0 where missing.
         values_f = np.where(pd.isna(values), 1.0, values).astype(float, copy=False)
 
-        matrix: dict[tuple[FullCharacteristicCodeTuple, FullCharacteristicCodeTuple], float] = {}
+        matrix: dict[tuple[FullCode, FullCode], float] = {}
         for row_idx, y_code in enumerate(y_axis_codes):
             row_vals = values_f[row_idx]
             for col_idx, x_code in enumerate(x_axis_codes):
@@ -362,21 +341,21 @@ def load_characteristics_matrix_from_xlsx(
         return matrix
 
     # Fallback path (no NumPy) - still correct, just slower.
-    x_axis_codes: list[FullCharacteristicCodeTuple] = []
+    x_axis_codes: list[FullCode] = []
     for col in range(start_col, df.shape[1]):
         upp_index = int(df.iat[2, col])
         sub_code = int(df.iat[1, col])
         master_code = int(df.iat[0, col])
         x_axis_codes.append((upp_index, sub_code, master_code))
 
-    y_axis_codes: list[FullCharacteristicCodeTuple] = []
+    y_axis_codes: list[FullCode] = []
     for row in range(start_row, df.shape[0]):
         upp_index = int(df.iat[row, 2])
         sub_code = int(df.iat[row, 1])
         master_code = int(df.iat[row, 0])
         y_axis_codes.append((upp_index, sub_code, master_code))
 
-    matrix: dict[tuple[FullCharacteristicCodeTuple, FullCharacteristicCodeTuple], float] = {}
+    matrix: dict[tuple[FullCode, FullCode], float] = {}
     for row_idx, y_code in enumerate(y_axis_codes):
         for col_idx, x_code in enumerate(x_axis_codes):
             value = df.iat[start_row + row_idx, start_col + col_idx]
