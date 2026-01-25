@@ -8,6 +8,11 @@ from nicegui import ui
 from game.characteristic import Characteristic
 from game.mappings.data import FullCode
 from game.mappings.set import ATTRIBUTES
+from gui.forms.attribute_builder_base import (
+    AttributeBuilderBase,
+    AttributeType,
+    SelectedAttributeDisplayBase,
+)
 
 
 def _master_category_display_option_builder(code: int) -> str:
@@ -31,12 +36,10 @@ def _event_value(e: object) -> Optional[object]:
     return None
 
 
-class SelectedCharacteristicDisplay(ui.card):
+class SelectedCharacteristicDisplay(SelectedAttributeDisplayBase):
     """Display for a selected Characteristic."""
 
     def __init__(self, full_code: FullCode) -> None:
-        super().__init__()
-        self.classes("q-pa-md").props("flat outlined")
 
         canonical, aliases = ATTRIBUTES.characteristics.get_aliases(full_code)
         with ui.column().classes("q-gutter-xs"):
@@ -51,16 +54,17 @@ class SelectedCharacteristicDisplay(ui.card):
             ui.label(f"Master Category: {full_code[2]}")
 
 
-class CharacteristicBuilder(ui.card):
+class CharacteristicBuilder(AttributeBuilderBase):
     """Form to build a Characteristic selection."""
 
     def __init__(
         self,
         *,
-        on_characteristic_built: Optional[Callable[[Characteristic], None]] = None,
+        attribute_type: AttributeType = AttributeType.CHARACTERISTIC,
+        on_attribute_built: Optional[Callable[[Characteristic], None]] = None,
     ) -> None:
-        super().__init__()
-        self.on_characteristic_built = on_characteristic_built
+        # super().__init__()
+        self.on_attribute_built = on_attribute_built
         self.classes("q-pa-md").props("flat outlined")
 
         self._attribute_display_row: ui.row | None = None
@@ -69,7 +73,7 @@ class CharacteristicBuilder(ui.card):
         collection = ATTRIBUTES.characteristics.get_all()
 
         self._valid_codes: set[FullCode] = {code for _, code in collection}
-
+        
         upp_options = sorted({code[0] for _, code in collection})
         sub_options = sorted({code[1] for _, code in collection})
         master_category_codes = sorted({code[2] for _, code in collection})
@@ -170,8 +174,8 @@ class CharacteristicBuilder(ui.card):
             return
 
         characteristic = Characteristic.by_code(full_code)
-        if self.on_characteristic_built is not None:
-            self.on_characteristic_built(characteristic)
+        if self.on_attribute_built is not None:
+            self.on_attribute_built(characteristic)
 
         canonical, _aliases = characteristic.get_name()
         ui.notify(f"Saved: {canonical}", type="positive")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from enum import Enum
 from typing import Optional
 
 from nicegui import ui
@@ -8,6 +9,16 @@ from nicegui import ui
 from game.mappings.data import FullCode
 from game.mappings.set import ATTRIBUTES
 from game.skill import Skill
+
+
+class DisplayOptionType(Enum):
+    MASTER = ATTRIBUTES.skills.master_category_name_aliases_dict.get
+    SUB = ATTRIBUTES.skills.master_sub_category_name_aliases_dict.get
+    BASE = ATTRIBUTES.skills.master_skill_code_name_aliases_dict.get
+
+def _display_options_builder(code: int, type: DisplayOptionType) -> str:
+    aliases = type.value(code, ("Unknown",))
+    return f"{code} - {aliases[0]}"
 
 
 def _event_value(e: object) -> Optional[object]:
@@ -39,9 +50,9 @@ class SelectedSkillDisplay(ui.card):
                 ui.label(f"Aliases: {', '.join(aliases)}").classes("text-grey")
 
             ui.separator()
+            ui.label(f"Base Skill ID: {full_code[2]}")
             ui.label(f"Master Category: {full_code[0]}")
             ui.label(f"Sub Category: {full_code[1]}")
-            ui.label(f"Base Skill ID: {full_code[2]}")
 
 
 class SkillBuilder(ui.card):
@@ -64,17 +75,37 @@ class SkillBuilder(ui.card):
         self._valid_codes: set[FullCode] = {code for _, code in collection}
 
         master_options = sorted({code[0] for _, code in collection})
+        master_options_display: dict[int, str] = {
+            code: _display_options_builder(code, DisplayOptionType.MASTER) for code in master_options
+        }
         sub_options = sorted({code[1] for _, code in collection})
+        sub_options_display: dict[int, str] = {
+            code: _display_options_builder(code, DisplayOptionType.SUB) for code in sub_options
+        }
         base_skill_codes = sorted({code[2] for _, code in collection})
+        base_skill_codes_display: dict[int, str] = {
+            code: _display_options_builder(code, DisplayOptionType.BASE) for code in base_skill_codes
+        }
         
         with ui.row() as attribute_display_row:
             self._attribute_display_row = attribute_display_row
             ui.label("No Skill Selected").classes("text-gray-500 italic")
+        
+        self._base_skill_id_select = (
+            ui.select(
+                label="Base Skill ID",
+                options=base_skill_codes_display,
+                value=None,
+                on_change=self._on_any_select_changed,
+            )
+            .classes("w-full q-mt-md")
+            .props("clearable")
+        )
 
         self._master_category_select = (
             ui.select(
                 label="Master Category",
-                options=master_options,
+                options=master_options_display,
                 value=None,
                 on_change=self._on_any_select_changed,
             )
@@ -85,7 +116,7 @@ class SkillBuilder(ui.card):
         self._sub_category_select = (
             ui.select(
                 label="Sub Category",
-                options=sub_options,
+                options=sub_options_display,
                 value=None,
                 on_change=self._on_any_select_changed,
             )
@@ -93,16 +124,7 @@ class SkillBuilder(ui.card):
             .props("clearable")
         )
 
-        self._base_skill_id_select = (
-            ui.select(
-                label="Base Skill ID",
-                options=base_skill_codes,
-                value=None,
-                on_change=self._on_any_select_changed,
-            )
-            .classes("w-full q-mt-md")
-            .props("clearable")
-        )
+        
 
         ui.button(
             "Save New Skill",

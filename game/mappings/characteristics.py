@@ -8,6 +8,7 @@ from game.mappings import (
 from game.mappings.attributebase import AttributeBase
 from game.mappings.data import (
     AliasMappedFullCodeCollection,
+    CanonicalCodeInt,
     FullCode,
     MutabilityLevel,
     StringAliases,
@@ -23,7 +24,7 @@ class Characteristics(AttributeBase):
         "master_category_name_aliases_dict",
         "fullcode_to_name_aliases_dict",
     )
-    master_category_name_aliases_dict: dict[int, StringAliases]
+    master_category_name_aliases_dict: dict[CanonicalCodeInt, StringAliases]
     fullcode_to_name_aliases_dict: dict[FullCode, StringAliases]
 
     def __init__(self) -> None:
@@ -36,7 +37,7 @@ class Characteristics(AttributeBase):
             object.__setattr__(
                 self,
                 "master_category_name_aliases_dict",
-                dict[int, StringAliases](),
+                dict[CanonicalCodeInt, StringAliases](),
             )
             object.__setattr__(
                 self,
