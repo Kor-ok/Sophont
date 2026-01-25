@@ -59,7 +59,7 @@ class Popchip(ui.fab):
                 _build_fab_flyout(icon='family_restroom', label=str(item.inheritance_contributors), tooltip='Inheritance Contributors')
         elif isinstance(item, Phene):
             with self:
-                _build_fab_flyout(icon='bar_chart', label=str(item.expression_precidence), tooltip='Expression Value')
+                _build_fab_flyout(icon='bar_chart', label=str(item.expression_precedence), tooltip='Expression Value')
                 _build_fab_flyout(icon='medical_services', label=str(item.is_grafted), tooltip='Is Grafted')
                 if item.contributor_uuid != bytes(16):
                     _build_fab_flyout(icon='baby_changing_station', label=str(item.contributor_uuid), tooltip='Contributor UUID')

@@ -10,13 +10,6 @@ from game.mappings.set import ATTRIBUTES
 from game.skill import Skill
 
 
-def _master_category_display_option_builder(code: int) -> str:
-    aliases = ATTRIBUTES.skills.master_category_name_aliases_dict.get(
-        code, ("Unknown",)
-    )
-    return f"{code} - {aliases[0]}"
-
-
 def _event_value(e: object) -> Optional[object]:
     """Extract `value` from NiceGUI's event payload in a permissive way."""
     selected = getattr(e, "value", None)
@@ -66,17 +59,13 @@ class SkillBuilder(ui.card):
         self._attribute_display_row: ui.row | None = None
         self._selected_full_code: FullCode | None = None
 
-        collection = ATTRIBUTES.characteristics.get_all()
+        collection = ATTRIBUTES.skills.get_all()
 
         self._valid_codes: set[FullCode] = {code for _, code in collection}
 
         master_options = sorted({code[0] for _, code in collection})
         sub_options = sorted({code[1] for _, code in collection})
         base_skill_codes = sorted({code[2] for _, code in collection})
-        skill_options: dict[int, str] = {
-            code: _master_category_display_option_builder(code)
-            for code in base_skill_codes
-        }
         
         with ui.row() as attribute_display_row:
             self._attribute_display_row = attribute_display_row
@@ -107,7 +96,7 @@ class SkillBuilder(ui.card):
         self._base_skill_id_select = (
             ui.select(
                 label="Base Skill ID",
-                options=skill_options,
+                options=base_skill_codes,
                 value=None,
                 on_change=self._on_any_select_changed,
             )
@@ -155,9 +144,9 @@ class SkillBuilder(ui.card):
         full_code = self._selected_full_code
         with self._attribute_display_row:
             if full_code is None:
-                ui.label("No Characteristic Selected").classes("text-gray-500 italic")
+                ui.label("No Skill Selected").classes("text-gray-500 italic")
                 ui.label(
-                    "Pick UPP Index + Subtype + Master Category (valid combination)."
+                    "Pick Master Category + Sub Category + Base Skill ID (valid combination)."
                 ).classes("text-gray-500")
                 return
 
@@ -169,7 +158,7 @@ class SkillBuilder(ui.card):
             ui.notify("Select a valid skill first.", type="warning")
             return
 
-        skill = Skill.of(full_code)
+        skill = Skill.by_code(full_code)
         if self.on_skill_built is not None:
             self.on_skill_built(skill)
 

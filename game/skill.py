@@ -54,6 +54,11 @@ class Skill:
         master_category, sub_category, base_code = ATTRIBUTES.skills.get_full_code(name)
         return cls(master_category, sub_category, base_code)
     
+    @classmethod
+    def by_code(cls, code: tuple[int, int, int]) -> Skill:
+        master_category, sub_category, base_code = code
+        return cls(master_category, sub_category, base_code)
+    
     def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
         """Get the (canonical name, aliases) for this Skill."""
         return ATTRIBUTES.skills.get_aliases(

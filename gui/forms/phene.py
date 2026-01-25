@@ -40,7 +40,7 @@ def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = N
             try:
                 phene = Phene.by_characteristic_name(
                     characteristic_name=str(characteristic_name),
-                    expression_precidence=int(expression_value_input.value or 0),
+                    expression_precedence=int(expression_value_input.value or 0),
                     contributor_uuid=contributor_uuid,
                     is_grafted=bool(is_grafted_checkbox.value),
                 )
