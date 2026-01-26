@@ -63,6 +63,10 @@ class Characteristic:
         )
         return canonical_str_key, string_aliases
     
+    def get_code(self) -> FullCode:
+        """Get the full code for this characteristic."""
+        return (self.upp_index, self.subtype, self.category_code)
+    
     def __repr__(self) -> str:
         display = []
         characteristic_name = ATTRIBUTES.characteristics.get_aliases(

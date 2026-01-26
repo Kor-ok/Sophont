@@ -172,10 +172,10 @@ class CharacterCard(ui.column):
 
             with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
                 self._build_genotype_display()
-                ui.label("PLACEHOLDER: Epigenetic Collation")
-                raw_collation = repr(self.character.epigenetics.characteristics_collation)
-                ui.label(raw_collation).classes()
+                # ui.label("PLACEHOLDER: Epigenetic Collation")
+                # raw_collation = repr(self.character.epigenetics.characteristics_collation)
+                # ui.label(raw_collation).classes()
 
-            with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
-                ui.label("PLACEHOLDER: Drop Containers")
+            # with ui.card_section().classes(styles.CHARACTER_CARD_SECTION):
+            #     ui.label("PLACEHOLDER: Drop Containers")
 #endregion

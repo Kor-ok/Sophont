@@ -39,11 +39,11 @@ class AttributePackage(Generic[T]):
     :type level: int
     :type context: int
     """
-    __slots__ = ("item", "level", "context")
+    __slots__ = ("item", "level", "context_id")
 
     item: T
-    
-    _cache: ClassVar[dict[tuple[object, int, int], AttributePackage]] = {}
+    Key = tuple[object, int, int]
+    _cache: ClassVar[dict[Key, AttributePackage]] = {}
 
     def __new__(cls, item: T, level: int = 0, context_id: int | None = None) -> AttributePackage[T]:
         context_id = GUID.generate(NameSpaces.Entity.PACKAGES, NameSpaces.Owner.PLAYER) if context_id is None else context_id
@@ -55,12 +55,12 @@ class AttributePackage(Generic[T]):
         self = super().__new__(cls)
         object.__setattr__(self, "item", item)
         object.__setattr__(self, "level", int(level))
-        object.__setattr__(self, "context", int(context_id))
+        object.__setattr__(self, "context_id", int(context_id))
 
         cls._cache[key] = self
         return self
 
-    def __init__(self, item: T, level: int = 0, context: int | None = None) -> None:
+    def __init__(self, item: T, level: int = 0, context_id: int | None = None) -> None:
         pass
 
     def __setattr__(self, key: str, value: object) -> None:
@@ -79,5 +79,5 @@ class AttributePackage(Generic[T]):
         display.append(f"# Immutable AttributePackage at {memory_pointer_for_this_immutable_object}")
         display.append(f"item={self.item!r}")
         display.append(f"level={self.level!r}")
-        display.append(f"context={self.context!r}")
+        display.append(f"context_id={self.context_id!r}")
         return "AttributePackage(\n" + indent(",\n".join(display), indentation) + "\n)"

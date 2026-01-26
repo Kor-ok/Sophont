@@ -16,7 +16,13 @@ GeneOrPhene = Union[Gene, Phene]
 
 
 class Acquired:
-    __slots__ = ('package', 'age_acquired_seconds', 'context')
+    """Tracks when an AttributePackage was acquired.
+
+    Equality is based on (package, context) - the same package in the same context
+    is considered a duplicate regardless of when it was acquired.
+    """
+
+    __slots__ = ("package", "age_acquired_seconds", "context")
 
     package: AttributePackage
 
@@ -28,12 +34,24 @@ class Acquired:
     @classmethod
     def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
         return cls(package=package, context=context, age_acquired_seconds=age_seconds)
-    
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Acquired):
+            return NotImplemented
+        # Same package (flyweight identity) and same context means duplicate
+        return self.package is other.package and self.context == other.context
+
+    def __hash__(self) -> int:
+        # Hash by package identity and context for set-like duplicate detection
+        return hash((id(self.package), self.context))
+
     def __repr__(self) -> str:
         return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
 
-def _package_key(acquired: Acquired) -> tuple[int, int]:
-    return (acquired.package.item.characteristic.upp_index, acquired.age_acquired_seconds)
+
+def _package_key(acquired: Acquired) -> int:
+    """Key function for SortedKeyList: order by age_acquired_seconds."""
+    return acquired.age_acquired_seconds
 
 
 @dataclass
@@ -42,8 +60,11 @@ class UniqueAppliedCharacteristic:
     computed_level: int
     training_progress: float = field(default=0.0)
 
+
 UPPIndexAndLevel = tuple[int, int]
 UniqueIDAndLevel = dict[bytes, UPPIndexAndLevel]
+
+
 class Epigenetics:
     """
     characteristics_collation: list[UniqueAppliedCharacteristic] | None - Cached list of unique applied characteristics with computed levels.
@@ -53,14 +74,16 @@ class Epigenetics:
     parent_uuids: list[bytes] - List of parent UUIDs used for inheritance tracking.
     species: Species - The unique species identifier and GENOTYPE:genetic blueprint of the sophont.
     """
+
     __slots__ = (
-        'characteristics_collation',
-        'acquired_packages_collection', 
-        'is_packages_dirty', 
-        'parent_uuids',
-        'gender',
-        'species'
-        )
+        "characteristics_collation",
+        "acquired_packages_collection",
+        "is_packages_dirty",
+        "parent_uuids",
+        "gender",
+        "species",
+    )
+
     def __init__(self, species: Species):
         # === HOT DATA (frequently updated) ============================
         self.characteristics_collation: list[UniqueAppliedCharacteristic] | None = None
@@ -70,25 +93,63 @@ class Epigenetics:
         self.is_packages_dirty = False
 
         # === COLD DATA (rarely updated) ================================
-        self.parent_uuids: list[int] = [] # First entry should always be self UUID for cloning scenarios.
-        self.gender: tuple[int, int] = (-1, -1)  # -1 = unspecified where first=selected gender out of, second=max gene(non grafted) contributors
+        self.parent_uuids: list[int] = (
+            []
+        )  # First entry should always be self UUID for cloning scenarios.
+        self.gender: tuple[int, int] = (
+            -1,
+            -1,
+        )  # -1 = unspecified where first=selected gender out of, second=max gene(non grafted) contributors
 
         # === NEVER UPDATED DATA === (But Frequently Read) ================
         self.species: Species = species
 
-    def insert_package_acquired(self, package: AttributePackage, age_acquired_seconds: int, context: int, trigger_collation: bool = False) -> None:
-        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)
+    def insert_package_acquired(
+        self,
+        package: AttributePackage,
+        age_acquired_seconds: int,
+        context: int,
+        trigger_collation: bool = False,
+    ) -> bool:
+        """Insert an acquired package if not already present.
+
+        Returns True if inserted, False if duplicate (same package+context already exists).
+        """
+        acquired = Acquired.by_age(
+            package=package, age_seconds=age_acquired_seconds, context=context
+        )
+        # Check for duplicate (same package+context) before adding
+        if acquired in self.acquired_packages_collection:
+            return False
         self.acquired_packages_collection.add(acquired)
         self.is_packages_dirty = True
         if trigger_collation:
             self.update_collation()
+        return True
 
-    def remove_package_acquired(self, package: AttributePackage, age_acquired_seconds: int, context: int, trigger_collation: bool = False) -> None:
-        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)
-        self.acquired_packages_collection.remove(acquired)
+    def remove_package_acquired(
+        self,
+        package: AttributePackage,
+        age_acquired_seconds: int,
+        context: int,
+        trigger_collation: bool = False,
+    ) -> bool:
+        """Remove an acquired package if present.
+
+        Returns True if removed, False if not found.
+        Note: age_acquired_seconds is not used for matching (equality is by package+context only).
+        """
+        acquired = Acquired.by_age(
+            package=package, age_seconds=age_acquired_seconds, context=context
+        )
+        try:
+            self.acquired_packages_collection.remove(acquired)
+        except ValueError:
+            return False
         self.is_packages_dirty = True
         if trigger_collation:
             self.update_collation()
+        return True
 
     def get_acquired_packages(self) -> list[AttributePackage]:
         return [acquired.package for acquired in self.acquired_packages_collection]
@@ -96,10 +157,10 @@ class Epigenetics:
     def update_collation(self) -> None:
         if not self.is_packages_dirty:
             return
-        
+
         # An Acquired package is a AttributePackage whose item is a Gene or Phene.
         # Both Gene and Phene have characteristic: Characteristic.
-        # For each Acquired: 
+        # For each Acquired:
         # sum up all the package levels where the Characteristic matches so that we create
         # a UniqueAppliedCharacteristic for each unique Characteristic and apply the summed level
         # whilst preserving any training_progress from previous collation.
@@ -130,7 +191,6 @@ class Epigenetics:
 
             level_by_characteristic[key] = level_by_characteristic.get(key, 0) + int(package.level)
             characteristic_by_key[key] = characteristic
-            
 
         collation: list[UniqueAppliedCharacteristic] = []
         for key, computed_level in level_by_characteristic.items():
@@ -141,7 +201,7 @@ class Epigenetics:
                 UniqueAppliedCharacteristic(
                     item=characteristic,
                     computed_level=computed_level,
-                    training_progress=training_progress
+                    training_progress=training_progress,
                 )
             )
 
@@ -151,17 +211,20 @@ class Epigenetics:
         )
         self.is_packages_dirty = False
 
-    
     def __repr__(self) -> str:
         indentation = "  "
         display = []
         display.append(f"species={self.species!r}")
         display.append(f"parent_uuids=[{', '.join(repr(uuid) for uuid in self.parent_uuids)}]")
         display.append(f"gender={self.gender!r}")
-        display.append(f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]")
+        display.append(
+            f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]"
+        )
         if self.characteristics_collation is None:
             display.append("characteristics_collation=None")
         else:
-            display.append(f"characteristics_collation=[{', '.join(repr(char) for char in self.characteristics_collation)}]")
+            display.append(
+                f"characteristics_collation=[{', '.join(repr(char) for char in self.characteristics_collation)}]"
+            )
         # Join with Newlines for readability
         return "EpigeneticProfile(\n" + indent(",\n".join(display), indentation) + "\n)"

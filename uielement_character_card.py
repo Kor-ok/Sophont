@@ -16,8 +16,6 @@ NiceGUI Dropdown Selection  dictionary {'value1':'label1', ...} specifying the o
 CHARACTER_OPTIONS: dict[Sophont, str]
 """
 
-initialise_example_data()
-
 def _first_character_or_none() -> Sophont | None:
     try:
         return next(iter(CHARACTER_OPTIONS.keys()))
@@ -61,16 +59,26 @@ def render_debug_view(character: Sophont | None) -> None:
 
         # ===== DEBUG DATA FIELDS =====
 
+        epigenetics_collation_data: str = ""
+        for entry in character.epigenetics.characteristics_collation or []:
+            name, aliases = entry.item.get_name()
+            epigenetics_collation_data += f"\n- {name} (Level: {entry.computed_level})"
+
+        epigenetics_packages_data: str = ""
+        for acquired in character.epigenetics.acquired_packages_collection:
+            item_name, _ = acquired.package.item.get_name()
+            type_name = type(acquired.package.item).__name__
+            epigenetics_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, Inherited From: {acquired.context})"
+
         debug_fields: list[tuple[str, object]] = [
-            ("Epigenetics Collation", character.epigenetics.characteristics_collation),
-            ("Packages", character.epigenetics.acquired_packages_collection),
+            ("Epigenetics Collation", epigenetics_collation_data),
+            ("Packages", epigenetics_packages_data),
             
         ]
 
         for label, value in debug_fields:
-            with ui.row().classes("items-baseline gap-2"):
-                ui.label(f"{label}:").classes("text-bold text-sm")
-                ui.label(str(value)).classes("text-sm font-mono")
+            ui.label(f"{label}:").classes("text-bold text-sm")
+            ui.restructured_text(str(value)).classes("text-sm font-mono text-left")
 
 
 def set_active_character(character: Sophont | None) -> None:
@@ -111,5 +119,14 @@ with ui.row().classes(styles.TAB_ROW):
 if default_character is not None:
     set_active_character(default_character)
 
+INITIALISED = False
+
+def run_once_initialisation() -> None:
+    global INITIALISED
+    if not INITIALISED:
+        initialise_example_data()
+        INITIALISED = True
+
+run_once_initialisation()
 
 ui.run(dark=True)

@@ -4,6 +4,7 @@ from textwrap import indent
 from typing import ClassVar
 
 from game.characteristic import Characteristic
+from game.mappings.data import CanonicalStrKey, StringAliases
 
 UPPIndexInt = int
 SubCodeInt = int
@@ -105,6 +106,14 @@ class Phene:
             contributor_uuid=contributor_uuid,
             is_grafted=is_grafted
         )
+    
+    def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
+        """Get the canonical name and aliases for this phene's characteristic."""
+        return self.characteristic.get_name()
+    
+    def get_code(self) -> FullCode:
+        """Get the full code for this phene's characteristic."""
+        return self.characteristic.get_code()
     
     def __repr__(self) -> str:
         indentation = "  "

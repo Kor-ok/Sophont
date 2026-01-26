@@ -4,9 +4,7 @@ from textwrap import indent
 from typing import ClassVar
 
 from game.characteristic import Characteristic
-from game.mappings.data import (
-    FullCode,
-)
+from game.mappings.data import CanonicalStrKey, FullCode, StringAliases
 
 
 class Gene:
@@ -121,6 +119,11 @@ class Gene:
             inheritance_contributors
         )
 
+    def get_name(self) -> tuple[CanonicalStrKey, StringAliases]:
+        return self.characteristic.get_name()
+    
+    def get_code(self) -> FullCode:
+        return self.characteristic.get_code()
     
     def __repr__(self) -> str:
         indentation = "  "
