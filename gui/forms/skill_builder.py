@@ -9,6 +9,11 @@ from nicegui import ui
 from game.mappings.data import FullCode
 from game.mappings.set import ATTRIBUTES
 from game.skill import Skill
+from gui.forms.attribute_builder_base import (
+    AttributeBuilderBase,
+    AttributeType,
+    SelectedAttributeDisplayBase,
+)
 
 
 class DisplayOptionType(Enum):
@@ -16,31 +21,17 @@ class DisplayOptionType(Enum):
     SUB = ATTRIBUTES.skills.master_sub_category_name_aliases_dict.get
     BASE = ATTRIBUTES.skills.master_skill_code_name_aliases_dict.get
 
-def _display_options_builder(code: int, type: DisplayOptionType) -> str:
-    aliases = type.value(code, ("Unknown",))
+
+def _display_options_builder(code: int, option_type: DisplayOptionType) -> str:
+    aliases = option_type.value(code, ("Unknown",))
     return f"{code} - {aliases[0]}"
 
 
-def _event_value(e: object) -> Optional[object]:
-    """Extract `value` from NiceGUI's event payload in a permissive way."""
-    selected = getattr(e, "value", None)
-    if selected is not None:
-        return selected
-
-    args = getattr(e, "args", None)
-    if isinstance(args, dict):
-        return args.get("value")
-    if isinstance(args, (list, tuple)) and args:
-        return args[-1]
-    return None
-
-
-class SelectedSkillDisplay(ui.card):
+class SelectedSkillDisplay(SelectedAttributeDisplayBase):
     """Display for a selected Skill."""
 
     def __init__(self, full_code: FullCode) -> None:
-        super().__init__()
-        self.classes("q-pa-md").props("flat outlined")
+        super().__init__(full_code)
 
         canonical, aliases = ATTRIBUTES.skills.get_aliases(full_code)
         with ui.column().classes("q-gutter-xs"):
@@ -55,7 +46,7 @@ class SelectedSkillDisplay(ui.card):
             ui.label(f"Sub Category: {full_code[1]}")
 
 
-class SkillBuilder(ui.card):
+class SkillBuilder(AttributeBuilderBase):
     """Form to build a Skill selection."""
 
     def __init__(
@@ -63,20 +54,33 @@ class SkillBuilder(ui.card):
         *,
         on_skill_built: Optional[Callable[[Skill], None]] = None,
     ) -> None:
-        super().__init__()
-        self.on_skill_built = on_skill_built
-        self.classes("q-pa-md").props("flat outlined")
+        super().__init__(
+            attribute_type=AttributeType.SKILL,
+            on_attribute_built=on_skill_built,
+        )
 
-        self._attribute_display_row: ui.row | None = None
-        self._selected_full_code: FullCode | None = None
+        with ui.row() as attribute_display_row:
+            self._attribute_display_row = attribute_display_row
+            self._render_no_selection()
 
-        collection = ATTRIBUTES.skills.get_all()
+        self._build_selects()
 
-        self._valid_codes: set[FullCode] = {code for _, code in collection}
+        ui.button(
+            "Save New Skill",
+            color="dark",
+            on_click=self._save_attribute,
+        ).classes("q-mt-md")
+
+        self._render_selected_attribute()
+
+    def _build_selects(self) -> None:
+        """Build the skill-specific select widgets."""
+        collection = self._collection
 
         master_options = sorted({code[0] for _, code in collection})
         master_options_display: dict[int, str] = {
-            code: _display_options_builder(code, DisplayOptionType.MASTER) for code in master_options
+            code: _display_options_builder(code, DisplayOptionType.MASTER)
+            for code in master_options
         }
         sub_options = sorted({code[1] for _, code in collection})
         sub_options_display: dict[int, str] = {
@@ -84,13 +88,10 @@ class SkillBuilder(ui.card):
         }
         base_skill_codes = sorted({code[2] for _, code in collection})
         base_skill_codes_display: dict[int, str] = {
-            code: _display_options_builder(code, DisplayOptionType.BASE) for code in base_skill_codes
+            code: _display_options_builder(code, DisplayOptionType.BASE)
+            for code in base_skill_codes
         }
-        
-        with ui.row() as attribute_display_row:
-            self._attribute_display_row = attribute_display_row
-            ui.label("No Skill Selected").classes("text-gray-500 italic")
-        
+
         self._base_skill_id_select = (
             ui.select(
                 label="Base Skill ID",
@@ -124,22 +125,6 @@ class SkillBuilder(ui.card):
             .props("clearable")
         )
 
-        
-
-        ui.button(
-            "Save New Skill",
-            color="dark",
-            on_click=self._save_skill,
-        ).classes("q-mt-md")
-
-        self._render_selected_skill()
-
-    def _on_any_select_changed(self, e) -> None:
-        # Ensure we always compute from the current widget values.
-        _ = _event_value(e)
-        self._selected_full_code = self._compute_selected_full_code()
-        self._render_selected_skill()
-
     def _compute_selected_full_code(self) -> FullCode | None:
         master = self._master_category_select.value
         sub_category = self._sub_category_select.value
@@ -157,7 +142,13 @@ class SkillBuilder(ui.card):
             return None
         return full_code
 
-    def _render_selected_skill(self) -> None:
+    def _get_no_selection_label(self) -> str:
+        return "No Skill Selected"
+
+    def _get_no_selection_hint(self) -> str:
+        return "Pick Master Category + Sub Category + Base Skill ID (valid combination)."
+
+    def _render_selected_attribute(self) -> None:
         if self._attribute_display_row is None:
             return
 
@@ -166,23 +157,20 @@ class SkillBuilder(ui.card):
         full_code = self._selected_full_code
         with self._attribute_display_row:
             if full_code is None:
-                ui.label("No Skill Selected").classes("text-gray-500 italic")
-                ui.label(
-                    "Pick Master Category + Sub Category + Base Skill ID (valid combination)."
-                ).classes("text-gray-500")
+                self._render_no_selection()
                 return
 
             SelectedSkillDisplay(full_code)
 
-    def _save_skill(self) -> None:
+    def _save_attribute(self) -> None:
         full_code = self._selected_full_code
         if full_code is None:
             ui.notify("Select a valid skill first.", type="warning")
             return
 
         skill = Skill.by_code(full_code)
-        if self.on_skill_built is not None:
-            self.on_skill_built(skill)
+        if self._on_attribute_built is not None:
+            self._on_attribute_built(skill)
 
         canonical, _aliases = skill.get_name()
         ui.notify(f"Saved: {canonical}", type="positive")

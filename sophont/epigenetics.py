@@ -18,6 +18,8 @@ GeneOrPhene = Union[Gene, Phene]
 class Acquired:
     __slots__ = ('package', 'age_acquired_seconds', 'context')
 
+    package: AttributePackage
+
     def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
         self.package = package
         self.age_acquired_seconds = age_acquired_seconds
@@ -29,6 +31,7 @@ class Acquired:
     
     def __repr__(self) -> str:
         return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
+
 def _package_key(acquired: Acquired) -> tuple[int, int]:
     return (acquired.package.item.characteristic.upp_index, acquired.age_acquired_seconds)
 
@@ -89,9 +92,6 @@ class Epigenetics:
 
     def get_acquired_packages(self) -> list[AttributePackage]:
         return [acquired.package for acquired in self.acquired_packages_collection]
-    
-    def auto_generate_inherited_packages(self) -> None:
-        raise NotImplementedError()
 
     def update_collation(self) -> None:
         if not self.is_packages_dirty:

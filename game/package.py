@@ -40,6 +40,9 @@ class AttributePackage(Generic[T]):
     :type context: int
     """
     __slots__ = ("item", "level", "context")
+
+    item: T
+    
     _cache: ClassVar[dict[tuple[object, int, int], AttributePackage]] = {}
 
     def __new__(cls, item: T, level: int = 0, context_id: int | None = None) -> AttributePackage[T]:

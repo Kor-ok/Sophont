@@ -1,28 +1,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping
 from random import choice, randint
 
 from game.characteristic import Characteristic
 from game.gene import Gene
 from game.genotype import Genotype
+from game.mappings.data import (
+    AliasMappedFullCode,
+    FullCode,
+)
 from game.mappings.set import ATTRIBUTES
 from game.phene import Phene
 from game.species import Species
 from game.uid.guid import GUID, NameSpaces
 from sophont.character import Sophont
-
-CanonicalStrKey = str
-StringAliases = tuple[str, ...]
-AliasMap = Mapping[CanonicalStrKey, StringAliases]
-
-UPPIndexInt = int
-SubCodeInt = int
-MasterCodeInt = int
-FullCode = tuple[UPPIndexInt, SubCodeInt, MasterCodeInt]
-
-AliasMappedFullCode = tuple[AliasMap, FullCode]
 
 CharacteristicName = str
 CharacteristicCodeCollection = list[FullCode]
@@ -238,8 +230,8 @@ example_sophont_3 = Sophont(species=create_species_with_random_genotype())
 example_sophont_4 = Sophont(species=create_species_with_aslan_genotype())
 
 CHARACTER_OPTIONS: dict[Sophont, str] = {
-    example_sophont_3: "Alien Sophont",
     example_sophont_1: "Human Sophont 1",
+    example_sophont_3: "Alien Sophont",
     example_sophont_2: "Human Sophont 2",
     example_sophont_4: "Aslan Sophont",
 }

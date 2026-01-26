@@ -4,7 +4,8 @@ from nicegui import ui
 
 from gui import styles
 from gui.forms.character import CharacterCard, CharacterSelector
-from gui.initialisation.species import CHARACTER_OPTIONS
+from gui.initialisation.character import initialise_example_data
+from gui.initialisation.species import CHARACTER_OPTIONS, SPECIES_MAP
 from gui.initialisation.state import active_character_card_state
 from sophont.character import Sophont
 
@@ -15,6 +16,7 @@ NiceGUI Dropdown Selection  dictionary {'value1':'label1', ...} specifying the o
 CHARACTER_OPTIONS: dict[Sophont, str]
 """
 
+initialise_example_data()
 
 def _first_character_or_none() -> Sophont | None:
     try:
@@ -24,6 +26,7 @@ def _first_character_or_none() -> Sophont | None:
 
 
 current_card: CharacterCard | None = None
+debug_data_container: ui.column | None = None
 
 
 def render_for(character: Sophont | None) -> None:
@@ -37,9 +40,43 @@ def render_for(character: Sophont | None) -> None:
         current_card = CharacterCard(character=character)
 
 
+def _get_species_name(species_uuid: int) -> str:
+    """Look up species name from UUID via SPECIES_MAP."""
+    for name, uuid in SPECIES_MAP.items():
+        if uuid == species_uuid:
+            return name
+    return f"Unknown ({species_uuid})"
+
+
+def render_debug_view(character: Sophont | None) -> None:
+    """Render the debug/data view for the selected character."""
+    if debug_data_container is None:
+        return
+
+    debug_data_container.clear()
+    with debug_data_container:
+        if character is None:
+            ui.label("No Character Selected").classes("text-gray-500 italic")
+            return
+
+        # ===== DEBUG DATA FIELDS =====
+
+        debug_fields: list[tuple[str, object]] = [
+            ("Epigenetics Collation", character.epigenetics.characteristics_collation),
+            ("Packages", character.epigenetics.acquired_packages_collection),
+            
+        ]
+
+        for label, value in debug_fields:
+            with ui.row().classes("items-baseline gap-2"):
+                ui.label(f"{label}:").classes("text-bold text-sm")
+                ui.label(str(value)).classes("text-sm font-mono")
+
+
 def set_active_character(character: Sophont | None) -> None:
     active_character_card_state.set(character)
     render_for(character)
+    render_debug_view(character)
 
 
 with ui.header().classes("items-center justify-center bg-deep-orange-10 q-ma-none"):
@@ -47,17 +84,30 @@ with ui.header().classes("items-center justify-center bg-deep-orange-10 q-ma-non
 
 default_character = _first_character_or_none()
 
-with ui.column().classes(
-    "w-128 q-pa-md items-center justify-center"
-) as character_selector_container:
-    card_selector = CharacterSelector(
-        options=CHARACTER_OPTIONS,
-        value=default_character,
-        on_change=set_active_character,
-    ).classes(styles.CHARACTER_SELECTOR)
+with ui.row().classes(styles.TAB_ROW):
+    # LEFT COLUMN ===================== CHARACTER SELECTION & DISPLAY
+    with ui.column().classes(styles.TAB_COLUMN_LEFT) as character_container:
+        with ui.column().classes(
+            "w-128 q-pa-md items-center justify-center"
+        ) as character_selector_container:
+            card_selector = CharacterSelector(
+                options=CHARACTER_OPTIONS,
+                value=default_character,
+                on_change=set_active_character,
+            ).classes(styles.CHARACTER_SELECTOR)
 
-with ui.column().classes("w-128 q-pa-md items-center justify-center") as character_card_container:
-    pass
+        with ui.column().classes(
+            "w-128 q-pa-md items-center justify-center"
+        ) as character_card_container:
+            pass
+
+    # RIGHT COLUMN ==================== CHARACTER DEBUG / DATA VIEW
+    with ui.column().classes(styles.TAB_COLUMN_RIGHT) as right_column:
+        with ui.card().classes("w-128 q-pa-md"):
+            ui.label("Debug / Data View").classes("text-lg font-medium q-mb-md")
+            debug_data_container = ui.column().classes("q-pa-none gap-1")
+
+# Initialize with default character after UI is built
 if default_character is not None:
     set_active_character(default_character)
 
