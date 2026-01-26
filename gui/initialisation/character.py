@@ -99,8 +99,10 @@ def initialise_example_data() -> None:
             trigger_collation=False,
         )
 
+        
+    # LIFE SKILL PACKAGE APPLICATION (example)
     example_life_skill_package = AttributePackage(
-        item = Skill.by_code(ATTRIBUTES.skills.get_full_code("vacc suit")),
+        item = Skill.by_name("vacc suit"),
         level = 2,
         context_id = 123456789
     )
