@@ -59,20 +59,22 @@ class CharacteristicBuilder(AttributeBuilderBase):
 
     def __init__(
         self,
-        *,
-        attribute_type: AttributeType = AttributeType.CHARACTERISTIC,
-        on_attribute_built: Optional[Callable[[Characteristic], None]] = None,
+        # *,
+        # attribute_type: AttributeType = AttributeType.CHARACTERISTIC,
+        # on_attribute_built: Optional[Callable[[Characteristic], None]] = None,
     ) -> None:
-        # super().__init__()
-        self.on_attribute_built = on_attribute_built
-        self.classes("q-pa-md").props("flat outlined")
+        super().__init__(
+            attribute_type=AttributeType.CHARACTERISTIC,
+        )
+        # self.on_attribute_built = on_attribute_built
+        # self.classes("q-pa-md").props("flat outlined")
 
-        self._attribute_display_row: ui.row | None = None
-        self._selected_full_code: FullCode | None = None
+        # self._attribute_display_row: ui.row | None = None
+        # self._selected_full_code: FullCode | None = None
 
-        collection = ATTRIBUTES.characteristics.get_all()
+        # collection = ATTRIBUTES.characteristics.get_all()
 
-        self._valid_codes: set[FullCode] = {code for _, code in collection}
+        # self._valid_codes: set[FullCode] = {code for _, code in collection}
         
         upp_options = sorted({code[0] for _, code in collection})
         sub_options = sorted({code[1] for _, code in collection})
