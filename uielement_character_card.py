@@ -70,10 +70,22 @@ def render_debug_view(character: Sophont | None) -> None:
             type_name = type(acquired.package.item).__name__
             epigenetics_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, Inherited From: {acquired.context})"
 
+        aptitudes_collation_data: str = ""
+        for entry in character.aptitudes.aptitude_collation or []:
+            name, aliases = entry.item.get_name()
+            aptitudes_collation_data += f"\n- {name} (Level: {entry.computed_level}, Training Progress: {entry.training_progress:.2f})"
+
+        aptitudes_packages_data: str = ""
+        for acquired in character.aptitudes.acquired_packages_collection:
+            item_name, _ = acquired.package.item.get_name()
+            type_name = type(acquired.package.item).__name__
+            aptitudes_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, Context: {acquired.context})"
+
         debug_fields: list[tuple[str, object]] = [
             ("Epigenetics Collation", epigenetics_collation_data),
-            ("Packages", epigenetics_packages_data),
-            
+            ("Epigenetics Packages", epigenetics_packages_data),
+            ("Aptitudes Collation", aptitudes_collation_data),
+            ("Aptitudes Packages", aptitudes_packages_data)
         ]
 
         for label, value in debug_fields:
