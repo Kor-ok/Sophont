@@ -11,42 +11,43 @@ from game.gene import Gene
 from game.package import AttributePackage
 from game.phene import Phene
 from game.species import Species
+from sophont.acquisitions import Acquired
 
-GeneOrPhene = Union[Gene, Phene]
+# GeneOrPhene = Union[Gene, Phene]
 
 
-class Acquired:
-    """Tracks when an AttributePackage was acquired.
+# class Acquired:
+#     """Tracks when an AttributePackage was acquired.
 
-    Equality is based on (package, context) - the same package in the same context
-    is considered a duplicate regardless of when it was acquired.
-    """
+#     Equality is based on (package, context) - the same package in the same context
+#     is considered a duplicate regardless of when it was acquired.
+#     """
 
-    __slots__ = ("package", "age_acquired_seconds", "context")
+#     __slots__ = ("package", "age_acquired_seconds", "context")
 
-    package: AttributePackage
+#     package: AttributePackage
 
-    def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
-        self.package = package
-        self.age_acquired_seconds = age_acquired_seconds
-        self.context = context
+#     def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
+#         self.package = package
+#         self.age_acquired_seconds = age_acquired_seconds
+#         self.context = context
 
-    @classmethod
-    def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
-        return cls(package=package, context=context, age_acquired_seconds=age_seconds)
+#     @classmethod
+#     def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
+#         return cls(package=package, context=context, age_acquired_seconds=age_seconds)
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Acquired):
-            return NotImplemented
-        # Same package (flyweight identity) and same context means duplicate
-        return self.package is other.package and self.context == other.context
+#     def __eq__(self, other: object) -> bool:
+#         if not isinstance(other, Acquired):
+#             return NotImplemented
+#         # Same package (flyweight identity) and same context means duplicate
+#         return self.package is other.package and self.context == other.context
 
-    def __hash__(self) -> int:
-        # Hash by package identity and context for set-like duplicate detection
-        return hash((id(self.package), self.context))
+#     def __hash__(self) -> int:
+#         # Hash by package identity and context for set-like duplicate detection
+#         return hash((id(self.package), self.context))
 
-    def __repr__(self) -> str:
-        return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
+#     def __repr__(self) -> str:
+#         return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
 
 
 def _package_key(acquired: Acquired) -> int:
@@ -181,7 +182,7 @@ class Epigenetics:
         for acquired in self.acquired_packages_collection:
             package = acquired.package
             # Package items are Gene/Phene; we collate by their shared Characteristic.
-            item = cast(GeneOrPhene, package.item)
+            item = cast(Union[Gene, Phene], package.item)
             characteristic = item.characteristic
             key: Characteristic.Key = (
                 characteristic.upp_index,

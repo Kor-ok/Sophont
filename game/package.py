@@ -33,21 +33,36 @@ class AttributePackage(Generic[T]):
 
     :param item: The Skill, Knowledge, Gene, Phene or Characteristic flyweight item.
     :param level: The level modifier to apply when this package is used.
+    :param duration_seconds: How long this package lasts in seconds. -1 means this is not part of temporary state management.
     :param context: Storytelling aid to identify the source or reason for this package.
         If omitted/None, a fresh UUID string is generated for each new package.
     :type item: Skill|Knowledge|Gene|Phene|Characteristic
     :type level: int
+    :type duration_seconds: int
     :type context: int
     """
-    __slots__ = ("item", "level", "context_id")
+    __slots__ = (
+        "item",
+        "level",
+        "duration_seconds",
+        "context_id"
+        )
 
     item: T
-    Key = tuple[object, int, int]
+    Key = tuple[object, int, int, int]
     _cache: ClassVar[dict[Key, AttributePackage]] = {}
 
-    def __new__(cls, item: T, level: int = 0, context_id: int | None = None) -> AttributePackage[T]:
+    def __new__(
+            cls, 
+            item: T, 
+            level: int = 0,
+            duration_seconds: int = -1, 
+            context_id: int | None = None
+            ) -> AttributePackage[T]:
+        
         context_id = GUID.generate(NameSpaces.Entity.PACKAGES, NameSpaces.Owner.PLAYER) if context_id is None else context_id
-        key = (item, int(level), int(context_id))  # item is already a flyweight => stable identity
+        key = (item, int(level), int(duration_seconds), int(context_id))  # item is already a flyweight => stable identity
+        
         cached = cls._cache.get(key)
         if cached is not None:
             return cached
@@ -55,12 +70,13 @@ class AttributePackage(Generic[T]):
         self = super().__new__(cls)
         object.__setattr__(self, "item", item)
         object.__setattr__(self, "level", int(level))
+        object.__setattr__(self, "duration_seconds", int(duration_seconds))
         object.__setattr__(self, "context_id", int(context_id))
 
         cls._cache[key] = self
         return self
 
-    def __init__(self, item: T, level: int = 0, context_id: int | None = None) -> None:
+    def __init__(self, item: T, level: int = 0, duration_seconds: int = -1, context_id: int | None = None) -> None:
         pass
 
     def __setattr__(self, key: str, value: object) -> None:
@@ -79,5 +95,6 @@ class AttributePackage(Generic[T]):
         display.append(f"# Immutable AttributePackage at {memory_pointer_for_this_immutable_object}")
         display.append(f"item={self.item!r}")
         display.append(f"level={self.level!r}")
+        display.append(f"duration_seconds={self.duration_seconds!r}")
         display.append(f"context_id={self.context_id!r}")
         return "AttributePackage(\n" + indent(",\n".join(display), indentation) + "\n)"

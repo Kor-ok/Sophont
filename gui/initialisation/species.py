@@ -38,13 +38,13 @@ def create_human_genotype() -> Genotype:
         "Strength", 
         "Intelligence", 
         "Endurance",
-        "Psionics"
+        "Psionics",
+        "Sanity"
         ] # Purposefully disordered compared to classical Traveller UPP indices.
     
     human_phenes_by_name = [
         "Education",
         "Social Standing",
-        "Sanity"
         ]
 
     human_genotype = Genotype.by_characteristic_names(human_genes_by_name, human_phenes_by_name)
@@ -161,11 +161,11 @@ def create_alien_genotype() -> Genotype:
         "Stamina",
         "Intelligence",
         "Instinct",
+        "Sanity",
         ]
     
     alien_phenes_by_name = [
         "Psionics",
-        "Sanity",
         ]
 
     alien_genotype = Genotype.by_characteristic_names(alien_genes_by_name, alien_phenes_by_name, custom_genes=[alien_caste_gene])
@@ -189,11 +189,11 @@ def create_aslan_genotype() -> Genotype:
         "Dexterity",
         "Endurance",
         "Intelligence",
+        "Sanity",
     ]
     aslan_phenes_by_name = [
         "Education",
         "Social Standing",
-        "Sanity",
     ]
     aslan_genotype = Genotype.by_characteristic_names(
         aslan_genes_by_name,

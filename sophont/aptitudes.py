@@ -9,39 +9,39 @@ from game.knowledge import Knowledge
 from game.mappings.data import FullCode
 from game.package import AttributePackage
 from game.skill import Skill
+from sophont.acquisitions import Acquired
 
+# class Acquired:
+#     """Tracks when an AttributePackage was acquired.
 
-class Acquired:
-    """Tracks when an AttributePackage was acquired.
+#     Equality is based on (package, context) - the same package in the same context
+#     is considered a duplicate regardless of when it was acquired.
+#     """
+#     __slots__ = ('package', 'age_acquired_seconds', 'context')
 
-    Equality is based on (package, context) - the same package in the same context
-    is considered a duplicate regardless of when it was acquired.
-    """
-    __slots__ = ('package', 'age_acquired_seconds', 'context')
+#     package: AttributePackage
 
-    package: AttributePackage
+#     def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
+#         self.package = package
+#         self.age_acquired_seconds = age_acquired_seconds
+#         self.context = context
 
-    def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
-        self.package = package
-        self.age_acquired_seconds = age_acquired_seconds
-        self.context = context
-
-    @classmethod
-    def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
-        return cls(package=package, context=context, age_acquired_seconds=age_seconds)
+#     @classmethod
+#     def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
+#         return cls(package=package, context=context, age_acquired_seconds=age_seconds)
     
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, Acquired):
-            return NotImplemented
-        # Same package (flyweight identity) and same context means duplicate
-        return self.package is other.package and self.context == other.context
+#     def __eq__(self, other: object) -> bool:
+#         if not isinstance(other, Acquired):
+#             return NotImplemented
+#         # Same package (flyweight identity) and same context means duplicate
+#         return self.package is other.package and self.context == other.context
 
-    def __hash__(self) -> int:
-        # Hash by package identity and context for set-like duplicate detection
-        return hash((id(self.package), self.context))
+#     def __hash__(self) -> int:
+#         # Hash by package identity and context for set-like duplicate detection
+#         return hash((id(self.package), self.context))
     
-    def __repr__(self) -> str:
-        return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
+#     def __repr__(self) -> str:
+#         return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
     
 def _package_key(acquired: Acquired) -> tuple[int, int]:
     return (acquired.package.item.base_code, acquired.age_acquired_seconds)

@@ -72,11 +72,11 @@ def initialise_example_data() -> None:
 
     example_sophont_1.epigenetics.update_collation()
 
-    # DEFAULT, PERSONALS, INTUITIONS BIRTH APTITUDES ==============================
-        # Skills of sub category 1, 3, 4 where sub category is:
+    # PERSONALS, INTUITIONS BIRTH APTITUDES ==============================
+        # Skills of sub category 3, 4 where sub category is:
         # SecondaryCodeInt in FullCode of AliasMappedFullCode from all_skills
     criteria = {
-        1: set([1, 3, 4])
+        1: set([3, 4])
     }
     filtered_skills = ATTRIBUTES.skills.combined_collection.get_filtered_collection(criteria=criteria)
 
@@ -100,7 +100,33 @@ def initialise_example_data() -> None:
         )
 
         
-    # LIFE SKILL PACKAGE APPLICATION (example)
+    # DEFAULT LIFE SKILL PACKAGE APPLICATION
+
+    criteria = {
+        1: set([1])
+    }
+    filtered_skills = ATTRIBUTES.skills.combined_collection.get_filtered_collection(criteria=criteria)
+
+    life_skill_packages = []
+    for entry in filtered_skills:
+        skill_instance = Skill.by_code(entry[1])
+        life_skill_package = AttributePackage(
+            item=skill_instance,
+            level=0,
+            context_id=example_sophont_1.uuid,
+        )
+        life_skill_packages.append(life_skill_package)
+    
+    # DEFAULT LIFE SKILLS APPLICATIONS
+    for package in life_skill_packages:
+        example_sophont_1.aptitudes.insert_package_acquired(
+            package=package,
+            age_acquired_seconds=randint(31556952 * 1, 31556952 * 18),
+            context=package.context_id,
+            trigger_collation=False,
+        )
+
+    # ADDITIONAL EXAMPLE PACKAGE APPLICATION (example)
     example_life_skill_package = AttributePackage(
         item = Skill.by_name("vacc suit"),
         level = 2,
