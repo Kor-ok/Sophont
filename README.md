@@ -1,25 +1,31 @@
 # Sophont Object Model Design Sandbox (Traveller 5 character rules)
 
-Purpose: **quickly-iterable Python codebase for designing the classes, data structures, and logic** to model an RPG character for the Traveller 5 ruleset. Intention of design during the initial Object Oriented approach is to verge on an easy transition into a Data Oriented Entity Component System architecture while maintaining a TypeScript port branch.
+Purpose: **quickly-iterable Python codebase for designing the classes, data structures, and logic** to model an RPG character for the Traveller 5 ruleset.
 
 A NiceGUI **interface to communicate and demonstrate** concepts that runs in browser. ***NOTE:*** *Not intended as a final framework to implement the data model.*
 
 ## Status / Scope
 
 - A **very basic MVP**: `Sophont` owns *Aptitudes* (Collections of Skill/Knowledge/Certification Packages that have been acquired by the character over its lifetime), *Epigenetics* (Characteristics derived from collections of "Gene" and "Phene" Packages) and *Personals* (Granular modifiers for the above through character states logic, inventory and character location tracking) with their respective data structures and collation logic.
-- Intentionally “model-first”: data types, packages, and collation layers.
-- Time Ordered Packages compose a character history
 - Packages can be authored to hold unique references like the context by which a character obtained it through a custom GUID system.
 - Some higher-level computed layers (e.g. automatically generating inherited packages / phenotype math, attribute training) are **TODO** and still evolving.
 
-## Design Principles
+## Architectural Philosophy
 
-- The code intentionally prefers **small, explicit types** and predictable behavior over “one giant character class”.
-- Interning/flyweight patterns are used to make it cheap to reference the same rules-data objects across many characters.
-- Memory Efficiency is being prioritised to allow for large numbers of character entities that share building blocks. Debugging and Game Balancing is simplified as many of these flyweight objects will be authored, i.e. 
-  - a Skill Package that can be earned under certain conditions during Character Creation
-  - Gene Packages that are shared by characters of the same Species or family. A foundation also for Traveller 5 chimera or mutation rules.
-  - Aptitudes or Characteristics that are "grafted" allowing for Traveller 5 personality wafer rules
+This codebase follows an **Object-Oriented (OO) design as a deliberate stepping stone** toward an Entity-Component-System (ECS) architecture. The rationale:
+
+1. **OO for experimentation**: The current class-based design prioritises clarity and rapid iteration while the domain model is still evolving. Refactoring classes is straightforward; refactoring tightly-coupled ECS data layouts is not.
+
+2. **ECS-ready patterns now**: Even in OO form, the code already employs patterns that translate naturally to ECS:
+   - **Flyweight/interned immutable data** → future *Components* (pure data, no behaviour)
+   - **Mutable character state in time-ordered collections** → future *Entities* (identity + component references)
+   - **Collation/update logic isolated in dedicated methods** → future *Systems* (stateless transforms over component queries)
+
+3. **Branching strategy**:
+   - **Python (master)**: Will mature into a fully data-oriented ECS branch capable of leveraging native hardware (SIMD, multiprocessing, GPU compute) for large-scale simulations.
+   - **TypeScript (port)**: A browser-targeted branch will be derived at a stable milestone. Browser/JS runtime constraints (single-threaded, no shared memory) mean some subsystems will remain OO where ECS offers no benefit. The TypeScript port will track Python's domain model but diverge in performance-critical internals.
+
+The Python codebase remains the **canonical reference implementation**; the TypeScript port is a delivery target, not a design driver.
 
 ## Key Ideas (current architecture)
 ![Concept Map](/ConceptMap.jpg)
@@ -34,6 +40,8 @@ The design splits the world into two layers:
    - ***To transition to Components in ECS architecture.***
 2. **Mutable character state**: the character’s time-ordered acquired packages, plus cached “collated” summaries.
    - ***To transition to Entities in ECS architecture.***
+
+> *See [Architectural Philosophy](#architectural-philosophy) for how these layers map to a future ECS refactor.*
 
 ### Three “state domains” on a Sophont
 

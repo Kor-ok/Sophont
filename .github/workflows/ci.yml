@@ -33,6 +33,10 @@ jobs:
         run: |
           ruff check .
 
+      - name: Format check (black)
+        run: |
+          black --check .
+
       - name: Syntax check
         run: |
           python -m compileall -q .

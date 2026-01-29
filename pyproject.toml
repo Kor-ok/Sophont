@@ -1,7 +1,7 @@
 [project]
 name = "sophont"
 version = "0.0.0"
-description = "Rapidly-iterable Traveller 5 (T5) sophont/character modeling sandbox"
+description = "Rapidly-iterable OO sandbox for Traveller 5 (T5) sophont/character modeling, designed for future ECS transition"
 requires-python = ">=3.9"
 
 [tool.ruff]
@@ -23,7 +23,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["game", "sophont", "gui"]
+known-first-party = ["game", "sophont", "gui", "t5"]
 
 [tool.black]
 line-length = 100

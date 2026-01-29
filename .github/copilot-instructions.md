@@ -4,7 +4,22 @@
 
 This repo is a **rapidly-iterable sandbox** for designing Python classes and supporting tables used to model a *Sophont* (character) according to **Traveller 5 (T5)** concepts.
 
-Current milestone: a **very basic MVP** where `sophont.character.Sophont` holds both **Aptitudes** and **Characteristics** (via the epigenetics profile), including the core logic/data structures to apply and collate them.
+Current milestone: a **very basic MVP** where `sophont.character.Sophont` owns three state domains — **Aptitudes**, **Epigenetics**, and **Personals** — including the core logic/data structures to apply and collate them.
+
+### Architectural Philosophy
+
+The codebase follows an **Object-Oriented (OO) design as a deliberate stepping stone** toward an Entity-Component-System (ECS) architecture:
+
+- **OO for experimentation**: Class-based design prioritises clarity and rapid iteration while the domain model evolves.
+- **ECS-ready patterns now**:
+  - Flyweight/interned immutable data → future *Components*
+  - Mutable character state in time-ordered collections → future *Entities*
+  - Collation/update logic isolated in dedicated methods → future *Systems*
+- **Branching strategy**:
+  - **Python (master)**: Will mature into a fully data-oriented ECS branch for native hardware leverage.
+  - **TypeScript (port)**: Browser-targeted branch derived at a stable milestone; some subsystems will remain OO where ECS offers no benefit in JS runtime.
+
+Python remains the **canonical reference implementation**.
 
 Primary goals:
 - Keep the domain model **easy to refactor** as rules interpretation evolves.
@@ -22,13 +37,20 @@ Non-goals (unless explicitly requested):
 Top-level domains:
 - `sophont/` — character-facing domain objects
   - `sophont.character.Sophont` is the main entry point
-  - `sophont.aptitudes.Aptitudes` tracks acquired aptitude packages and collates them into computed skill/knowledge state
-  - `sophont.epigenetics.EpigeneticProfile` tracks genotype + acquired characteristic packages and collates them into computed characteristics (auto-generation of inherited packages is still TODO)
+  - Three state domains:
+    - `sophont.aptitudes.Aptitudes` — skills/knowledge, training progress, computed levels
+    - `sophont.epigenetics.Epigenetics` — genotype + acquired gene/phene packages, collated into computed characteristics
+    - `sophont.personals.Personals` — granular modifiers (personal day, burden, location, injury tracking) — still evolving
 
 - `game/` — immutable rules-data + packages + mapping tables
-  - Flyweight immutable items: `Skill`, `Knowledge`, `Characteristic`, `Gene`, `Phene`, `Genotype`
-  - Package containers applied over time: `AptitudePackage`, `CharacteristicPackage`
+  - Flyweight immutable items: `Skill`, `Knowledge`, `Characteristic`, `Gene`, `Phene`, `Species`, `Genotype`
+  - Package containers applied over time: `AptitudePackage`, `CharacteristicPackage`, `Event`
   - Lookup tables/helpers live under `game/mappings/`
+  - GUID system in `game/uid/`
+
+- `t5/` — isolated module for humanisation helpers related to T5 data types and logic
+
+- `gui/` — NiceGUI interface for demonstrating concepts (not intended as final framework)
 
 Terminology note:
 - **Phene** is an uncommon term. In this repository it is used as an “atom” of phenotype: a smallest, composable unit of expressed trait that can be applied/collated (often alongside `Gene`) to compute effective characteristics.
@@ -63,7 +85,7 @@ When making changes, keep code aligned with the existing `pyproject.toml` settin
 Key points:
 - Expect Ruff to flag **import sorting/formatting** issues (notably `I001`).
 - Avoid `from ... import *` in new/edited modules; prefer explicit imports.
-- Keep imports grouped and ordered: **stdlib**, **third-party**, **first-party** (`game`, `sophont`, `gui`).
+- Keep imports grouped and ordered: **stdlib**, **third-party**, **first-party** (`game`, `sophont`, `gui`, `t5`).
 - Within a `from x import (...)` block, keep imported names sorted.
 
 Agentic workflow expectation (to reduce iterations):
