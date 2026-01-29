@@ -71,3 +71,43 @@ class SystemID:
     # world_space_y: int
     # map_space_x: float
     # map_space_y: float
+
+
+# Tile-Space Coordinates system is only used by the Tile API. The coordinates are specified as x and y parameters.
+# Example: Regina would be centered in a 512x384, 48px/pc tile at (x=-9.4919375, y=-9.3125)
+# sqrt(12) radius = 3.46410162
+
+# Map-Space Coordinates This is the only coordinate system with an inverted Y-axis. 
+# function isEven(n) { return (n % 2) === 0; }
+# var PARSEC_SCALE_X = Math.cos(Math.PI / 6); // cosine 30°
+# var PARSEC_SCALE_Y = 1;
+
+# function worldXYToMapXY(world_x, world_y) {
+#   var ix = world_x - 0.5
+#   var iy = isEven(world_x) ? world_y - 0.5 : world_y
+#   var x = ix * PARSEC_SCALE_X;
+#   var y = iy * -PARSEC_SCALE_Y;
+#   return { x, y };
+# }
+# Example: Regina is (x=-95.914, y=70.5)
+
+# World-Space Coordinates
+# var SECTOR_WIDTH = 32;
+# var SECTOR_HEIGHT = 40;
+
+# // Core sector is (0, 0)
+# var REFERENCE_SECTOR_X = 0;
+# var REFERENCE_SECTOR_Y = 0;
+
+# // Reference is Core 0140
+# var REFERENCE_HEX_X = 1;
+# var REFERENCE_HEX_Y = 40;
+
+# function sectorHexToWorldXY(sx, sy, hx, hy) {
+#   var x = (sx - REFERENCE_SECTOR_X) * SECTOR_WIDTH
+#         + (hx - REFERENCE_HEX_X);
+#   var y = (sy - REFERENCE_SECTOR_Y) * SECTOR_HEIGHT
+#         + (hy - REFERENCE_HEX_Y);
+#   return { x, y };
+# }
+# Example: Regina is (x=-110, y=-70)
