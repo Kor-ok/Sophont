@@ -6,6 +6,7 @@ from game.mappings.set import ATTRIBUTES
 from game.package import AttributePackage
 from game.phene import Phene
 from game.skill import Skill
+from game.uid.guid import GUID, NameSpaces
 from gui.initialisation.species import example_sophont_1
 
 
@@ -130,7 +131,7 @@ def initialise_example_data() -> None:
     example_life_skill_package = AttributePackage(
         item = Skill.by_name("vacc suit"),
         level = 2,
-        context_id = 123456789
+        context_id = GUID.generate(ns1=NameSpaces.Entity.PACKAGES, ns2=NameSpaces.Owner.PLAYER, name="ExampleLifeSkillPackage")
     )
     example_sophont_1.aptitudes.insert_package_acquired(
         package=example_life_skill_package,

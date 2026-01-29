@@ -19,9 +19,9 @@ from sophont.character import Sophont
 CharacteristicName = str
 CharacteristicCodeCollection = list[FullCode]
 
-HUMAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV)
-ALIEN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV)
-ASLAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV)
+HUMAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV, name="Human")
+ALIEN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV, name="Alien")
+ASLAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV, name="Aslan")
 
 SPECIES_MAP: dict[str, int] = {
     "Human": HUMAN_UUID,

@@ -28,7 +28,7 @@ class Sophont:
         self.location: Location = Location()
         self.aptitudes: Aptitudes = Aptitudes()
         self.epigenetics: Epigenetics = Epigenetics(species=species)
-        self.personals: Personals = Personals()
+        self.personals: Personals = Personals(self.epigenetics.species.genotype.genes[2].characteristic)
 
         # Initialize parent UUIDs list with self UUID for cloning scenarios.
         self.epigenetics.parent_uuids.append(self.uuid)

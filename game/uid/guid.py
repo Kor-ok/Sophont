@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections import deque
 from enum import Enum
 from random import randint
 
 """Utility functions for generating and handling 32-bit Unique Identifiers (GUID) in the game.
 """
-
 GLOBAL_UID_STORE = set()
+GLOBAL_UID_TO_STRING_STORE: deque[tuple[int, str]] = deque(maxlen=1000)
 class NameSpaces:
     """Totalling 16 bits, defines the branching namespaces for GUID generation and lookup.
     """
@@ -38,19 +39,23 @@ class GUID:
         return False
     
     @staticmethod
-    def _constructor(ns1: NameSpaces.Entity, ns2: NameSpaces.Owner, unique_id: int | None = None) -> int:
+    def _constructor(ns1: NameSpaces.Entity, ns2: NameSpaces.Owner, unique_id: int | None = None, name: str | None = None) -> int:
         if unique_id is None:
             unique_id = randint(0, 0xFFFF)
         uid = (ns1.value << 24) | (ns2.value << 16) | unique_id
+        if name is not None:
+            GLOBAL_UID_TO_STRING_STORE.append((uid, f"{ns1.name}.{ns2.name}.{name}"))
+        else:
+            GLOBAL_UID_TO_STRING_STORE.append((uid, f"{ns1.name}.{ns2.name}.{uid:08X}"))
         return uid
     
     @staticmethod
-    def generate(ns1: NameSpaces.Entity, ns2: NameSpaces.Owner, unique_id: int | None = None) -> int:
+    def generate(ns1: NameSpaces.Entity, ns2: NameSpaces.Owner, unique_id: int | None = None, name: str | None = None) -> int:
 
-        uid = GUID._constructor(ns1, ns2, unique_id)
+        uid = GUID._constructor(ns1, ns2, unique_id, name)
 
         while GUID._check_store_clash(uid):
-            uid = GUID._constructor(ns1, ns2, unique_id)
+            uid = GUID._constructor(ns1, ns2, unique_id, name)
 
         return uid
     
@@ -60,3 +65,13 @@ class GUID:
         ns2 = NameSpaces.Owner((uid >> 16) & 0xFF)
         unique_id = uid & 0xFFFF
         return ns1, ns2, unique_id
+    
+    @staticmethod
+    def uid_to_string(uid: int, full: bool = False) -> str:
+        for stored_uid, name in GLOBAL_UID_TO_STRING_STORE:
+            if stored_uid == uid:
+                if full:
+                    return name
+                else:
+                    return name.split('.')[-1]
+        return f"NotFound_{uid:08X}"

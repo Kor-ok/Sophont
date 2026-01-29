@@ -1,18 +1,10 @@
-"""
-Exploratory sandbox for character energy/fatigue mechanics.
-
-Models a personal "energy pool" that depletes while awake and recovers while asleep,
-with thresholds determining the character's current energy level.
-"""
-
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 from enum import Enum
-from random import randint
+
+from game.characteristic import Characteristic
 
 SECONDS_PER_HOUR = 3600
-
 
 class ActivityState(Enum):
     """Whether the character is currently awake or asleep."""
@@ -48,13 +40,12 @@ SLEEP_RECOVERY_RATES: dict[EnergyLevel, float] = {
     EnergyLevel.SLEEPY: 24/6,
 }
 
-
 class TraitType(Enum):
     """Character trait archetypes with base waking-day durations."""
 
-    ENDURANCE = (3, 0, 1)
-    STAMINA = (3, 2, 1)
-    VIGOUR = (3, 1, 1)
+    ENDURANCE = Characteristic.by_name("Endurance")
+    STAMINA = Characteristic.by_name("Stamina")
+    VIGOUR = Characteristic.by_name("Vigour")
 
 
 BASE_HOURS_BY_TRAIT: dict[TraitType, float] = {
@@ -63,13 +54,14 @@ BASE_HOURS_BY_TRAIT: dict[TraitType, float] = {
     TraitType.VIGOUR: 12.0,
 }
 
-
-class Character:
+class PersonalDay:
     """A character with an energy pool that depletes/recovers over time."""
 
-    def __init__(self, trait_type: TraitType) -> None:
-        self.trait_type = trait_type
-        self._max_pool_seconds: int = int(BASE_HOURS_BY_TRAIT[trait_type] * SECONDS_PER_HOUR)
+    def __init__(self, upp_3_characteristic: Characteristic) -> None:
+        if upp_3_characteristic not in TraitType._value2member_map_:
+            raise ValueError(f"Custom characteristic not yet implemented: {upp_3_characteristic.get_name()}")
+        self.trait_type = TraitType(upp_3_characteristic)
+        self._max_pool_seconds: int = int(BASE_HOURS_BY_TRAIT[self.trait_type] * SECONDS_PER_HOUR)
         self._current_pool_seconds: float = float(self._max_pool_seconds)
         self._energy_level: EnergyLevel = EnergyLevel.OPTIMAL
         self._activity_state: ActivityState = ActivityState.AWAKE
@@ -160,45 +152,3 @@ class Character:
             f"{hours:.1f}/{max_hours:.1f}h, "
             f"{self._activity_state.value}, {self._energy_level.value})"
         )
-
-if __name__ == "__main__":
-    # print("\033c", end="")  # Clear terminal
-
-    # Create characters with different trait types
-    characters: dict[str, Character] = {
-        "endurance_character": Character(TraitType.ENDURANCE),
-        "stamina_character": Character(TraitType.STAMINA),
-        "vigour_character": Character(TraitType.VIGOUR),
-    }
-
-    # Apply random flux to each character's max pool
-    for name, character in characters.items():
-        flux = randint(1, 6) - randint(1, 6)  # -5 to +5 hours
-        character.apply_flux(float(flux))
-        print(f"{name}: {character}")
-
-    print("\n--- Sleep Recovery Simulation (Endurance Character) ---\n")
-
-    # Simulate sleep recovery for endurance character starting from empty
-    character = characters["endurance_character"]
-    character._current_pool_seconds = 0.0
-    character._update_energy_level()
-    character.set_activity_state(ActivityState.ASLEEP)
-
-    time_sleep_start = datetime(2026, 1, 2, 0, 0, 0)
-    time_wake_up = datetime(2026, 1, 2, 8, 0, 0)
-    time_increment_hours = 1.0
-
-    sleep_duration = time_wake_up - time_sleep_start
-    steps = int(sleep_duration.total_seconds() / SECONDS_PER_HOUR / time_increment_hours)
-
-    for i in range(steps):
-        current_time = time_sleep_start + timedelta(hours=i * time_increment_hours)
-        character.pass_time(time_increment_hours * SECONDS_PER_HOUR)
-        print(
-            f"[{current_time:%Y-%m-%d %H:%M}] {character.activity_state.value:6} | "
-            f"{character.energy_level.value:8} | "
-            f"Pool: {character.current_pool_seconds / SECONDS_PER_HOUR:5.1f}/"
-            f"{character.max_pool_seconds / SECONDS_PER_HOUR:.1f}h"
-        )
-    

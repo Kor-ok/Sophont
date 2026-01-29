@@ -8,6 +8,7 @@ from sortedcontainers import SortedKeyList
 
 from game.characteristic import Characteristic
 from game.package import AttributePackage
+from game.personal_day import PersonalDay
 from sophont.acquisitions import Acquired
 
 
@@ -23,13 +24,15 @@ class Personals:
      
     __slots__ = (
         "characteristics_collation",
+        "personal_day",
         "acquired_packages_collection",
         "is_packages_dirty"
     )
 
-    def __init__(self):
+    def __init__(self, personal_day_characteristic: Characteristic) -> None:
         # === HOT DATA (frequently updated) ============================
         self.characteristics_collation: list[UniqueAppliedCharacteristic] | None = None
+        self.personal_day: PersonalDay = PersonalDay(personal_day_characteristic)
 
         # === WARM DATA (infrequently updated) ============================
         self.acquired_packages_collection: SortedKeyList = SortedKeyList(key=_package_key)

@@ -6,6 +6,7 @@ from humanize import time
 from nicegui import ui
 
 from game.mappings.gender import _BASE as gender_map
+from game.uid.guid import GUID
 from gui import styles
 from gui.computed.upp import UPPDisplay
 from gui.initialisation.globals import IS_DEBUG
@@ -105,9 +106,9 @@ class CharacterCard(ui.column):
     def _build_debug_info(self) -> None:
         if IS_DEBUG:
                         ui.label("Character UUID:")
-                        ui.label(str(self.character.uuid))
+                        ui.label(GUID.uid_to_string(self.character.uuid))
                         ui.label("Species UUID:")
-                        ui.label(str(self.character.epigenetics.species.uuid))
+                        ui.label(GUID.uid_to_string(self.character.epigenetics.species.uuid))
 
     def _build_name_input(self) -> None:
         ui.label("Name:")
