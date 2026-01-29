@@ -23,7 +23,7 @@ class UniqueAppliedCharacteristic:
 class Personals:
      
     __slots__ = (
-        "characteristics_collation",
+        "attributes_collation",
         "personal_day",
         "acquired_packages_collection",
         "is_packages_dirty"
@@ -31,7 +31,7 @@ class Personals:
 
     def __init__(self, personal_day_characteristic: Characteristic) -> None:
         # === HOT DATA (frequently updated) ============================
-        self.characteristics_collation: list[UniqueAppliedCharacteristic] | None = None
+        self.attributes_collation: list[UniqueAppliedCharacteristic] | None = None
         self.personal_day: PersonalDay = PersonalDay(personal_day_characteristic)
 
         # === WARM DATA (infrequently updated) ============================
@@ -99,8 +99,8 @@ class Personals:
         # whilst preserving any training_progress from previous collation.
 
         previous_training_progress: dict[Characteristic.Key, float] = {}
-        if self.characteristics_collation is not None:
-            for characteristic in self.characteristics_collation:
+        if self.attributes_collation is not None:
+            for characteristic in self.attributes_collation:
                 key: Characteristic.Key = (
                     characteristic.item.upp_index,
                     characteristic.item.subtype,
@@ -138,7 +138,7 @@ class Personals:
                 )
             )
 
-        self.characteristics_collation = sorted(
+        self.attributes_collation = sorted(
             collation,
             key=lambda a: (a.item.upp_index, a.item.subtype, a.item.category_code),
         )
@@ -150,11 +150,11 @@ class Personals:
             display.append(
                 f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]"
             )
-            if self.characteristics_collation is None:
-                display.append("characteristics_collation=None")
+            if self.attributes_collation is None:
+                display.append("attributes_collation=None")
             else:
                 display.append(
-                    f"characteristics_collation=[{', '.join(repr(char) for char in self.characteristics_collation)}]"
+                    f"attributes_collation=[{', '.join(repr(char) for char in self.attributes_collation)}]"
                 )
             # Join with Newlines for readability
             return "Personals(\n" + indent(",\n".join(display), indentation) + "\n)"
