@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
+#region To Deprecate
 @dataclass(frozen=True)
 class OrbitID:
     Primary: int
@@ -55,3 +56,18 @@ KARGOL_WORLD_ID = WorldID(
         Quarternary=0
     )
 )
+#endregion
+@dataclass(frozen=True)
+class SystemID:
+    sector_x: int
+    sector_y: int
+    hex_x: int
+    hex_y: int
+    tag: str # TODO: Find a way to map this to integer IDs.
+    # tag_apocrypha: int # ['Official', 'InReview', 'Unreviewed', 'Apocryphal', 'Preserve']
+    # tag_milieu: int # ['OTU', 'ZCR', 'OrionOB1', 'DistantFringe', 'Faraway']
+    # year: int
+    # world_space_x: int
+    # world_space_y: int
+    # map_space_x: float
+    # map_space_y: float
