@@ -2,6 +2,8 @@ import datetime
 
 """
 Imperial Calendar Year 0 = 4518 AD
+
+T5 says 4521 CE
 """
 
 IMPERIAL_YEAR_OFFSET = 4518
