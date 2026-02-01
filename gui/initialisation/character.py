@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from random import randint
 
+from game.attributes.package import AttributePackage
+from game.attributes.phene import Phene
+from game.attributes.skill import Skill
 from game.mappings.set import ATTRIBUTES
-from game.package import AttributePackage
-from game.phene import Phene
-from game.skill import Skill
 from game.uid.guid import GUID, NameSpaces
 from gui.initialisation.species import example_sophont_1
 

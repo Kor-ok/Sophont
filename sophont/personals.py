@@ -6,8 +6,8 @@ from typing import cast
 
 from sortedcontainers import SortedKeyList
 
-from game.characteristic import Characteristic
-from game.package import AttributePackage
+from game.attributes.characteristic import Characteristic
+from game.attributes.package import AttributePackage
 from game.personal_day import PersonalDay
 from sophont.acquisitions import Acquired
 

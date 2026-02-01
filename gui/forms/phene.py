@@ -4,7 +4,7 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
-from game.phene import Phene
+from game.attributes.phene import Phene
 
 
 def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = None):

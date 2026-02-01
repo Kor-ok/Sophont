@@ -6,11 +6,11 @@ from typing import Union, cast
 
 from sortedcontainers import SortedKeyList
 
-from game.characteristic import Characteristic
-from game.gene import Gene
-from game.package import AttributePackage
-from game.phene import Phene
-from game.species import Species
+from game.attributes.characteristic import Characteristic
+from game.attributes.gene import Gene
+from game.attributes.package import AttributePackage
+from game.attributes.phene import Phene
+from game.attributes.species import Species
 from sophont.acquisitions import Acquired
 
 # GeneOrPhene = Union[Gene, Phene]

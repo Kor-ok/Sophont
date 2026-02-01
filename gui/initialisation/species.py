@@ -3,16 +3,16 @@ from __future__ import annotations
 from collections import defaultdict
 from random import choice, randint
 
-from game.characteristic import Characteristic
-from game.gene import Gene
-from game.genotype import Genotype
+from game.attributes.characteristic import Characteristic
+from game.attributes.gene import Gene
+from game.attributes.genotype import Genotype
+from game.attributes.phene import Phene
+from game.attributes.species import Species
 from game.mappings.data import (
     AliasMappedFullCode,
     FullCode,
 )
 from game.mappings.set import ATTRIBUTES
-from game.phene import Phene
-from game.species import Species
 from game.uid.guid import GUID, NameSpaces
 from sophont.character import Sophont
 

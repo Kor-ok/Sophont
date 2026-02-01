@@ -5,10 +5,10 @@ from typing import Union, cast
 
 from sortedcontainers import SortedKeyList
 
-from game.knowledge import Knowledge
+from game.attributes.knowledge import Knowledge
+from game.attributes.package import AttributePackage
+from game.attributes.skill import Skill
 from game.mappings.data import FullCode
-from game.package import AttributePackage
-from game.skill import Skill
 from sophont.acquisitions import Acquired
 
 # class Acquired:

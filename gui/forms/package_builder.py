@@ -5,18 +5,18 @@ from typing import Optional, Union
 
 from nicegui import ui
 
-from game.characteristic import Characteristic
-from game.gene import Gene
-from game.knowledge import Knowledge
+from game.attributes.characteristic import Characteristic
+from game.attributes.gene import Gene
+from game.attributes.knowledge import Knowledge
+from game.attributes.package import AttributePackage, T
+from game.attributes.phene import Phene
+from game.attributes.skill import Skill
 from game.mappings.data import (
     AliasMap,
     AliasMappedFullCode,
     FullCode,
 )
 from game.mappings.set import ATTRIBUTES
-from game.package import AttributePackage, T
-from game.phene import Phene
-from game.skill import Skill
 
 ItemType = Union[type[Skill], type[Knowledge], type[Gene], type[Phene], type[Characteristic]]
 

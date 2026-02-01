@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import game.event as venture
-from game.characteristic import Characteristic
-from game.package import AttributePackage
-from game.skill import Skill
+from game.attributes.characteristic import Characteristic
+from game.attributes.package import AttributePackage
+from game.attributes.skill import Skill
 
 
 def initialise_example_packages() -> None:

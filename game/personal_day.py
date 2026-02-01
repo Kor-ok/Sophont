@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from game.characteristic import Characteristic
+from game.attributes.characteristic import Characteristic
 
 SECONDS_PER_HOUR = 3600
 

@@ -4,7 +4,7 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
-from game.gene import Gene
+from game.attributes.gene import Gene
 
 
 def gene_form(options: list[str], on_add: Optional[Callable[[Gene], None]] = None):

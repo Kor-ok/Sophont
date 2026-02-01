@@ -6,9 +6,9 @@ from typing import Optional
 
 from nicegui import ui
 
+from game.attributes.skill import Skill
 from game.mappings.data import FullCode
 from game.mappings.set import ATTRIBUTES
-from game.skill import Skill
 from gui.forms.attribute_builder_base import (
     AttributeBuilderBase,
     AttributeType,

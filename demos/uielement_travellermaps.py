@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from nicegui import events, ui
 
-from game.api.travellermap import TravellerMapAPI
+from api.travellermap import TravellerMapAPI
 from gui import styles
 
 api = TravellerMapAPI()

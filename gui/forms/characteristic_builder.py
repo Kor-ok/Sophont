@@ -5,7 +5,7 @@ from typing import Optional
 
 from nicegui import ui
 
-from game.characteristic import Characteristic
+from game.attributes.characteristic import Characteristic
 from game.mappings.data import FullCode
 from game.mappings.set import ATTRIBUTES
 from gui.forms.attribute_builder_base import (

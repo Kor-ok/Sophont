@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from textwrap import indent
 
+from game.attributes.species import Species
 from game.location import Location
-from game.species import Species
 from game.uid.guid import GUID, NameSpaces
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import Epigenetics

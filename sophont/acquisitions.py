@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from game.package import AttributePackage
+from game.attributes.package import AttributePackage
 
 
 class Acquired:
