@@ -1,27 +1,28 @@
 from __future__ import annotations
 
 import asyncio
-import json
+from typing import Any
 
-import httpx
 from nicegui import events, ui
 
-from game.mappings.world_id import SystemID
+from game.api.travellermap import TravellerMapAPI
 from gui import styles
 
-api = httpx.AsyncClient()
+api = TravellerMapAPI()
 running_query: asyncio.Task | None = None
 debug_data_container: ui.column | None = None
 
-def _parse_into_system_id(system: dict) -> SystemID:
-    """Parse a system dictionary into a SystemID dataclass."""
-    return SystemID(
-        sector_x=system.get("SectorX", -1),
-        sector_y=system.get("SectorY", -1),
-        hex_x=system.get("HexX", -1),
-        hex_y=system.get("HexY", -1),
-        tag=system.get("SectorTags", ""),
+
+def _parse_into_system_id(system: dict) -> tuple[int, int, int, int, str]:
+    """Parse a system dictionary into a tuple of coordinates and tag."""
+    return (
+        system.get("SectorX", -1),
+        system.get("SectorY", -1),
+        system.get("HexX", -1),
+        system.get("HexY", -1),
+        system.get("SectorTags", ""),
     )
+
 
 def render_system_item(system: dict) -> None:
     """Render a System item card."""
@@ -30,10 +31,11 @@ def render_system_item(system: dict) -> None:
         ui.label(system.get("Name", "Unknown")).classes("text-md font-bold text-green-3")
         with ui.row().classes("gap-4 items-center"):
             # ui.label(f"Sector: {system.get('Sector', '?')}").classes("text-sm")
-            ui.label(f"Hex: {sys_id.hex_x:02d}{sys_id.hex_y:02d}").classes("text-sm font-mono")
+            ui.label(f"Hex: {sys_id[2]:02d}{sys_id[3]:02d}").classes("text-sm font-mono")
         with ui.row().classes("gap-2 text-xs text-grey-5"):
-            ui.label(f"SectorXY: ({sys_id.sector_x}, {sys_id.sector_y})")
-            ui.label(f"Tag: {sys_id.tag}").classes("italic")
+            ui.label(f"SectorXY: ({sys_id[0]}, {sys_id[1]})")
+            ui.label(f"Tag: {sys_id[4]}").classes("italic")
+
 
 def render_world_item(world: dict) -> None:
     """Render a World item card."""
@@ -78,23 +80,15 @@ def render_label_item(label: dict) -> None:
             ui.label(f"Tags: {label.get('SectorTags', '')}").classes("italic")
 
 
-def render_debug_view(raw_json: str | None) -> None:
+def render_debug_view(data: dict[str, Any] | None) -> None:
     """Render the debug/data view for the search results."""
     if debug_data_container is None:
         return
 
     debug_data_container.clear()
     with debug_data_container:
-        if raw_json is None:
+        if data is None:
             ui.label("No Results").classes("text-gray-500 italic")
-            return
-
-        # ===== PARSE JSON =====
-        try:
-            data = json.loads(raw_json)
-        except json.JSONDecodeError as e:
-            ui.label("Failed to parse JSON").classes("text-red-500")
-            ui.label(str(e)).classes("text-xs text-grey-5")
             return
 
         # ===== EXTRACT RESULTS =====
@@ -157,13 +151,26 @@ async def search(e: events.ValueChangeEventArguments) -> None:
         running_query.cancel()  # cancel the previous query; happens when you type fast
     search_field.classes("mt-2", remove="mt-24")  # move the search field up
     results.clear()
-    # store the http coroutine in a task so we can cancel it later if needed
-    running_query = asyncio.create_task(api.get(f"https://travellermap.com/api/search?q={e.value}"))
-    response = await running_query
-    if response.text == "":
+
+    # Skip empty queries
+    if not e.value or not e.value.strip():
+        running_query = None
         return
+
+    # Store the http coroutine in a task so we can cancel it later if needed
+    running_query = asyncio.create_task(api.search_async(e.value))
+    try:
+        search_results = await running_query
+    except asyncio.CancelledError:
+        return  # Query was cancelled by a newer search
+    except Exception as ex:
+        with results:
+            ui.label(f"Search error: {ex}").classes("text-red-500")
+        running_query = None
+        return
+
     with results:
-        render_debug_view(response.text)
+        render_debug_view(search_results)
 
     running_query = None
 
