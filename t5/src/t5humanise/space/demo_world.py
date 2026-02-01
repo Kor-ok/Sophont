@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 # Add the src directory to sys.path for local development
-_src_path = Path(__file__).parent / "src"
+_src_path = Path(__file__).parent.parent.parent.parent / "src"
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
@@ -39,13 +39,47 @@ def demo_low_level_packing() -> None:
         print(f"  (v={vertex}, d={dex}, l={lev}) -> 0x{packed:04X}")
 
     # HexInHex: Pack hex-in-hex coordinates
-    print("\nHexInHex (Terrain/Local Hex - 16 bits):")
-    print("  Packs two axes, each with (y, x) in range -5 to +5")
-    for ax1, ax2 in [((0, 0), (0, 0)), ((2, -3), (0, 1)), ((-5, 5), (-5, 5))]:
-        packed = HexInHex(ax1, ax2)
-        print(f"  axis1={ax1}, axis2={ax2} -> 0x{packed:04X}")
+    print("\nHexInHex (Terrain/Local Hex - 8 bits):")
+    print("  Packs y (-5 to +5) and x (-5 to +5) into 8 bits")
+    for y, x in [(0, 0), (3, -2), (-5, 0)]:
+        packed = HexInHex(y, x)
+        print(f"  (y={y}, x={x}) -> 0x{packed:02X}")
 
-    print()
+    # HexInHex: Pack hex-in-hex coordinates with out-of-bounds values
+    print("\nHexInHex with out-of-bounds values (clamping demonstration):")
+    for y, x in [
+        (6, -6),
+        (1, -5), 
+        (2, -4), 
+        (3, -3),
+        (4, -2), 
+        (5, -1), 
+        (-1, 5),
+        (-2, 4), 
+        (-3, 3),
+        (-4, 2), 
+        (-5, 1)
+        ]:
+        try:
+            packed = HexInHex(y, x)
+        except ValueError as e:
+            print(f"  (y={y}, x={x}) -> Error: {e}")
+        else:
+            def _unpack_hex_in_hex(packed: int) -> tuple[int, int]:
+                """Unpack a HexInHex value into (y, x) coordinates."""
+
+                def from_signed_4bit(value: int) -> int:
+                    """Convert 4-bit two's complement to signed int."""
+                    if value & 0b1000:  # Negative (bit 3 set)
+                        return value - 16
+                    return value
+
+                y = from_signed_4bit((packed >> 4) & 0xF)
+                x = from_signed_4bit(packed & 0xF)
+                return (y, x)
+            print(f"  (y={_unpack_hex_in_hex(packed)[0]}, x={_unpack_hex_in_hex(packed)[1]}) -> 0x{packed:02X}")
+
+    print() 
 
 
 def demo_coordinate_creation() -> None:
@@ -58,8 +92,8 @@ def demo_coordinate_creation() -> None:
     coord1 = WorldCoordinates(
         tri_in_ico=TriInIco(2, 3),
         hex_in_tri=HexInTri(1, 15, 20),
-        terrain_hex=HexInHex((2, -3), (0, 1)),
-        local_hex=HexInHex((-1, 4), (5, -5)),
+        terrain_hex=HexInHex(2, -3),
+        local_hex=HexInHex(-1, 4),
     )
     print(f"   {coord1!r}")
 
@@ -71,10 +105,10 @@ def demo_coordinate_creation() -> None:
         vertex=1,
         dex=15,
         lev=20,
-        terrain_axis_1=(2, -3),
-        terrain_axis_2=(0, 1),
-        local_axis_1=(-1, 4),
-        local_axis_2=(5, -5),
+        terrain_y=2,
+        terrain_x=-3,
+        local_y=-1,
+        local_x=4,
     )
     print(f"   {coord2!r}")
     print(f"   Equal to coord1? {coord1 == coord2}")
@@ -101,23 +135,23 @@ def demo_component_extraction() -> None:
         vertex=1,
         dex=15,
         lev=20,
-        terrain_axis_1=(2, -3),
-        terrain_axis_2=(0, 1),
-        local_axis_1=(-1, 4),
-        local_axis_2=(5, -5),
+        terrain_y=2,
+        terrain_x=-3,
+        local_y=-1,
+        local_x=4,
     )
 
     print("\nPacked component values:")
     print(f"  tri_in_ico:   0x{coord.tri_in_ico:02X}")
     print(f"  hex_in_tri:   0x{coord.hex_in_tri:04X}")
-    print(f"  terrain_hex:  0x{coord.terrain_hex:04X}")
-    print(f"  local_hex:    0x{coord.local_hex:04X}")
+    print(f"  terrain_hex:  0x{coord.terrain_hex:02X}")
+    print(f"  local_hex:    0x{coord.local_hex:02X}")
 
     print("\nUnpacked individual values:")
     print(f"  TriInIco:  ico_y={coord.ico_y}, ico_x={coord.ico_x}")
     print(f"  HexInTri:  vertex={coord.vertex}, dex={coord.dex}, lev={coord.lev}")
-    print(f"  Terrain:   axes={coord.terrain_axes}")
-    print(f"  Local:     axes={coord.local_axes}")
+    print(f"  Terrain:   coords={coord.terrain_coords}")
+    print(f"  Local:     coords={coord.local_coords}")
 
     print()
 
@@ -140,19 +174,19 @@ def demo_immutable_editing() -> None:
     new2 = original.with_hex_in_tri(2, 50, 60)
     print(f"  with_hex_in_tri(2, 50, 60): vertex={new2.vertex}, dex={new2.dex}, lev={new2.lev}")
 
-    new3 = original.with_terrain_hex((1, 2), (3, 4))
-    print(f"  with_terrain_hex((1,2), (3,4)): {new3.terrain_axes}")
+    new3 = original.with_terrain_hex(1, 2)
+    print(f"  with_terrain_hex(1, 2): {new3.terrain_coords}")
 
-    new4 = original.with_local_hex((-2, -3), (4, 5))
-    print(f"  with_local_hex((-2,-3), (4,5)): {new4.local_axes}")
+    new4 = original.with_local_hex(-2, 3)
+    print(f"  with_local_hex(-2, 3): {new4.local_coords}")
 
     # Chaining edits
     print("\nChained edits:")
     chained = (
         original.with_tri_in_ico(3, 4)
         .with_hex_in_tri(2, 30, 40)
-        .with_terrain_hex((1, 1), (2, 2))
-        .with_local_hex((3, 3), (4, 4))
+        .with_terrain_hex(1, 1)
+        .with_local_hex(3, -3)
     )
     print(f"  {chained!r}")
 
@@ -170,10 +204,10 @@ def demo_output_formats() -> None:
         vertex=1,
         dex=15,
         lev=20,
-        terrain_axis_1=(2, -3),
-        terrain_axis_2=(0, 1),
-        local_axis_1=(-1, 4),
-        local_axis_2=(5, -5),
+        terrain_y=2,
+        terrain_x=-3,
+        local_y=-1,
+        local_x=4,
     )
 
     print("\nrepr():")

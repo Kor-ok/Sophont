@@ -49,30 +49,39 @@ def HexInTri(vertex: int, dex: int, lev: int) -> int:
     return (vertex << 14) | (lev << 7) | dex
 
 
-def HexInHex(axis_1: tuple[int, int], axis_2: tuple[int, int]) -> int:
+def HexInHex(y: int, x: int) -> int:
     """
     There are 91 component hexagons fit within a master hexagon.
-    The identification of a component hexagon is by one of two axes,
-    each with a y (-5 to +5) and x (-5 to +5) coordinate.
-    The two axes are at 60 degrees to each other.
+    The identification of a component hexagon is by a skewed 
+    coordinate system where x is 120 degrees from y,
+    each with a -5 to +5 range; y (-5 to +5) and x (-5 to +5) coordinate.
+
     Each axis coordinate is stored as a 4-bit signed integer (two's complement)
 
     Args:
-        axis_1: Tuple of (y, x) for axis 1
-        axis_2: Tuple of (y, x) for axis 2
+        y: Row index (-5 to +5)
+        x: Column index (-5 to +5)
 
     Returns:
         Packed int
     """
-    # TODO: Validate so that either axis_1 or axis_2 is used,
-    # or the second value of axis_1 with the first value of axis_2
-    # This will cover the whole face.
-    y1, x1 = axis_1
-    y2, x2 = axis_2
 
-    for coord, name in [(y1, "axis_1 y"), (x1, "axis_1 x"), (y2, "axis_2 y"), (x2, "axis_2 x")]:
+    for coord, name in [(y, "y"), (x, "x")]:
         if not (-5 <= coord <= 5):
             raise ValueError(f"{name} must be in range -5 to +5")
+        
+    # Out of bounds checks where the skewed coordinates exceed the hexagon shape
+    if y > 0 and x < 0 and y + abs(x) > 5:
+        excess = y + abs(x) - y
+        old_x = x
+        x =- (excess - 1)
+        print(f"y,x of {y},{old_x}: x out of bounds by {excess}, adjusted to {x}")
+        
+    if x > 0 and y < 0 and x + abs(y) > 5:
+        excess = 6 - (x + abs(y) - x)
+        old_x = x
+        x =+ (excess - 1)
+        print(f"y,x of {y},{old_x}: x out of bounds by {excess}, adjusted to {x}")
 
     def to_signed_4bit(value: int) -> int:
         """Convert an integer to a 4-bit signed representation."""
@@ -80,40 +89,35 @@ def HexInHex(axis_1: tuple[int, int], axis_2: tuple[int, int]) -> int:
             value = (1 << 4) + value  # Two's complement for negative values
         return value & 0b1111  # Ensure it's 4 bits
 
-    packed = (
-        (to_signed_4bit(y1) << 12)
-        | (to_signed_4bit(x1) << 8)
-        | (to_signed_4bit(y2) << 4)
-        | to_signed_4bit(x2)
-    )
+    packed = (to_signed_4bit(y) << 4) | to_signed_4bit(x)
     return packed
 
 
 class WorldCoordinates:
     """A full coordinate is comprised of:
 
-    TriInIco (World Triangle)       - 5 bits  (bits 48-52)
-        HexInTri (World Hex)        - 16 bits (bits 32-47)
-            HexInHex (Terrain Hex)  - 16 bits (bits 16-31)
-                HexInHex (Local Hex)- 16 bits (bits 0-15)
+    TriInIco (World Triangle)       - 5 bits  (bits 32-36)
+        HexInTri (World Hex)        - 16 bits (bits 16-31)
+            HexInHex (Terrain Hex)  - 8 bits (bits 8-15)
+                HexInHex (Local Hex)- 8 bits (bits 0-7)
 
-    Total: 53 bits packed into a 64-bit integer.
+    Total: 37 bits packed into a 48-bit integer.
     """
 
     __slots__ = ("_packed",)
 
     # Bit positions and masks
-    _TRI_IN_ICO_SHIFT = 48
+    _TRI_IN_ICO_SHIFT = 32
     _TRI_IN_ICO_MASK = 0b11111  # 5 bits
 
-    _HEX_IN_TRI_SHIFT = 32
+    _HEX_IN_TRI_SHIFT = 16
     _HEX_IN_TRI_MASK = 0xFFFF  # 16 bits
 
-    _TERRAIN_HEX_SHIFT = 16
-    _TERRAIN_HEX_MASK = 0xFFFF  # 16 bits
+    _TERRAIN_HEX_SHIFT = 8
+    _TERRAIN_HEX_MASK = 0xFF  # 8 bits
 
     _LOCAL_HEX_SHIFT = 0
-    _LOCAL_HEX_MASK = 0xFFFF  # 16 bits
+    _LOCAL_HEX_MASK = 0xFF  # 8 bits
 
     def __new__(
         cls,
@@ -185,17 +189,17 @@ class WorldCoordinates:
         dex: int = 0,
         lev: int = 0,
         # Terrain HexInHex components
-        terrain_axis_1: tuple[int, int] = (0, 0),
-        terrain_axis_2: tuple[int, int] = (0, 0),
+        terrain_y: int = 0,
+        terrain_x: int = 0,
         # Local HexInHex components
-        local_axis_1: tuple[int, int] = (0, 0),
-        local_axis_2: tuple[int, int] = (0, 0),
+        local_y: int = 0,
+        local_x: int = 0,
     ) -> WorldCoordinates:
         """Create a TravellerMappingSystem from individual coordinate components."""
         tri_in_ico = TriInIco(ico_y, ico_x)
         hex_in_tri = HexInTri(vertex, dex, lev)
-        terrain_hex = HexInHex(terrain_axis_1, terrain_axis_2)
-        local_hex = HexInHex(local_axis_1, local_axis_2)
+        terrain_hex = HexInHex(terrain_y, terrain_x)
+        local_hex = HexInHex(local_y, local_x)
         return cls(tri_in_ico, hex_in_tri, terrain_hex, local_hex)
 
     # -------------------------------------------------------------------------
@@ -256,8 +260,8 @@ class WorldCoordinates:
         """Extract lev (anticlockwise edge offset) from HexInTri component."""
         return (self.hex_in_tri >> 7) & 0x7F
 
-    def _unpack_hex_in_hex(self, packed: int) -> tuple[tuple[int, int], tuple[int, int]]:
-        """Unpack a HexInHex value into two axis tuples."""
+    def _unpack_hex_in_hex(self, packed: int) -> tuple[int, int]:
+        """Unpack a HexInHex value into (y, x) coordinates."""
 
         def from_signed_4bit(value: int) -> int:
             """Convert 4-bit two's complement to signed int."""
@@ -265,20 +269,18 @@ class WorldCoordinates:
                 return value - 16
             return value
 
-        y1 = from_signed_4bit((packed >> 12) & 0xF)
-        x1 = from_signed_4bit((packed >> 8) & 0xF)
-        y2 = from_signed_4bit((packed >> 4) & 0xF)
-        x2 = from_signed_4bit(packed & 0xF)
-        return ((y1, x1), (y2, x2))
+        y = from_signed_4bit((packed >> 4) & 0xF)
+        x = from_signed_4bit(packed & 0xF)
+        return (y, x)
 
     @property
-    def terrain_axes(self) -> tuple[tuple[int, int], tuple[int, int]]:
-        """Extract terrain hex axes as ((y1, x1), (y2, x2))."""
+    def terrain_coords(self) -> tuple[int, int]:
+        """Extract terrain hex coordinates as (y, x)."""
         return self._unpack_hex_in_hex(self.terrain_hex)
 
     @property
-    def local_axes(self) -> tuple[tuple[int, int], tuple[int, int]]:
-        """Extract local hex axes as ((y1, x1), (y2, x2))."""
+    def local_coords(self) -> tuple[int, int]:
+        """Extract local hex coordinates as (y, x)."""
         return self._unpack_hex_in_hex(self.local_hex)
 
     # -------------------------------------------------------------------------
@@ -295,18 +297,14 @@ class WorldCoordinates:
         new_hex = HexInTri(vertex, dex, lev)
         return WorldCoordinates(self.tri_in_ico, new_hex, self.terrain_hex, self.local_hex)
 
-    def with_terrain_hex(
-        self, axis_1: tuple[int, int], axis_2: tuple[int, int]
-    ) -> WorldCoordinates:
+    def with_terrain_hex(self, y: int, x: int) -> WorldCoordinates:
         """Return a new instance with updated terrain HexInHex component."""
-        new_terrain = HexInHex(axis_1, axis_2)
+        new_terrain = HexInHex(y, x)
         return WorldCoordinates(self.tri_in_ico, self.hex_in_tri, new_terrain, self.local_hex)
 
-    def with_local_hex(
-        self, axis_1: tuple[int, int], axis_2: tuple[int, int]
-    ) -> WorldCoordinates:
+    def with_local_hex(self, y: int, x: int) -> WorldCoordinates:
         """Return a new instance with updated local HexInHex component."""
-        new_local = HexInHex(axis_1, axis_2)
+        new_local = HexInHex(y, x)
         return WorldCoordinates(self.tri_in_ico, self.hex_in_tri, self.terrain_hex, new_local)
 
     # -------------------------------------------------------------------------
@@ -319,11 +317,11 @@ class WorldCoordinates:
 
     def to_components_string(self) -> str:
         """Return a human-readable breakdown of all components."""
-        t_ax1, t_ax2 = self.terrain_axes
-        l_ax1, l_ax2 = self.local_axes
+        t_y, t_x = self.terrain_coords
+        l_y, l_x = self.local_coords
         return (
             f"TriInIco: (y={self.ico_y}, x={self.ico_x})\n"
             f"HexInTri: (vertex={self.vertex}, dex={self.dex}, lev={self.lev})\n"
-            f"TerrainHex: axis1={t_ax1}, axis2={t_ax2}\n"
-            f"LocalHex: axis1={l_ax1}, axis2={l_ax2}"
+            f"TerrainHex: (y={t_y}, x={t_x})\n"
+            f"LocalHex: (y={l_y}, x={l_x})"
         )

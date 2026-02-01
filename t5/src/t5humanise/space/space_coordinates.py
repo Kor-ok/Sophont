@@ -3,21 +3,6 @@ from __future__ import annotations
 from enum import IntEnum
 
 
-class TagStatus(IntEnum):
-    """Status of location data validity/currency."""
-
-    UNKNOWN = 0
-    CANONICAL = 1  # Official T5 data
-    VERIFIED = 2  # Cross-referenced and confirmed
-    PROVISIONAL = 3  # Pending verification
-    HISTORICAL = 4  # Data from previous milieu
-    DISPUTED = 5  # Conflicting sources
-    THEORETICAL = 6  # Predicted but unconfirmed
-    RESTRICTED = 7  # Classified/limited access
-    DEPRECATED = 8  # Superseded data
-    # 9-15 reserved for future use
-
-
 class TagSource(IntEnum):
     """Source of the coordinate data."""
 
@@ -57,39 +42,35 @@ class Milieu(IntEnum):
 
 
 def pack_coordinate_package(
-    x_coord: int, y_coord: int, tag_status: int, tag_source: int, milieu: int
+    x_coord: int, y_coord: int, tag_source: int, milieu: int
 ) -> int:
     """Pack the Charted Space coordinate data into a single integer.
 
     Args:
         x_coord (int): -32,768 to 32,767 = 16 bits
         y_coord (int): -32,768 to 32,767 = 16 bits
-        tag_status (int): 0 to 15 = 4 bits
-        tag_source (int): 0 to 15 = 4 bits
+        tag_source (int): 0 to 31 = 5 bits
         milieu (int): 0 to 31 = 5 bits
     """
     if not (-32768 <= x_coord <= 32767):
         raise ValueError("x_coord must be between -32,768 and 32,767")
     if not (-32768 <= y_coord <= 32767):
         raise ValueError("y_coord must be between -32,768 and 32,767")
-    if not (0 <= tag_status <= 15):
-        raise ValueError("tag_status must be between 0 and 15")
-    if not (0 <= tag_source <= 15):
-        raise ValueError("tag_source must be between 0 and 15")
+    if not (0 <= tag_source <= 31):
+        raise ValueError("tag_source must be between 0 and 31")
     if not (0 <= milieu <= 31):
         raise ValueError("milieu must be between 0 and 31")
 
     packed = (
         ((x_coord & 0xFFFF) << 48)
         | ((y_coord & 0xFFFF) << 32)
-        | ((tag_status & 0x0F) << 28)
-        | ((tag_source & 0x0F) << 24)
+        | ((tag_source & 0x1F) << 24)
         | ((milieu & 0x1F) << 19)
     )
     return packed
 
 
-def unpack_coordinate_package(packed: int) -> tuple[int, int, int, int, int]:
+def unpack_coordinate_package(packed: int) -> tuple[int, int, int, int]:
     """Unpack the Charted Space coordinate data from a single integer.
 
     Args:
@@ -103,12 +84,10 @@ def unpack_coordinate_package(packed: int) -> tuple[int, int, int, int, int]:
     if y_coord >= 0x8000:
         y_coord -= 0x10000  # Convert to signed
 
-    tag_status = (packed >> 28) & 0x0F
-    tag_source = (packed >> 24) & 0x0F
+    tag_source = (packed >> 24) & 0x1F
     milieu = (packed >> 19) & 0x1F
 
-    return x_coord, y_coord, tag_status, tag_source, milieu
-
+    return x_coord, y_coord, tag_source, milieu
 
 class SpaceCoordinates:
     """
@@ -120,17 +99,15 @@ class SpaceCoordinates:
         - (0, 0) is typically Reference/Capital or a sector origin
 
     Additional metadata tracks the data provenance:
-        - tag_status: validity/currency of the data
         - tag_source: origin of the coordinate data
         - milieu: game timeline/era
 
-    Bit layout (64 bits total, 45 used):
+    Bit layout (64 bits total, 42 used):
         Bits 48-63: x_coord (16 bits, signed)
         Bits 32-47: y_coord (16 bits, signed)
-        Bits 28-31: tag_status (4 bits)
-        Bits 24-27: tag_source (4 bits)
+        Bits 24-28: tag_source (5 bits)
         Bits 19-23: milieu (5 bits)
-        Bits 0-18:  reserved (19 bits)
+        Bits 0-18:  reserved (22 bits)
     """
 
     __slots__ = ("_packed",)
@@ -138,26 +115,23 @@ class SpaceCoordinates:
     # Bit positions and masks
     _X_SHIFT = 48
     _Y_SHIFT = 32
-    _STATUS_SHIFT = 28
     _SOURCE_SHIFT = 24
     _MILIEU_SHIFT = 19
 
     _COORD_MASK = 0xFFFF  # 16 bits
-    _STATUS_MASK = 0x0F  # 4 bits
-    _SOURCE_MASK = 0x0F  # 4 bits
+    _SOURCE_MASK = 0x1F  # 5 bits
     _MILIEU_MASK = 0x1F  # 5 bits
 
     def __new__(
         cls,
         x: int = 0,
         y: int = 0,
-        tag_status: int | TagStatus = TagStatus.UNKNOWN,
         tag_source: int | TagSource = TagSource.UNKNOWN,
         milieu: int | Milieu = Milieu.UNKNOWN,
     ) -> SpaceCoordinates:
         """Create a new SpaceCoordinates instance."""
         instance = object.__new__(cls)
-        packed = pack_coordinate_package(x, y, int(tag_status), int(tag_source), int(milieu))
+        packed = pack_coordinate_package(x, y, int(tag_source), int(milieu))
         object.__setattr__(instance, "_packed", packed)
         return instance
 
@@ -165,7 +139,6 @@ class SpaceCoordinates:
         self,
         x: int = 0,
         y: int = 0,
-        tag_status: int | TagStatus = TagStatus.UNKNOWN,
         tag_source: int | TagSource = TagSource.UNKNOWN,
         milieu: int | Milieu = Milieu.UNKNOWN,
     ) -> None:
@@ -185,7 +158,6 @@ class SpaceCoordinates:
     def __repr__(self) -> str:
         return (
             f"SpaceCoordinates(x={self.x}, y={self.y}, "
-            f"tag_status={self.tag_status_name}, "
             f"tag_source={self.tag_source_name}, "
             f"milieu={self.milieu_name})"
         )
@@ -243,7 +215,6 @@ class SpaceCoordinates:
         return cls(
             x,
             y,
-            tag_status=TagStatus.CANONICAL,
             tag_source=TagSource.T5_SECOND_SURVEY,
             milieu=milieu,
         )
@@ -272,20 +243,7 @@ class SpaceCoordinates:
         if raw >= 0x8000:
             raw -= 0x10000
         return raw
-
-    @property
-    def tag_status(self) -> int:
-        """Return the tag status value."""
-        return (self._packed >> self._STATUS_SHIFT) & self._STATUS_MASK
-
-    @property
-    def tag_status_name(self) -> str:
-        """Return the tag status as a name string."""
-        try:
-            return TagStatus(self.tag_status).name
-        except ValueError:
-            return f"UNKNOWN({self.tag_status})"
-
+    
     @property
     def tag_source(self) -> int:
         """Return the tag source value."""
@@ -376,20 +334,16 @@ class SpaceCoordinates:
 
     def with_coordinates(self, x: int, y: int) -> SpaceCoordinates:
         """Return a new instance with updated coordinates."""
-        return SpaceCoordinates(x, y, self.tag_status, self.tag_source, self.milieu)
-
-    def with_tag_status(self, tag_status: int | TagStatus) -> SpaceCoordinates:
-        """Return a new instance with updated tag status."""
-        return SpaceCoordinates(self.x, self.y, int(tag_status), self.tag_source, self.milieu)
+        return SpaceCoordinates(x, y, self.tag_source, self.milieu)
 
     def with_tag_source(self, tag_source: int | TagSource) -> SpaceCoordinates:
         """Return a new instance with updated tag source."""
-        return SpaceCoordinates(self.x, self.y, self.tag_status, int(tag_source), self.milieu)
+        return SpaceCoordinates(self.x, self.y, int(tag_source), self.milieu)
 
     def with_milieu(self, milieu: int | Milieu) -> SpaceCoordinates:
         """Return a new instance with updated milieu."""
-        return SpaceCoordinates(self.x, self.y, self.tag_status, self.tag_source, int(milieu))
-
+        return SpaceCoordinates(self.x, self.y, self.tag_source, int(milieu))
+    
     def offset(self, dx: int, dy: int) -> SpaceCoordinates:
         """Return a new instance offset by (dx, dy)."""
         return self.with_coordinates(self.x + dx, self.y + dy)
@@ -410,7 +364,6 @@ class SpaceCoordinates:
         """Return a detailed breakdown of all components."""
         return (
             f"Position: ({self.x}, {self.y})\n"
-            f"Tag Status: {self.tag_status_name} ({self.tag_status})\n"
             f"Tag Source: {self.tag_source_name} ({self.tag_source})\n"
             f"Milieu: {self.milieu_name} ({self.milieu})"
         )
