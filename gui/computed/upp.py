@@ -5,9 +5,9 @@ from collections.abc import Mapping, Sequence
 
 from nicegui import ui
 
-from game.attributes.gene import Gene
-from game.attributes.phene import Phene
 from gui import styles
+from sophont.attributes.gene import Gene
+from sophont.attributes.phene import Phene
 from sophont.character import Sophont
 
 
@@ -28,7 +28,7 @@ class UPPDisplay(ui.column):
         self.classes(styles.UPP_ROOT)
 
         genotype = character.epigenetics.species.genotype
-        genes = {gene.characteristic.upp_index: gene for gene in genotype.genes}
+        genes = {gene.characteristic.code[0]: gene for gene in genotype.genes}
         phenes = self._phenes_by_upp_index(genotype)
 
         upp_indices = sorted(set(genes).union(phenes))
@@ -117,8 +117,8 @@ class UPPDisplay(ui.column):
 
         name, _ = phene.characteristic.get_name()
         inherited = (
-            f" Inherited from {phene.contributor_uuid}"
-            if phene.contributor_uuid != self._NULL_UUID
+            f" Inherited from {phene.contributor_guid}"
+            if phene.contributor_guid != self._NULL_UUID
             else ""
         )
         return f"UPP: {upp_index} - {name}{inherited}"
@@ -137,7 +137,7 @@ class UPPDisplay(ui.column):
             return {}
 
         for phene in genotype.phenes:
-            upp_index = phene.characteristic.upp_index
+            upp_index = phene.characteristic.code[0]
             phenes_by_index[upp_index].append(phene)
 
         return dict(phenes_by_index)

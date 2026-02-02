@@ -79,6 +79,8 @@ When modifying or adding code:
 
 ### Ruff / Black (important)
 
+To avoid churn always run via the virtual environment `.venv\Scripts\python.exe`
+
 This repo uses **Ruff** for linting (including isort-like import sorting) and **Black** for formatting.
 When making changes, keep code aligned with the existing `pyproject.toml` settings.
 

@@ -5,7 +5,7 @@ from typing import Final
 
 import pandas as pd
 
-from game.mappings.authoring import (
+from game.primitives.authoring import (
     load_characteristics_matrix_from_xlsx,
     load_code_to_str_aliases_from_xlsx,
     load_full_characteristic_code_to_str_aliases_from_xlsx,
@@ -13,7 +13,7 @@ from game.mappings.authoring import (
     load_knowledge_to_skills_associations_from_xlsx,
     load_skill_code_to_categories_from_xlsx,
 )
-from game.mappings.data import (
+from game.primitives.data import (
     AliasMappedFullCode,
     CanonicalCodeInt,
     FullCode,

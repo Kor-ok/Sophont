@@ -5,46 +5,15 @@ from typing import Union, cast
 
 from sortedcontainers import SortedKeyList
 
-from game.attributes.knowledge import Knowledge
-from game.attributes.package import AttributePackage
-from game.attributes.skill import Skill
-from game.mappings.data import FullCode
+from game.primitives.data import FullCode
 from sophont.acquisitions import Acquired
+from sophont.attributes.knowledge import Knowledge
+from sophont.attributes.package import AttributePackage
+from sophont.attributes.skill import Skill
 
-# class Acquired:
-#     """Tracks when an AttributePackage was acquired.
 
-#     Equality is based on (package, context) - the same package in the same context
-#     is considered a duplicate regardless of when it was acquired.
-#     """
-#     __slots__ = ('package', 'age_acquired_seconds', 'context')
-
-#     package: AttributePackage
-
-#     def __init__(self, package: AttributePackage, age_acquired_seconds: int, context: int):
-#         self.package = package
-#         self.age_acquired_seconds = age_acquired_seconds
-#         self.context = context
-
-#     @classmethod
-#     def by_age(cls, package: AttributePackage, age_seconds: int, context: int) -> Acquired:
-#         return cls(package=package, context=context, age_acquired_seconds=age_seconds)
-    
-#     def __eq__(self, other: object) -> bool:
-#         if not isinstance(other, Acquired):
-#             return NotImplemented
-#         # Same package (flyweight identity) and same context means duplicate
-#         return self.package is other.package and self.context == other.context
-
-#     def __hash__(self) -> int:
-#         # Hash by package identity and context for set-like duplicate detection
-#         return hash((id(self.package), self.context))
-    
-#     def __repr__(self) -> str:
-#         return f"Acquired(package={repr(self.package)}, age_acquired_seconds={self.age_acquired_seconds}, context={repr(self.context)})"
-    
 def _package_key(acquired: Acquired) -> tuple[int, int]:
-    return (acquired.package.item.base_code, acquired.age_acquired_seconds)
+    return (acquired.package.item.code, acquired.age_acquired_seconds)
 
 AptitudeCategory = type[Union[Skill, Knowledge]]
 AptitudeSingleton = Union[Skill, Knowledge]
@@ -57,8 +26,8 @@ class UniqueAppliedAptitude:
 
 
 ItemFullCodeAndLevel = tuple[FullCode, int]
-UID = int
-UIDAndLevel = dict[UID, ItemFullCodeAndLevel]
+GUID = int
+GUIDAndLevel = dict[GUID, ItemFullCodeAndLevel]
 class Aptitudes:
     """
     Aptitude Collation acts as a summary layer that extracts all unique aptitude items
@@ -75,6 +44,10 @@ class Aptitudes:
         'acquired_packages_collection',
         'is_packages_dirty'
     )
+
+    aptitude_collation: list[UniqueAppliedAptitude] | None
+    acquired_packages_collection: SortedKeyList
+
     def __init__(self):
         # === HOT DATA (frequently updated) ============================
         self.aptitude_collation: list[UniqueAppliedAptitude] | None = None
@@ -86,15 +59,15 @@ class Aptitudes:
             self, 
             package: AttributePackage, 
             age_acquired_seconds: int, 
-            context: int, 
+            context_guid: int, 
             trigger_collation: bool = False
             ) -> bool:
         """Insert an acquired package if not already present.
 
-        Returns True if inserted, False if duplicate (same package+context already exists).
+        Returns True if inserted, False if duplicate (same package+context_guid already exists).
         """
-        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context=context)
-        # Check for duplicate (same package+context) before adding
+        acquired = Acquired.by_age(package=package, age_seconds=age_acquired_seconds, context_guid=context_guid)
+        # Check for duplicate (same package+context_guid) before adding
         if acquired in self.acquired_packages_collection:
             return False
         self.acquired_packages_collection.add(acquired)
@@ -107,16 +80,16 @@ class Aptitudes:
         self,
         package: AttributePackage,
         age_acquired_seconds: int,
-        context: int,
+        context_guid: int,
         trigger_collation: bool = False,
     ) -> bool:
         """Remove an acquired package if present.
 
         Returns True if removed, False if not found.
-        Note: age_acquired_seconds is not used for matching (equality is by package+context only).
+        Note: age_acquired_seconds is not used for matching (equality is by package+context_guid only).
         """
         acquired = Acquired.by_age(
-            package=package, age_seconds=age_acquired_seconds, context=context
+            package=package, age_seconds=age_acquired_seconds, context_guid=context_guid
         )
         try:
             self.acquired_packages_collection.remove(acquired)
@@ -137,22 +110,22 @@ class Aptitudes:
         # For each unique singleton aptitude item (e.g. Skill or Knowledge), 
         # sum up all the package levels where the package item match.
 
-        previous_training_progress: dict[UID, float] = {}
+        previous_training_progress: dict[GUID, float] = {}
         if self.aptitude_collation is not None:
             for aptitude in self.aptitude_collation:
-                uid = getattr(aptitude.item.base_code, "context_id", None)
-                if isinstance(uid, UID):
+                uid = getattr(aptitude.item.code, "context_guid", None)
+                if isinstance(uid, GUID):
                     previous_training_progress[int(uid)] = float(aptitude.training_progress)
 
-        level_by_uid: dict[UID, int] = {}
-        item_by_uid: dict[UID, AptitudeSingleton] = {}
-        item_type_by_uid: dict[UID, AptitudeCategory] = {}
+        level_by_uid: dict[GUID, int] = {}
+        item_by_uid: dict[GUID, AptitudeSingleton] = {}
+        item_type_by_uid: dict[GUID, AptitudeCategory] = {}
 
         for acquired in self.acquired_packages_collection:
             package = acquired.package
             item = cast(AptitudeSingleton, package.item)
-            uid = getattr(item, "context_id", None)
-            if not isinstance(uid, UID):
+            uid = getattr(item.code, "context_guid", None)
+            if not isinstance(uid, GUID):
                 # Skills/Knowledges are expected to provide a stable unique_id.
                 # If not, fall back to identity-hashable behavior.
                 uid = int(id(item))
@@ -178,9 +151,9 @@ class Aptitudes:
 
         def _sort_key(a: UniqueAppliedAptitude) -> tuple[int, int, int, str]:
             if isinstance(a.item, Skill):
-                return (0, a.item.base_code, 0, "")
+                return (0, a.item.code[2], 0, "")
             if isinstance(a.item, Knowledge):
-                return (1, int(a.item.associated_skill), int(a.item.base_code), str(a.item.focus))
+                return (1, int(a.item.code[1]), int(a.item.code[0]), str(a.item.code[2]))
             # Should never happen, but keeps sorting total.
             return (2, 0, 0, "")
 

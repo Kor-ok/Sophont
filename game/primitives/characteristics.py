@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from game.mappings import (
+from game.primitives import (
     CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES,
     CHARACTERISTICS_MASTER_CATEGORY_CODES,  # noqa: F401
     CHARACTERISTICS_MATRIX,  # noqa: F401
 )
-from game.mappings.attributebase import AttributeBase
-from game.mappings.data import (
+from game.primitives.base import PrimitiveAttributeBase
+from game.primitives.data import (
     AliasMappedFullCodeCollection,
     CanonicalCodeInt,
     FullCode,
@@ -15,7 +15,7 @@ from game.mappings.data import (
 )
 
 
-class Characteristics(AttributeBase):
+class Characteristics(PrimitiveAttributeBase):
     """
     
     """

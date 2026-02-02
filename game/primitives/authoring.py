@@ -11,7 +11,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     np = None  # type: ignore[assignment]
 
-from game.mappings.data import (
+from game.primitives.data import (
     AliasMappedFullCode,
     CanonicalCodeInt,
     FullCode,

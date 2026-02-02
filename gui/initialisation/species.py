@@ -3,17 +3,17 @@ from __future__ import annotations
 from collections import defaultdict
 from random import choice, randint
 
-from game.attributes.characteristic import Characteristic
-from game.attributes.gene import Gene
-from game.attributes.genotype import Genotype
-from game.attributes.phene import Phene
-from game.attributes.species import Species
-from game.mappings.data import (
+from game.primitives.data import (
     AliasMappedFullCode,
     FullCode,
 )
-from game.mappings.set import ATTRIBUTES
+from game.primitives.set import ATTRIBUTES
 from game.uid.guid import GUID, NameSpaces
+from sophont.attributes.characteristic import Characteristic
+from sophont.attributes.gene import Gene
+from sophont.attributes.genotype import Genotype
+from sophont.attributes.phene import Phene
+from sophont.attributes.species import Species
 from sophont.character import Sophont
 
 CharacteristicName = str
@@ -124,14 +124,14 @@ def create_random_genotype() -> Genotype:
     def _create_random_gene(code: FullCode) -> Gene:
         characteristic = Characteristic.by_code(code)
         die_mult = randint(1, 6)
-        precidence = randint(-1, 1)
+        precedence = randint(-1, 1)
         inheritance_contributors = _inheritance_contributors
         gender_link = randint(-1, _inheritance_contributors)
         caste_link = randint(-1, 16)
         return Gene(
             characteristic=characteristic,
             die_mult=die_mult,
-            precidence=precidence,
+            precedence=precedence,
             gender_link=gender_link,
             caste_link=caste_link,
             inheritance_contributors=inheritance_contributors,
@@ -139,18 +139,18 @@ def create_random_genotype() -> Genotype:
 
     genes = [_create_random_gene(code) for code in characteristics_by_upp_index_genes]
     phenes = [Phene.by_characteristic_code(code) for code in characteristics_by_upp_index_phenes]
-    return Genotype.of(genes, phenes)
+    return Genotype(genes, phenes)
 
 def create_alien_genotype() -> Genotype:
     # Let's make a non-default Caste gene that it gets from a THIRD parent i.e. inheritance_contributors = 3
     # And has a die multiplier of 3
-    # Make it a -1 precidence
+    # Make it a -1 precedence
     # And make the caste_link (arbitrarily) 4 i.e. the fourth caste
 
     alien_caste_gene = Gene(
         characteristic=Characteristic.by_name("Caste"),
         die_mult=3,
-        precidence=-1,
+        precedence=-1,
         caste_link=4,
         inheritance_contributors=3
     )
@@ -206,22 +206,22 @@ def create_aslan_genotype() -> Genotype:
 
 def create_species_with_human_genotype() -> Species:
     human_genotype = create_human_genotype()
-    human_species = Species(genotype=human_genotype, uuid=HUMAN_UUID)
+    human_species = Species(genotype=human_genotype, guid=HUMAN_UUID)
     return human_species
 
 def create_species_with_random_genotype() -> Species:
     random_genotype = create_random_genotype()
-    random_species = Species(genotype=random_genotype, uuid=ALIEN_UUID)
+    random_species = Species(genotype=random_genotype, guid=ALIEN_UUID)
     return random_species
 
 def create_species_with_alien_genotype() -> Species:
     alien_genotype = create_alien_genotype()
-    alien_species = Species(genotype=alien_genotype, uuid=ALIEN_UUID)
+    alien_species = Species(genotype=alien_genotype, guid=ALIEN_UUID)
     return alien_species
 
 def create_species_with_aslan_genotype() -> Species:
     aslan_genotype = create_aslan_genotype()
-    aslan_species = Species(genotype=aslan_genotype, uuid=ASLAN_UUID)
+    aslan_species = Species(genotype=aslan_genotype, guid=ASLAN_UUID)
     return aslan_species
 
 example_sophont_1 = Sophont(species=create_species_with_human_genotype())

@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from enum import IntFlag, auto
 from typing import Union
 
-from game.package import AttributePackage
 from game.uid.guid import GUID, NameSpaces
+from sophont.attributes.package import AttributePackage
 
 
 class LogicFlag(IntFlag):

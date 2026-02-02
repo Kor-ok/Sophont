@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from game.mappings.data import (
+from game.primitives.data import (
     AliasMap,
     CanonicalCodeInt,
 )

@@ -13,7 +13,7 @@ does_excel_file_exist = os.path.isfile(XLSX_PATH)
 if not does_excel_file_exist:
     raise FileNotFoundError(f"Could not find expected mappings file at path: {XLSX_PATH}")
 
-_excel = importlib.import_module("game.mappings.init_mappings")
+_excel = importlib.import_module("game.primitives.init_mappings")
 
 
 SKILLS_MASTER_CATEGORY_CODES = MappingProxyType(dict(_excel.SKILLS_MASTER_CATEGORY_CODES))

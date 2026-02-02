@@ -6,14 +6,14 @@ from typing import Optional
 
 from nicegui import ui
 
-from game.attributes.skill import Skill
-from game.mappings.data import FullCode
-from game.mappings.set import ATTRIBUTES
+from game.primitives.data import FullCode
+from game.primitives.set import ATTRIBUTES
 from gui.forms.attribute_builder_base import (
     AttributeBuilderBase,
     AttributeType,
     SelectedAttributeDisplayBase,
 )
+from sophont.attributes.skill import Skill
 
 
 class DisplayOptionType(Enum):

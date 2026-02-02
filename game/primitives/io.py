@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Final, Union
 
-from game.mappings.set import AttributesSet
+from game.primitives.set import AttributesSet
 
 CUSTOM_SKILLS_SCHEMA_VERSION: Final[int] = 1
 StringAliases = tuple[str, ...]

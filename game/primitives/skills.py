@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from game.mappings import (
+from game.primitives import (
     SKILLS_BASE_SKILL_CODES,
     SKILLS_MAPPING_BASE_SKILL_CODE_TO_CATEGORIES,
     SKILLS_MASTER_CATEGORY_CODES,
     SKILLS_SUB_CATEGORY_CODES,
 )
-from game.mappings.attributebase import AttributeBase
-from game.mappings.data import (
+from game.primitives.base import PrimitiveAttributeBase
+from game.primitives.data import (
     AliasMappedFullCodeCollection,
     CanonicalCodeInt,
     MutabilityLevel,
@@ -15,7 +15,7 @@ from game.mappings.data import (
 )
 
 
-class Skills(AttributeBase):
+class Skills(PrimitiveAttributeBase):
     """Handles populating default skills and managing the mapping of custom skills.
     
     """

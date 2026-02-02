@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from game.mappings import (
+from game.primitives import (
     KNOWLEDGES_BASE_KNOWLEDGE_CODES,
     KNOWLEDGES_FULL_CODE_TO_STR_ALIASES,
 )
-from game.mappings.attributebase import AttributeBase
-from game.mappings.data import (
+from game.primitives.base import PrimitiveAttributeBase
+from game.primitives.data import (
     AliasMappedFullCodeCollection,
     CanonicalCodeInt,
     MutabilityLevel,
@@ -13,7 +13,7 @@ from game.mappings.data import (
 )
 
 
-class Knowledges(AttributeBase):
+class Knowledges(PrimitiveAttributeBase):
 
     __slots__ = (
         "master_knowledge_code_name_aliases_dict",

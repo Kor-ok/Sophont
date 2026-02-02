@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import game.event as venture
-from game.attributes.characteristic import Characteristic
-from game.attributes.package import AttributePackage
-from game.attributes.skill import Skill
+from sophont.attributes.characteristic import Characteristic
+from sophont.attributes.package import AttributePackage
+from sophont.attributes.skill import Skill
 
 
 def initialise_example_packages() -> None:
@@ -13,13 +13,13 @@ def initialise_example_packages() -> None:
     example_skill_package = AttributePackage(
         item = Skill.by_name("vacc suit"),
         level = 2,
-        context_id = 123456789
+        context_guid = 123456789
     )
 
     example_characteristic_package = AttributePackage(
         item = Characteristic.by_name("soc"),
         level = 3,
-        context_id = 987654321
+        context_guid = 987654321
     )
 
 homeworld_event = venture.Event(name="Example Homeworld Venture")

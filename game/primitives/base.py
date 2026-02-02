@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 from itertools import chain
 from typing import ClassVar, TypeVar
 
-from game.mappings.data import (
+from game.primitives.data import (
     AliasMappedFullCode,
     AliasMappedFullCodeCollection,
     CanonicalStrKey,
@@ -13,10 +13,10 @@ from game.mappings.data import (
     StringAliases,
 )
 
-TAttributeBase = TypeVar("TAttributeBase", bound="AttributeBase")
+TAttributeBase = TypeVar("TAttributeBase", bound="PrimitiveAttributeBase")
 
 
-class AttributeBase:
+class PrimitiveAttributeBase:
     """Base Class for Skill, Knowledge, Characteristics Data.
 
     Handles the retrieval of default data, user-defined custom data and the collation of both
@@ -40,14 +40,14 @@ class AttributeBase:
     custom_collection: AliasMappedFullCodeCollection
     combined_collection: AliasMappedFullCodeCollection
 
-    _instances: ClassVar[dict[type[AttributeBase], AttributeBase]] = {}
+    _instances: ClassVar[dict[type[PrimitiveAttributeBase], PrimitiveAttributeBase]] = {}
 
     def __new__(
         cls: type[TAttributeBase],
         *args: object,
         **kwargs: object,
     ) -> TAttributeBase:
-        existing = AttributeBase._instances.get(cls)
+        existing = PrimitiveAttributeBase._instances.get(cls)
         if existing is not None:
             return existing  # type: ignore[return-value]
 
@@ -74,7 +74,7 @@ class AttributeBase:
         object.__setattr__(self, "_combined_custom_version", -1)
         object.__setattr__(self, "_combined_default_id", 0)
         object.__setattr__(self, "_combined_custom_id", 0)
-        AttributeBase._instances[cls] = self
+        PrimitiveAttributeBase._instances[cls] = self
         return self  # type: ignore[return-value]
 
     def __init__(self) -> None:

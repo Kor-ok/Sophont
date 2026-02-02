@@ -5,7 +5,7 @@ from collections.abc import Callable
 from humanize import time
 from nicegui import ui
 
-from game.mappings.gender import _BASE as gender_map
+from game.primitives.gender import _BASE as gender_map
 from game.uid.guid import GUID
 from gui import styles
 from gui.computed.upp import UPPDisplay
@@ -92,23 +92,23 @@ class CharacterCard(ui.column):
     def _build_profile_picture(self) -> None:
         with ui.element("div").classes(styles.CHARACTER_IMAGE_FRAME):
                 image_set = "set2"  # 'set2' is alien-themed 'set4' is cats
-                # If SPECIES_MAP uuid matches "Human", use 'set5' which is human-themed
-                if self.character.epigenetics.species.uuid == SPECIES_MAP["Human"]:
+                # If SPECIES_MAP guid matches "Human", use 'set5' which is human-themed
+                if self.character.epigenetics.species.guid == SPECIES_MAP["Human"]:
                     image_set = "set5"
                 elif (
-                    self.character.epigenetics.species.uuid == SPECIES_MAP["Aslan"]
+                    self.character.epigenetics.species.guid == SPECIES_MAP["Aslan"]
                 ):
                     image_set = "set4"
                 ui.image(
-                    f"https://robohash.org/{self.character.uuid}?set={image_set}"
+                    f"https://robohash.org/{self.character.guid}?set={image_set}"
                 ).classes(styles.CHARACTER_IMAGE)
 
     def _build_debug_info(self) -> None:
         if IS_DEBUG:
-                        ui.label("Character UUID:")
-                        ui.label(GUID.uid_to_string(self.character.uuid))
-                        ui.label("Species UUID:")
-                        ui.label(GUID.uid_to_string(self.character.epigenetics.species.uuid))
+                        ui.label("Character GUID:")
+                        ui.label(GUID.uid_to_string(self.character.guid))
+                        ui.label("Species GUID:")
+                        ui.label(GUID.uid_to_string(self.character.epigenetics.species.guid))
 
     def _build_name_input(self) -> None:
         ui.label("Name:")
@@ -135,8 +135,8 @@ class CharacterCard(ui.column):
     def _build_parentage_display(self) -> None:
         ui.label("Parents:")
         ui.label(
-            str(len(self.character.epigenetics.parent_uuids) - 1) # Exclude 'Self'
-        ).tooltip(f"UUIDs: {[pu for pu in self.character.epigenetics.parent_uuids if pu != self.character.uuid]}")
+            str(len(self.character.epigenetics.parent_guids) - 1) # Exclude 'Self'
+        ).tooltip(f"GUIDs: {[pu for pu in self.character.epigenetics.parent_guids if pu != self.character.guid]}")
 
     def _build_gender_display(self) -> None:
         ui.label("Gender:")
@@ -149,10 +149,10 @@ class CharacterCard(ui.column):
         )
     
     def _build_genotype_display(self) -> None:
-        # Get Species Name by matching species.uuid to SPECIES_MAP
+        # Get Species Name by matching species.guid to SPECIES_MAP
         species_name = "ERROR"
-        for name, uuid in SPECIES_MAP.items():
-            if uuid == self.character.epigenetics.species.uuid:
+        for name, guid in SPECIES_MAP.items():
+            if guid == self.character.epigenetics.species.guid:
                 species_name = name
                 break
         ui.label(f"Genotype: {species_name}")

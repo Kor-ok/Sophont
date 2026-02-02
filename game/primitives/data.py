@@ -7,7 +7,7 @@ from typing import Any, Final
 
 from typing_extensions import TypeAlias
 
-from game.mappings.utils import AttributeViewHeader, _normalize
+from game.primitives.utils import AttributeViewHeader, _normalize
 
 
 class MutabilityLevel(Enum):

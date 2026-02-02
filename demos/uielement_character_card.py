@@ -69,7 +69,7 @@ def render_debug_view(character: Sophont | None) -> None:
         for acquired in character.epigenetics.acquired_packages_collection:
             item_name, _ = acquired.package.item.get_name()
             type_name = type(acquired.package.item).__name__
-            epigenetics_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, Inherited From: {GUID.uid_to_string(acquired.context)})"
+            epigenetics_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, Inherited From: {GUID.uid_to_string(acquired.context_guid)})"
 
         aptitudes_collation_data: str = ""
         for entry in character.aptitudes.aptitude_collation or []:
@@ -80,7 +80,7 @@ def render_debug_view(character: Sophont | None) -> None:
         for acquired in character.aptitudes.acquired_packages_collection:
             item_name, _ = acquired.package.item.get_name()
             type_name = type(acquired.package.item).__name__
-            aptitudes_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, Context: {GUID.uid_to_string(acquired.context)})"
+            aptitudes_packages_data += f"\n- {item_name} ({type_name}): {acquired.package.level} (Acquired Age: {acquired.age_acquired_seconds}, context_guid: {GUID.uid_to_string(acquired.context_guid)})"
 
         debug_fields: list[tuple[str, object]] = [
             ("Epigenetics Collation", epigenetics_collation_data),

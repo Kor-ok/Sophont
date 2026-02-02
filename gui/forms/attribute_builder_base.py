@@ -7,8 +7,8 @@ from typing import Any, Optional, TypeVar
 
 from nicegui import ui
 
-from game.mappings.data import FullCode
-from game.mappings.set import ATTRIBUTES
+from game.primitives.data import FullCode
+from game.primitives.set import ATTRIBUTES
 
 
 class AttributeType(Enum):

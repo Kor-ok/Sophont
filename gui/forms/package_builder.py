@@ -5,18 +5,18 @@ from typing import Optional, Union
 
 from nicegui import ui
 
-from game.attributes.characteristic import Characteristic
-from game.attributes.gene import Gene
-from game.attributes.knowledge import Knowledge
-from game.attributes.package import AttributePackage, T
-from game.attributes.phene import Phene
-from game.attributes.skill import Skill
-from game.mappings.data import (
+from game.primitives.data import (
     AliasMap,
     AliasMappedFullCode,
     FullCode,
 )
-from game.mappings.set import ATTRIBUTES
+from game.primitives.set import ATTRIBUTES
+from sophont.attributes.characteristic import Characteristic
+from sophont.attributes.gene import Gene
+from sophont.attributes.knowledge import Knowledge
+from sophont.attributes.package import AttributePackage, T
+from sophont.attributes.phene import Phene
+from sophont.attributes.skill import Skill
 
 ItemType = Union[type[Skill], type[Knowledge], type[Gene], type[Phene], type[Characteristic]]
 
@@ -178,7 +178,7 @@ class PackageBuilder(ui.card):
         self._attribute_selector: Optional[CharacterAttributeSelector] = None
         self._attribute_display_row: Optional[ui.row] = None
         self._level_input: Optional[ui.number] = None
-        self._context_input: Optional[ui.input] = None
+        self._context_guid_input: Optional[ui.input] = None
 
         self._build_form()
 
@@ -204,8 +204,8 @@ class PackageBuilder(ui.card):
                 label="Level Modifier",
                 value=None,
             )
-            self._context_input = ui.input(
-                label="Context (optional)",
+            self._context_guid_input = ui.input(
+                label="context_guid (optional)",
                 placeholder="E.g. Event name or source",
             )
 

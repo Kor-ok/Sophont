@@ -180,8 +180,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Mock
-mock/
+# My stuff
+learning/
 
 # Data files
 data/

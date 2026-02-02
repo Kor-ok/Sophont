@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from game.attributes.characteristic import Characteristic
+from sophont.attributes.characteristic import Characteristic
 
 SECONDS_PER_HOUR = 3600
 

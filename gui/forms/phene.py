@@ -4,7 +4,7 @@ from typing import Callable, Optional
 
 from nicegui import ui
 
-from game.attributes.phene import Phene
+from sophont.attributes.phene import Phene
 
 
 def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = None):
@@ -39,9 +39,9 @@ def phene_form(options: list[str], on_add: Optional[Callable[[Phene], None]] = N
 
             try:
                 phene = Phene.by_characteristic_name(
-                    characteristic_name=str(characteristic_name),
-                    expression_precedence=int(expression_value_input.value or 0),
-                    contributor_uuid=contributor_uuid,
+                    name=str(characteristic_name),
+                    precedence=int(expression_value_input.value or 0),
+                    contributor_guid=contributor_uuid,
                     is_grafted=bool(is_grafted_checkbox.value),
                 )
             except Exception as exc:  # NiceGUI callback boundary

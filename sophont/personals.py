@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from textwrap import indent
 from typing import cast
 
 from sortedcontainers import SortedKeyList
 
-from game.attributes.characteristic import Characteristic
-from game.attributes.package import AttributePackage
 from game.personal_day import PersonalDay
+from game.primitives.data import FullCode
 from sophont.acquisitions import Acquired
+from sophont.attributes.characteristic import Characteristic
+from sophont.attributes.package import AttributePackage
 
 
 def _package_key(acquired: Acquired) -> int:
@@ -42,17 +42,17 @@ class Personals:
         self,
         package: AttributePackage,
         age_acquired_seconds: int,
-        context: int,
+        context_guid: int,
         trigger_collation: bool = False,
     ) -> bool:
         """Insert an acquired package if not already present.
 
-        Returns True if inserted, False if duplicate (same package+context already exists).
+        Returns True if inserted, False if duplicate (same package+context_guid already exists).
         """
         acquired = Acquired.by_age(
-            package=package, age_seconds=age_acquired_seconds, context=context
+            package=package, age_seconds=age_acquired_seconds, context_guid=context_guid
         )
-        # Check for duplicate (same package+context) before adding
+        # Check for duplicate (same package+context_guid) before adding
         if acquired in self.acquired_packages_collection:
             return False
         self.acquired_packages_collection.add(acquired)
@@ -64,16 +64,16 @@ class Personals:
         self,
         package: AttributePackage,
         age_acquired_seconds: int,
-        context: int,
+        context_guid: int,
         trigger_collation: bool = False,
     ) -> bool:
         """Remove an acquired package if present.
 
         Returns True if removed, False if not found.
-        Note: age_acquired_seconds is not used for matching (equality is by package+context only).
+        Note: age_acquired_seconds is not used for matching (equality is by package+context_guid only).
         """
         acquired = Acquired.by_age(
-            package=package, age_seconds=age_acquired_seconds, context=context
+            package=package, age_seconds=age_acquired_seconds, context_guid=context_guid
         )
         try:
             self.acquired_packages_collection.remove(acquired)
@@ -98,28 +98,28 @@ class Personals:
         # a UniqueAppliedCharacteristic for each unique Characteristic and apply the summed level
         # whilst preserving any training_progress from previous collation.
 
-        previous_training_progress: dict[Characteristic.Key, float] = {}
+        previous_training_progress: dict[FullCode, float] = {}
         if self.attributes_collation is not None:
             for characteristic in self.attributes_collation:
-                key: Characteristic.Key = (
-                    characteristic.item.upp_index,
-                    characteristic.item.subtype,
-                    characteristic.item.category_code,
+                key: FullCode = (
+                    characteristic.item.code[0],
+                    characteristic.item.code[1],
+                    characteristic.item.code[2],
                 )
                 previous_training_progress[key] = float(characteristic.training_progress)
 
-        level_by_characteristic: dict[Characteristic.Key, int] = {}
-        characteristic_by_key: dict[Characteristic.Key, Characteristic] = {}
+        level_by_characteristic: dict[FullCode, int] = {}
+        characteristic_by_key: dict[FullCode, Characteristic] = {}
 
         for acquired in self.acquired_packages_collection:
             package = acquired.package
             # Package items are Gene/Phene; we collate by their shared Characteristic.
             item = cast(Characteristic, package.item)
             characteristic = item
-            key: Characteristic.Key = (
-                characteristic.upp_index,
-                characteristic.subtype,
-                characteristic.category_code,
+            key: FullCode = (
+                characteristic.code[0],
+                characteristic.code[1],
+                characteristic.code[2],
             )
 
             level_by_characteristic[key] = level_by_characteristic.get(key, 0) + int(package.level)
@@ -140,21 +140,6 @@ class Personals:
 
         self.attributes_collation = sorted(
             collation,
-            key=lambda a: (a.item.upp_index, a.item.subtype, a.item.category_code),
+            key=lambda a: (a.item.code[0], a.item.code[1], a.item.code[2]),
         )
         self.is_packages_dirty = False
-
-        def __repr__(self) -> str:
-            indentation = "  "
-            display = []
-            display.append(
-                f"acquired_packages_collection=[{', '.join(repr(acq) for acq in self.acquired_packages_collection)}]"
-            )
-            if self.attributes_collation is None:
-                display.append("attributes_collation=None")
-            else:
-                display.append(
-                    f"attributes_collation=[{', '.join(repr(char) for char in self.attributes_collation)}]"
-                )
-            # Join with Newlines for readability
-            return "Personals(\n" + indent(",\n".join(display), indentation) + "\n)"
