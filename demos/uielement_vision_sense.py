@@ -40,6 +40,7 @@ def _convert_linear_tif_to_filtered_data_uri(
     *,
     gamma: float = 2.2,
     apply_gamma: bool = True,
+    apply_ui_overlay: bool = True,
 ) -> str:
     """Convert a 32-bit linear TIFF to a base64 PNG data URI for direct use in NiceGUI.
 
@@ -96,6 +97,20 @@ def _convert_linear_tif_to_filtered_data_uri(
         rgb_n = np.power(rgb_n, 1.0 / float(gamma), dtype=np.float32)
 
     rgb_u8 = (rgb_n * 255.0 + 0.5).astype(np.uint8)
+
+    # Apply UI overlay tif_path = append "_UI" and ".png" for the overlay whose alpha channel will be blended
+    if apply_ui_overlay:
+        overlay_path = tif_path.parent / (tif_path.stem + "_UI.png")
+        if overlay_path.exists():
+            with Image.open(overlay_path) as overlay_img:
+                overlay_img = overlay_img.convert("RGBA")
+                overlay_arr = np.asarray(overlay_img).astype(np.float32) / 255.0
+            overlay_rgb = overlay_arr[..., :3]
+            overlay_alpha = overlay_arr[..., 3:4]
+
+            rgb_f = rgb_u8.astype(np.float32) / 255.0
+            rgb_f = rgb_f * (1.0 - overlay_alpha) + overlay_rgb * overlay_alpha
+            rgb_u8 = (np.clip(rgb_f, 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)
 
     # Encode to PNG in memory and return as base64 data URI.
     out = Image.fromarray(rgb_u8)

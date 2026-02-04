@@ -192,4 +192,6 @@ data/
 # Assets
 *.psd
 *.tif
+*.png
 !**/vision_chart.tif
+!**/vision_chart_UI.png
