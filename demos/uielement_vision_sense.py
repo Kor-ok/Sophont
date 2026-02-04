@@ -16,9 +16,10 @@ PerChannelLatitudes = tuple[ChannelValueRange, ChannelValueRange, ChannelValueRa
 
 class VisionSenseCodec:
     BIT_DEPTH: int = 32  # bits per channel
-    INCREMENT: np.float32 = np.float32(1) / BIT_DEPTH
+    INTENSITY_INCREMENT = 1.0 / BIT_DEPTH
+
     SPECTRUM_SEGMENTS: int = 16  # number of discrete segments in the vision spectrum
-    SPECTRUM_SEGMENT_WIDTH: np.float32 = np.float32(1) / SPECTRUM_SEGMENTS
+    SPECTRUM_SEGMENT_WIDTH = 1.0 / SPECTRUM_SEGMENTS
 
     @staticmethod
     def compute_per_channel_latitudes(bands: tuple[int, int, int]) -> PerChannelLatitudes:
@@ -27,7 +28,7 @@ class VisionSenseCodec:
         def _band_to_range(band: int) -> ChannelValueRange:
             segment = band * VisionSenseCodec.SPECTRUM_SEGMENT_WIDTH
             min_value = np.float32(segment)
-            max_value = np.float32(segment) + VisionSenseCodec.SPECTRUM_SEGMENT_WIDTH
+            max_value = np.float32(segment + VisionSenseCodec.SPECTRUM_SEGMENT_WIDTH) 
             return (min_value, max_value)
 
         return (_band_to_range(bands[0]), _band_to_range(bands[1]), _band_to_range(bands[2]))
@@ -107,8 +108,10 @@ def _convert_linear_tif_to_filtered_data_uri(
 # Convert tif to data URI for NiceGUI display (no disk write, always fresh on reload)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 tif_image_path = REPO_ROOT / "game" / "primitives" / "vision_chart.tif"
-sense_values = (7, 6, 5)
+
+sense_values = (9, 8, 7)
 per_channel_latitudes = VisionSenseCodec.compute_per_channel_latitudes(sense_values)
+
 image_data_uri = _convert_linear_tif_to_filtered_data_uri(tif_image_path, per_channel_latitudes)
 
 with ui.header().classes("items-center justify-center bg-deep-orange-10 q-ma-none"):

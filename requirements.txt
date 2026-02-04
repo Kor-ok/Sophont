@@ -37,6 +37,7 @@ orjson==3.11.5
 packaging==25.0
 pandas==2.3.3
 pathspec==1.0.3
+pillow==11.3.0
 platformdirs==4.4.0
 propcache==0.4.1
 pydantic==2.12.5
