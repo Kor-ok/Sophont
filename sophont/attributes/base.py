@@ -1,3 +1,22 @@
+"""
+                    ┌─────────────────────────────────────┐
+                    │         AppliedAttributeBase        │
+                    │  (thread-safe cache, immutability)  │
+                    └─────────────────┬───────────────────┘
+                                      │
+          ┌───────────────────────────┼───────────────────────────┐
+          │                           │                           │
+          ▼                           ▼                           ▼
+┌─────────────────────┐   ┌─────────────────────┐   ┌────────────────────────┐
+│  FullCodeAttribute  │   │  CompositeAttribute │   │ CollectionComposite    │
+│  (leaf flyweights)  │   │  (wrap 1 attribute) │   │ (aggregate flyweights) │
+├─────────────────────┤   ├─────────────────────┤   ├────────────────────────┤
+│ • Characteristic    │   │ • Gene              │   │ • Genotype             │
+│ • Skill             │   │ • Phene             │   │ • AttributePackage     │
+│ • Knowledge         │   │                     │   │                        │
+└─────────────────────┘   └─────────────────────┘   └────────────────────────┘
+"""
+
 from __future__ import annotations
 
 import threading

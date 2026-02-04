@@ -188,3 +188,8 @@ data/
 *.csv
 *.json
 *.bin
+
+# Assets
+*.psd
+*.tif
+!**/vision_chart.tif
