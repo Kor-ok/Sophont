@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from components.location import Location
+from humaniseT5.space.location import Location
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import Epigenetics
 from sophont.personals import Personals

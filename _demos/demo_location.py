@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from components.location import ChartedSpace, Location, SystemSpace, WorldSpace
+from humaniseT5.space.location import ChartedSpace, Location, SystemSpace, WorldSpace
 
 
 def demo_low_level_packing() -> None:
