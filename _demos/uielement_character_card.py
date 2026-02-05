@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from _gui import styles
+from _gui.forms.character import CharacterCard, CharacterSelector
+from _gui.initialisation.character import initialise_example_data
+from _gui.initialisation.species import CHARACTER_OPTIONS, SPECIES_MAP
+from _gui.initialisation.state import active_character_card_state
 from entities.sophont.character import Sophont
-from gui import styles
-from gui.forms.character import CharacterCard, CharacterSelector
-from gui.initialisation.character import initialise_example_data
-from gui.initialisation.species import CHARACTER_OPTIONS, SPECIES_MAP
-from gui.initialisation.state import active_character_card_state
 from systems.uid.guid import GUID
 
 # https://quasar.dev/layout/grid/flex-playground

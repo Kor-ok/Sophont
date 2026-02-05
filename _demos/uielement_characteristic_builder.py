@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from gui import styles
-from gui.element.popchip import Popchip
-from gui.forms.characteristic_builder import CharacteristicBuilder
+from _gui import styles
+from _gui.element.popchip import Popchip
+from _gui.forms.characteristic_builder import CharacteristicBuilder
 
 # https://quasar.dev/layout/grid/flex-playground
 

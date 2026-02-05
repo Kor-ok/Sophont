@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from gui import styles
-from gui.forms.package_builder import PackageBuilder
+from _gui import styles
+from _gui.forms.package_builder import PackageBuilder
 
 # https://quasar.dev/layout/grid/flex-playground
 

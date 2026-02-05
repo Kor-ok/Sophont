@@ -5,8 +5,8 @@ from collections.abc import Mapping, Sequence
 
 from nicegui import ui
 
+from _gui import styles
 from entities.sophont.character import Sophont
-from gui import styles
 from systems.attributes.gene import Gene
 from systems.attributes.phene import Phene
 

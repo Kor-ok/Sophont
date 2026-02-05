@@ -8,7 +8,7 @@ import numpy as np
 from nicegui import ui
 from PIL import Image
 
-from gui import styles
+from _gui import styles
 
 ChannelValueRange = tuple[np.float32, np.float32]
 PerChannelLatitudes = tuple[ChannelValueRange, ChannelValueRange, ChannelValueRange]

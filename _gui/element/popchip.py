@@ -5,7 +5,7 @@ from typing import Literal, Optional, Union
 
 from nicegui import ui
 
-import gui.styles as styles
+import _gui.styles as styles
 from systems.attributes.gene import Gene
 from systems.attributes.phene import Phene
 

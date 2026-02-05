@@ -5,13 +5,13 @@ from typing import Optional
 
 from nicegui import ui
 
-from components.primitives.data import FullCode
-from components.primitives.set import ATTRIBUTES
-from gui.forms.attribute_builder_base import (
+from _gui.forms.attribute_builder_base import (
     AttributeBuilderBase,
     AttributeType,
     SelectedAttributeDisplayBase,
 )
+from components.primitives.data import FullCode
+from components.primitives.set import ATTRIBUTES
 from systems.attributes.characteristic import Characteristic
 
 

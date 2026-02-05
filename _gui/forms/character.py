@@ -5,12 +5,12 @@ from collections.abc import Callable
 from humanize import time
 from nicegui import ui
 
+from _gui import styles
+from _gui.computed.upp import UPPDisplay
+from _gui.initialisation.globals import IS_DEBUG
+from _gui.initialisation.species import SPECIES_MAP
 from components.primitives.gender import _BASE as gender_map
 from entities.sophont.character import Sophont
-from gui import styles
-from gui.computed.upp import UPPDisplay
-from gui.initialisation.globals import IS_DEBUG
-from gui.initialisation.species import SPECIES_MAP
 from systems.uid.guid import GUID
 
 

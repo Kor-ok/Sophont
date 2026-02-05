@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from random import randint
 
+from _gui.initialisation.species import example_sophont_1
 from components.primitives.set import ATTRIBUTES
-from gui.initialisation.species import example_sophont_1
 from systems.attributes.package import AttributePackage
 from systems.attributes.phene import Phene
 from systems.attributes.skill import Skill

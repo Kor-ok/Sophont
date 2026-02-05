@@ -5,8 +5,8 @@ from typing import Any, Literal
 
 from nicegui import events, ui
 
+from _gui import styles
 from api.travellermap import TravellerMapAPI
-from gui import styles
 
 api = TravellerMapAPI()
 running_query: asyncio.Task | None = None
