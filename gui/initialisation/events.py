@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import game.event as venture
-from sophont.attributes.characteristic import Characteristic
-from sophont.attributes.package import AttributePackage
-from sophont.attributes.skill import Skill
+import systems.event as venture
+from systems.attributes.characteristic import Characteristic
+from systems.attributes.package import AttributePackage
+from systems.attributes.skill import Skill
 
 
 def initialise_example_packages() -> None:

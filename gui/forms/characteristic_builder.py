@@ -5,14 +5,14 @@ from typing import Optional
 
 from nicegui import ui
 
-from game.primitives.data import FullCode
-from game.primitives.set import ATTRIBUTES
+from components.primitives.data import FullCode
+from components.primitives.set import ATTRIBUTES
 from gui.forms.attribute_builder_base import (
     AttributeBuilderBase,
     AttributeType,
     SelectedAttributeDisplayBase,
 )
-from sophont.attributes.characteristic import Characteristic
+from systems.attributes.characteristic import Characteristic
 
 
 def _master_category_display_option_builder(code: int) -> str:

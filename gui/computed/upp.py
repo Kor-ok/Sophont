@@ -5,10 +5,10 @@ from collections.abc import Mapping, Sequence
 
 from nicegui import ui
 
+from entities.sophont.character import Sophont
 from gui import styles
-from sophont.attributes.gene import Gene
-from sophont.attributes.phene import Phene
-from sophont.character import Sophont
+from systems.attributes.gene import Gene
+from systems.attributes.phene import Phene
 
 
 class UPPDisplay(ui.column):

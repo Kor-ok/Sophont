@@ -3,18 +3,18 @@ from __future__ import annotations
 from collections import defaultdict
 from random import choice, randint
 
-from game.primitives.data import (
+from components.primitives.data import (
     AliasMappedFullCode,
     FullCode,
 )
-from game.primitives.set import ATTRIBUTES
-from game.uid.guid import GUID, NameSpaces
-from sophont.attributes.characteristic import Characteristic
-from sophont.attributes.gene import Gene
-from sophont.attributes.genotype import Genotype
-from sophont.attributes.phene import Phene
-from sophont.attributes.species import Species
-from sophont.character import Sophont
+from components.primitives.set import ATTRIBUTES
+from entities.sophont.character import Sophont
+from systems.attributes.characteristic import Characteristic
+from systems.attributes.gene import Gene
+from systems.attributes.genotype import Genotype
+from systems.attributes.phene import Phene
+from systems.attributes.species import Species
+from systems.uid.guid import GUID, NameSpaces
 
 CharacteristicName = str
 CharacteristicCodeCollection = list[FullCode]

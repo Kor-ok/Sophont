@@ -55,7 +55,7 @@ The design splits the world into two layers:
 
 - **Personals** (acquired characteristics packages constrained by Epigenetics over time, specifically for granular state management where packages can act as temporary modifiers. For instance, T5 Personal Day and T5 burden tracking. Packages here will include as yet implemented Location, Injury, etc tracking.)
 
-The top-level class is `sophont.character.Sophont`.
+The top-level class is `entities.sophont.character.Sophont`.
 
 ### Flyweight immutable items + mutable “applied” state
 

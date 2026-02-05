@@ -5,13 +5,13 @@ from collections.abc import Callable
 from humanize import time
 from nicegui import ui
 
-from game.primitives.gender import _BASE as gender_map
-from game.uid.guid import GUID
+from components.primitives.gender import _BASE as gender_map
+from entities.sophont.character import Sophont
 from gui import styles
 from gui.computed.upp import UPPDisplay
 from gui.initialisation.globals import IS_DEBUG
 from gui.initialisation.species import SPECIES_MAP
-from sophont.character import Sophont
+from systems.uid.guid import GUID
 
 
 def format_age(age_seconds: int) -> str:

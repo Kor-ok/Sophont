@@ -6,8 +6,8 @@ from typing import Literal, Optional, Union
 from nicegui import ui
 
 import gui.styles as styles
-from sophont.attributes.gene import Gene
-from sophont.attributes.phene import Phene
+from systems.attributes.gene import Gene
+from systems.attributes.phene import Phene
 
 _HERE = Path(__file__).resolve().parent
 

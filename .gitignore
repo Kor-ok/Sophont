@@ -181,7 +181,7 @@ cython_debug/
 .cursorindexingignore
 
 # My stuff
-learning/
+_learning/
 
 # Data files
 data/

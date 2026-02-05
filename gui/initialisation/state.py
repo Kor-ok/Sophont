@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
-from sophont.character import Sophont
+from entities.sophont.character import Sophont
 
 CharacterCardListener = Callable[[Optional[Sophont]], None]
 

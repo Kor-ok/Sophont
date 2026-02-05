@@ -5,18 +5,18 @@ from typing import Optional, Union
 
 from nicegui import ui
 
-from game.primitives.data import (
+from components.primitives.data import (
     AliasMap,
     AliasMappedFullCode,
     FullCode,
 )
-from game.primitives.set import ATTRIBUTES
-from sophont.attributes.characteristic import Characteristic
-from sophont.attributes.gene import Gene
-from sophont.attributes.knowledge import Knowledge
-from sophont.attributes.package import AttributePackage, T
-from sophont.attributes.phene import Phene
-from sophont.attributes.skill import Skill
+from components.primitives.set import ATTRIBUTES
+from systems.attributes.characteristic import Characteristic
+from systems.attributes.gene import Gene
+from systems.attributes.knowledge import Knowledge
+from systems.attributes.package import AttributePackage, T
+from systems.attributes.phene import Phene
+from systems.attributes.skill import Skill
 
 ItemType = Union[type[Skill], type[Knowledge], type[Gene], type[Phene], type[Characteristic]]
 
