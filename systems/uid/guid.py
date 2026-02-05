@@ -11,39 +11,37 @@ from random import randint
 # Thread-safe bounded cache for UID-to-string mappings with O(1) lookup
 _UID_STRING_CACHE_MAXLEN = 1000
 _lock = threading.Lock()
-_uid_store: set[int] = set()
-_uid_to_string_store: OrderedDict[int, str] = OrderedDict()
+_uid_store: set[GUID] = set()
+_uid_to_string_store: OrderedDict[GUID, str] = OrderedDict()
 
 
-class NameSpaces:
-    """Totalling 16 bits, defines the branching namespaces for GUID generation and lookup."""
-
-    class Entity(Enum):
-        """Of 8 bits, defines the first namespace for the GUID."""
-
-        CHARACTERS = 0o0
-        SPECIES = 0o1
-        PACKAGES = 0o2
-        EVENTS = 0o3
-
-    class Owner(Enum):
-        """Of 8 bits, defines the second namespace branching from the first for the GUID."""
-
-        PLAYER = 0o0
-        NPC = 0o1
-        ENV = 0o2
-
-
-class GUID:
+class GUID(int):
     """Stateless utility class managing the creation of non-clashing Global Unique Identifiers (GUID) for game entities.
 
     Namespaces are 8-bits each. The last 16-bits are randomly generated.
 
     Thread-safe: All operations on the global UID store are protected by a lock.
     """
+    class NameSpaces:
+        """Totalling 16 bits, defines the branching namespaces for GUID generation and lookup."""
+
+        class Entity(Enum):
+            """Of 8 bits, defines the first namespace for the GUID."""
+
+            CHARACTERS = 0o0
+            SPECIES = 0o1
+            PACKAGES = 0o2
+            EVENTS = 0o3
+
+        class Owner(Enum):
+            """Of 8 bits, defines the second namespace branching from the first for the GUID."""
+
+            PLAYER = 0o0
+            NPC = 0o1
+            ENV = 0o2
 
     @staticmethod
-    def _register_string(uid: int, name: str) -> None:
+    def _register_string(uid: GUID, name: str) -> None:
         """Register a UID-to-string mapping, evicting oldest if at capacity.
 
         Must be called while holding _lock.
@@ -63,17 +61,17 @@ class GUID:
         ns1: NameSpaces.Entity,
         ns2: NameSpaces.Owner,
         unique_id: int | None = None,
-    ) -> int:
+    ) -> GUID:
         """Construct the raw UID value without side effects."""
         if unique_id is None:
             unique_id = randint(0, 0xFFFF)
-        return (ns1.value << 24) | (ns2.value << 16) | unique_id
+        return GUID((ns1.value << 24) | (ns2.value << 16) | unique_id)
 
     @staticmethod
     def _build_name(
         ns1: NameSpaces.Entity,
         ns2: NameSpaces.Owner,
-        uid: int,
+        uid: GUID,
         name: str | None = None,
     ) -> str:
         """Build the string representation for a UID."""
@@ -87,7 +85,7 @@ class GUID:
         ns2: NameSpaces.Owner,
         unique_id: int | None = None,
         name: str | None = None,
-    ) -> int:
+    ) -> GUID:
         """Generate a unique identifier, retrying on collision.
 
         Thread-safe: uses lock to ensure atomic check-and-add.
@@ -115,7 +113,7 @@ class GUID:
         return uid
 
     @staticmethod
-    def remove(uid: int) -> bool:
+    def remove(uid: GUID) -> bool:
         """Remove a UID from the store. Returns True if it existed, False otherwise.
 
         Thread-safe.
@@ -128,27 +126,27 @@ class GUID:
             return False
 
     @staticmethod
-    def exists(uid: int) -> bool:
+    def exists(uid: GUID) -> bool:
         """Check if a UID exists in the store. Thread-safe."""
         with _lock:
             return uid in _uid_store
 
-    @staticmethod
-    def parse(uid: int) -> tuple[NameSpaces.Entity, NameSpaces.Owner, int]:
+    @property
+    def parse(self) -> tuple[NameSpaces.Entity, NameSpaces.Owner, int]:
         """Parse a UID into its namespace components. Pure function, no lock needed."""
-        ns1 = NameSpaces.Entity((uid >> 24) & 0xFF)
-        ns2 = NameSpaces.Owner((uid >> 16) & 0xFF)
-        unique_id = uid & 0xFFFF
+        ns1 = GUID.NameSpaces.Entity((self >> 24) & 0xFF)
+        ns2 = GUID.NameSpaces.Owner((self >> 16) & 0xFF)
+        unique_id = self & 0xFFFF
         return ns1, ns2, unique_id
 
-    @staticmethod
-    def uid_to_string(uid: int, full: bool = False) -> str:
+    @property
+    def uid_to_string(self, full: bool = False) -> str:
         """Look up the string representation of a UID. Thread-safe, O(1) lookup."""
         with _lock:
-            name = _uid_to_string_store.get(uid)
+            name = _uid_to_string_store.get(self)
         if name is not None:
             return name if full else name.split(".")[-1]
-        return f"NotFound_{uid:08X}"
+        return f"NotFound_{self:08X}"
 
     @staticmethod
     def clear() -> None:

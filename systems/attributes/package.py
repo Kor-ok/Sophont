@@ -9,7 +9,7 @@ from systems.attributes.gene import Gene
 from systems.attributes.knowledge import Knowledge
 from systems.attributes.phene import Phene
 from systems.attributes.skill import Skill
-from systems.uid.guid import GUID, NameSpaces
+from systems.uid.guid import GUID
 
 T = TypeVar("T", Skill, Knowledge, Gene, Phene, Characteristic)
 """
@@ -88,7 +88,7 @@ class AttributePackage(AppliedAttributeBase[PackageKey], Generic[T]):
     ) -> AttributePackage[T]:
         
         resolved_guid = (
-            GUID.generate(NameSpaces.Entity.PACKAGES, NameSpaces.Owner.PLAYER)
+            GUID.generate(GUID.NameSpaces.Entity.PACKAGES, GUID.NameSpaces.Owner.PLAYER)
             if context_guid is None
             else context_guid
         )

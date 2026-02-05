@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from systems.attributes.genotype import Genotype
-from systems.uid.guid import GUID, NameSpaces
+from systems.uid.guid import GUID
 
 
 class Species:
@@ -12,11 +12,11 @@ class Species:
         "genotype",
     )
 
-    def __init__(self, genotype: Genotype, guid: None | int = None):
+    def __init__(self, genotype: Genotype, guid: None | GUID = None):
         self.genotype: Genotype = genotype
         if guid is None:
-            guid = GUID.generate(NameSpaces.Entity.SPECIES, NameSpaces.Owner.ENV)
-        self.guid: int = guid
+            guid = GUID.generate(GUID.NameSpaces.Entity.SPECIES, GUID.NameSpaces.Owner.ENV)
+        self.guid: GUID = guid
     
 class Genus:
     __slots__ = (
@@ -24,22 +24,22 @@ class Genus:
         "species_collection",
     )
 
-    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_guid: None | int = None):
+    def __init__(self, species_collection: Iterable[Species], tree_of_life_node_guid: None | GUID = None):
         self.species_collection: tuple[Species, ...] = tuple(species_collection)
         if tree_of_life_node_guid is None:
-            tree_of_life_node_guid = GUID.generate(NameSpaces.Entity.SPECIES, NameSpaces.Owner.ENV)
-        self.tree_of_life_node_guid: int = tree_of_life_node_guid
+            tree_of_life_node_guid = GUID.generate(GUID.NameSpaces.Entity.SPECIES, GUID.NameSpaces.Owner.ENV)
+        self.tree_of_life_node_guid: GUID = tree_of_life_node_guid
     
 class TreeOfLifeNode:
     __slots__ = (
         "guid",
         "children",
     )
-    def __init__(self, children: Iterable[TreeOfLifeNode], guid: None | int = None):
+    def __init__(self, children: Iterable[TreeOfLifeNode], guid: None | GUID = None):
         self.children: tuple[TreeOfLifeNode, ...] = tuple(children)
         if guid is None:
-            guid = GUID.generate(NameSpaces.Entity.SPECIES, NameSpaces.Owner.ENV)
-        self.guid: int = guid
+            guid = GUID.generate(GUID.NameSpaces.Entity.SPECIES, GUID.NameSpaces.Owner.ENV)
+        self.guid: GUID = guid
     def add_child(self, path) -> None:
         node = self
         for guid in path:

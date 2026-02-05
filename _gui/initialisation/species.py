@@ -14,14 +14,14 @@ from systems.attributes.gene import Gene
 from systems.attributes.genotype import Genotype
 from systems.attributes.phene import Phene
 from systems.attributes.species import Species
-from systems.uid.guid import GUID, NameSpaces
+from systems.uid.guid import GUID
 
 CharacteristicName = str
 CharacteristicCodeCollection = list[FullCode]
 
-HUMAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV, name="Human")
-ALIEN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV, name="Alien")
-ASLAN_UUID = GUID.generate(ns1=NameSpaces.Entity.SPECIES, ns2=NameSpaces.Owner.ENV, name="Aslan")
+HUMAN_UUID = GUID.generate(ns1=GUID.NameSpaces.Entity.SPECIES, ns2=GUID.NameSpaces.Owner.ENV, name="Human")
+ALIEN_UUID = GUID.generate(ns1=GUID.NameSpaces.Entity.SPECIES, ns2=GUID.NameSpaces.Owner.ENV, name="Alien")
+ASLAN_UUID = GUID.generate(ns1=GUID.NameSpaces.Entity.SPECIES, ns2=GUID.NameSpaces.Owner.ENV, name="Aslan")
 
 SPECIES_MAP: dict[str, int] = {
     "Human": HUMAN_UUID,

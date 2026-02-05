@@ -7,7 +7,7 @@ from enum import IntFlag, auto
 from typing import Union
 
 from systems.attributes.package import AttributePackage
-from systems.uid.guid import GUID, NameSpaces
+from systems.uid.guid import GUID
 
 
 class LogicFlag(IntFlag):
@@ -159,7 +159,7 @@ class Event:
             name: str
     ) -> None:
         self.name = name
-        self.uid: int = GUID.generate(NameSpaces.Entity.EVENTS, NameSpaces.Owner.PLAYER)
+        self.uid: int = GUID.generate(GUID.NameSpaces.Entity.EVENTS, GUID.NameSpaces.Owner.PLAYER)
         self.outcomes: list[EventOutcome] = []
         self.registry: PackageRegistry = PackageRegistry()
 

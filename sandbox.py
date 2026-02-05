@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from components.data import (
-    CharacteristicCode,
-)
+from pprint import pprint
 
-characteristic_code = CharacteristicCode(upp_position=1, subtype=0, category=1)
-print(characteristic_code)
+from systems.uid.guid import GUID
+
+example_guid: GUID = GUID.generate(GUID.NameSpaces.Entity.CHARACTERS, GUID.NameSpaces.Owner.PLAYER, name="ExampleCharacter")
+pprint(f"Generated GUID: {example_guid} ({example_guid.uid_to_string})")

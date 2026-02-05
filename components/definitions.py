@@ -14,32 +14,42 @@ if str(_src_path) not in sys.path:
 from components.data import Primitive  # noqa: E402
 
 
-def _class_fields(cls: type) -> list[str] | None:
-    result = []
-    for f in dataclasses.fields(cls):
-        # Only extract fields of type int
-        if f.type == "int":
-            field_info = f.name
-            result.append(field_info)
-    return result if result else None
-
-def collect_module_classes(module) -> dict[str, list[str]]:
-    """Collect classes defined in `module` and return mapping name -> fields.
-    Only collect children of Primitive and only fields of type int.
+def collect_module_classes(
+    module_name: str,
+    base_classes: tuple[type, ...],
+    field_types: tuple[object, ...],
+) -> dict[str, list[str]]:
+    """Collect classes defined in `module_name` and return mapping name -> fields.
+    Only collect children of base classes and only fields of specified types.
     """
+    module = import_module(module_name)
+    type_names = {
+        ft if isinstance(ft, str) else getattr(ft, "__name__", str(ft))
+        for ft in field_types
+    }
     result: dict[str, list[str]] = {}
     for name, obj in vars(module).items():
-        if inspect.isclass(obj) and issubclass(obj, Primitive) and getattr(obj, "__module__", None) == module.__name__:
-            # Skip if returned fields is empty (i.e. does not have any int fields)
-            if not (fields := _class_fields(obj)):
-                continue
-            result[name] = fields
+        if not inspect.isclass(obj):
+            continue
+        if not issubclass(obj, base_classes):
+            continue
+        if getattr(obj, "__module__", None) != module_name:
+            continue
+        fields = [
+            f.name
+            for f in dataclasses.fields(obj)
+            if f.type in field_types
+            or getattr(f.type, "__name__", None) in type_names
+            or (isinstance(f.type, str) and f.type in type_names)
+        ]
+        if not fields:
+            continue
+        result[name] = fields
     return result
 
 
 if __name__ == "__main__":
     print("\033c", end="")
-    mod = import_module("components.data")
-    classes = collect_module_classes(mod)
+    classes = collect_module_classes("components.data", (Primitive,), ("int",))
 
     pprint(classes, indent=2)

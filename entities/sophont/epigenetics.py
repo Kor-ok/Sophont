@@ -12,6 +12,7 @@ from systems.attributes.gene import Gene
 from systems.attributes.package import AttributePackage
 from systems.attributes.phene import Phene
 from systems.attributes.species import Species
+from systems.uid.guid import GUID
 
 
 def _package_key(acquired: Acquired) -> int:
@@ -60,7 +61,7 @@ class Epigenetics:
         self.is_packages_dirty = False
 
         # === COLD DATA (rarely updated) ================================
-        self.parent_guids: list[int] = (
+        self.parent_guids: list[GUID] = (
             []
         )  # First entry should always be self GUID for cloning scenarios.
         self.gender: tuple[int, int] = (
@@ -75,7 +76,7 @@ class Epigenetics:
         self,
         package: AttributePackage,
         age_acquired_seconds: int,
-        context_guid: int,
+        context_guid: GUID,
         trigger_collation: bool = False,
     ) -> bool:
         """Insert an acquired package if not already present.
@@ -98,7 +99,7 @@ class Epigenetics:
         self,
         package: AttributePackage,
         age_acquired_seconds: int,
-        context_guid: int,
+        context_guid: GUID,
         trigger_collation: bool = False,
     ) -> bool:
         """Remove an acquired package if present.

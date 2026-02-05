@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Iterable
 
 from components import component
+from systems.uid.guid import GUID
 
 
 @component
@@ -32,23 +33,29 @@ class CharacteristicCode(Primitive):
     subtype: int 
     """0 is default, i.e. upp_position 1 of subtype 0 is strength"""
     category: int
-    """-99 undefined, 1	physical, 2	mental, 3 social, 4	obscure""" 
+    """1 physical, 2 mental, 3 social, 4 obscure""" 
 
 @component
 class SkillCode(Primitive):
     key: int
+    """code for the skill, i.e. 21 language"""
     set: int
+    """1 general, 2 default, 3 talents, 4 personals, 5 intuitions"""
     group: int
+    """1 base, 2 starship skills, 3 trades, 4 arts, 5 soldier skills"""
 
 @component
 class KnowledgeCode(Primitive):
     key: int
+    """code for the knowledge, i.e. 57 sophontology"""
     focus: int
+    """lookup code for the name of the specialisation i.e. 'anglic' """
     associated_skill: SkillCode
 
 @component
 class GenderCode(Primitive):
-    code: int
+    key: int
+    """-1 unspecified, 0 solo, 1 female, 2 male, 3 neuter ... etc."""
 
 
 @component
@@ -65,7 +72,7 @@ class PheneCode(Applied):
     characteristic: CharacteristicCode
     is_grafted: bool
     precedence: int
-    contributor_guid: int
+    contributor_guid: GUID
 
 @component
 class GenotypeCode(Applied):
@@ -75,4 +82,4 @@ class GenotypeCode(Applied):
 @component
 class SpeciesCode(Applied):
     genotype: GenotypeCode
-    origin_guid: int
+    identifying_guid: GUID

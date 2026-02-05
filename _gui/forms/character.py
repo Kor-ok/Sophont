@@ -11,7 +11,6 @@ from _gui.initialisation.globals import IS_DEBUG
 from _gui.initialisation.species import SPECIES_MAP
 from components.primitives.gender import _BASE as gender_map
 from entities.sophont.character import Sophont
-from systems.uid.guid import GUID
 
 
 def format_age(age_seconds: int) -> str:
@@ -100,15 +99,15 @@ class CharacterCard(ui.column):
                 ):
                     image_set = "set4"
                 ui.image(
-                    f"https://robohash.org/{self.character.guid}?set={image_set}"
+                    f"https://robohash.org/{self.character.guid.uid_to_string}?set={image_set}"
                 ).classes(styles.CHARACTER_IMAGE)
 
     def _build_debug_info(self) -> None:
         if IS_DEBUG:
                         ui.label("Character GUID:")
-                        ui.label(GUID.uid_to_string(self.character.guid))
+                        ui.label(self.character.guid.uid_to_string)
                         ui.label("Species GUID:")
-                        ui.label(GUID.uid_to_string(self.character.epigenetics.species.guid))
+                        ui.label(self.character.epigenetics.species.guid.uid_to_string)
 
     def _build_name_input(self) -> None:
         ui.label("Name:")

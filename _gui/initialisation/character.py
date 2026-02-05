@@ -7,7 +7,7 @@ from components.primitives.set import ATTRIBUTES
 from systems.attributes.package import AttributePackage
 from systems.attributes.phene import Phene
 from systems.attributes.skill import Skill
-from systems.uid.guid import GUID, NameSpaces
+from systems.uid.guid import GUID
 
 
 def initialise_example_data() -> None:
@@ -131,7 +131,7 @@ def initialise_example_data() -> None:
     example_life_skill_package = AttributePackage(
         item = Skill.by_name("vacc suit"),
         level = 2,
-        context_guid = GUID.generate(ns1=NameSpaces.Entity.PACKAGES, ns2=NameSpaces.Owner.PLAYER, name="ExampleLifeSkillPackage")
+        context_guid = GUID.generate(ns1=GUID.NameSpaces.Entity.PACKAGES, ns2=GUID.NameSpaces.Owner.PLAYER, name="ExampleLifeSkillPackage")
     )
     example_sophont_1.aptitudes.insert_package_acquired(
         package=example_life_skill_package,
