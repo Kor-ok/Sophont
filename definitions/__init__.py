@@ -11,34 +11,35 @@ _src_path = Path(__file__).parent.parent
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
-def _class_fields(cls: type) -> list[dict[str, str]]:
+from components.data import Primitive  # noqa: E402
+
+
+def _class_fields(cls: type) -> list[str] | None:
     result = []
     for f in dataclasses.fields(cls):
-        field_info = {
-            f.name: f.type,
-        }
-        result.append(field_info)
-        
-    return result
+        # Only extract fields of type int
+        if f.type == "int":
+            field_info = f.name
+            result.append(field_info)
+    return result if result else None
 
-def collect_module_classes(module) -> dict[str, list[dict[str, str]]]:
-    """Collect classes defined in `module` and return mapping name -> fields."""
-    result: dict[str, list[dict[str, str]]] = {}
+def collect_module_classes(module) -> dict[str, list[str]]:
+    """Collect classes defined in `module` and return mapping name -> fields.
+    Only collect children of Primitive and only fields of type int.
+    """
+    result: dict[str, list[str]] = {}
     for name, obj in vars(module).items():
-        if inspect.isclass(obj) and getattr(obj, "__module__", None) == module.__name__:
-            result[name] = _class_fields(obj)
+        if inspect.isclass(obj) and issubclass(obj, Primitive) and getattr(obj, "__module__", None) == module.__name__:
+            # Skip if returned fields is empty (i.e. does not have any int fields)
+            if not (fields := _class_fields(obj)):
+                continue
+            result[name] = fields
     return result
 
 
 if __name__ == "__main__":
+    print("\033c", end="")
     mod = import_module("components.data")
     classes = collect_module_classes(mod)
 
-    print("\033c", end="")
     pprint(classes, indent=2)
-
-    extracted_example = { 'CharacteristicCode': [ {'upp_position': 'int'},
-                        {'subtype': 'int'},
-                        {'category': 'int'}],}
-
-    pprint(extracted_example, indent=2)
