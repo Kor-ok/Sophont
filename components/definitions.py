@@ -12,6 +12,10 @@ if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
 from components.data import Primitive  # noqa: E402
+from humaniseT5.definitions import (  # noqa: E402
+    fetch_definitions,
+    fetch_licensed_material,
+)
 
 
 def collect_module_classes(
@@ -47,9 +51,18 @@ def collect_module_classes(
         result[name] = fields
     return result
 
+def demo_definitions():
+    print("\033c", end="")
+    classes = collect_module_classes("components.data", (Primitive,), ("int",))
+    definitions = fetch_definitions(classes, language="en")
+    pprint(definitions, indent=2)
+
+def demo_licensed_material():
+    print("\033c", end="")
+    classes = collect_module_classes("components.data", (Primitive,), ("int",))
+    licensed_material = fetch_licensed_material(classes, language="en")
+    pprint(licensed_material, indent=2)
 
 if __name__ == "__main__":
     print("\033c", end="")
-    classes = collect_module_classes("components.data", (Primitive,), ("int",))
-
-    pprint(classes, indent=2)
+    demo_licensed_material()

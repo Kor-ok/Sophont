@@ -188,6 +188,8 @@ data/
 *.csv
 *.json
 *.bin
+# Except the following encrypted .bin
+!**/T5LicensedMaterial.bin
 
 # Assets
 *.psd
@@ -195,3 +197,6 @@ data/
 *.png
 !**/vision_chart.tif
 !**/vision_chart_UI.png
+
+# LicensedMaterial
+**/T5LicensedMaterial.xlsx
