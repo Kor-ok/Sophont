@@ -34,141 +34,177 @@ DEFINITIONS_XLSX_PATH = r"D:\Projects\Python\Sophont\humaniseT5\definitions\Defi
 
 classes = _collect_module_classes("components.data", (Primitive,))
 
+
 class ComponentAttributeInfo(NamedTuple):
     name: str
     signature: tuple[PrimitiveTypes, ...]
+
 
 class LookupWith(Enum):
     SIGNATURE = auto()
     ALIAS = auto()
 
-index_by_signature = OrderedDict[LookupWith.SIGNATURE, OrderedDict[tuple[Class, ComponentAttributeInfo], AliasMap]] 
-"""Flat index of all components and their attributes, keyed by 
-lookup method signature → (class, attribute info) → alias map.
-"""
-index_by_alias = OrderedDict[LookupWith.ALIAS, OrderedDict[tuple[Class, AliasMap], ComponentAttributeInfo]]
-"""Flat index of all components and their attributes, keyed by
-lookup method alias → (class, alias map) → attribute info."""
+
+# Type aliases for the two index shapes inside the definitions dict.
+BySignature: TypeAlias = OrderedDict[tuple[Class, ComponentAttributeInfo], AliasMap]
+"""Forward index: (class, attribute info) → alias map."""
+
+ByAlias: TypeAlias = OrderedDict[tuple[Class, str], ComponentAttributeInfo]
+"""Reverse index: (class, canonical-or-alias string) → attribute info."""
+
+DefinitionsIndex: TypeAlias = OrderedDict["LookupWith", "BySignature | ByAlias"]
+
+
+# ---------------------------------------------------------------------------
+# fetch_definitions
+# ---------------------------------------------------------------------------
+
 
 def fetch_definitions(
-        classes: dict[type, ComponentClassInfo], 
-        language: str = "en"
-        ) -> index_by_signature:
-    
-    # --------------------------------------------------------------------------- 
-    # Read excel file once for all the data required to build the index, rather than reading it multiple times for each domain.
-    # ---------------------------------------------------------------------------
-    data = pd.read_excel(DEFINITIONS_XLSX_PATH, sheet_name=None, engine="openpyxl") # dict of DataFrames keyed by sheet name
+    classes: dict[type, ComponentClassInfo],
+    language: str = "en",
+) -> DefinitionsIndex:
+    """Build forward (signature → names) and reverse (name → attribute)
+    indices from the Definitions workbook, in a single pass per sheet.
+    """
 
+    # Read every sheet once -------------------------------------------------
+    data: dict[str, pd.DataFrame] = pd.read_excel(
+        DEFINITIONS_XLSX_PATH, sheet_name=None, engine="openpyxl"
+    )
 
-    # --------------------------------------------------------------------------- 
-    # Map the available data from the excel file
-    # ---------------------------------------------------------------------------
-     
-    # Build a one-pass mapping from the sheet base (before first '.') -> list of sheet names.
-    # This avoids scanning the entire DataFrame for every domain (avoids O(D*N)).
-    base_map: OrderedDict[str, list[str]] = OrderedDict()
-    for s in data.keys():
-        base = s.split(".", 1)[0]
-        base_map.setdefault(base, []).append(s)
+    # Map sheet-base (before first '.') → list of sheet names ---------------
+    base_map: dict[str, list[str]] = {}
+    for sheet_name in data:
+        base_map.setdefault(sheet_name.split(".", 1)[0], []).append(sheet_name)
 
-    # --------------------------------------------------------------------------- 
-    # Apply the definitions to the collected classes, building the final index structure.
-    # ---------------------------------------------------------------------------
+    # Indices built in one pass ---------------------------------------------
+    by_signature: BySignature = OrderedDict()
+    by_alias: ByAlias = OrderedDict()
 
-    definitions_by_signature: OrderedDict[tuple[Class, ComponentAttributeInfo], AliasMap] = OrderedDict()
-    for domain in classes.keys():
-        matches = base_map.get(_convert_type_to_str_name(domain))
-        # Master sheets are those that match the domain name exactly (e.g. "CharacteristicCode" for the CharacteristicCode class).
-        # Signature sheets are those that end with ".signature" (e.g. "CharacteristicCode.signature").
-        # Field sheets are those that match the pattern "{Domain}.{FieldName}" (e.g. "CharacteristicCode.upp_position").
+    for domain in classes:
+        domain_name = _convert_type_to_str_name(domain)
+        matches = base_map.get(domain_name)
         if not matches:
-            print(f"Warning: No sheets found for domain '{domain}' (searched for base '{_convert_type_to_str_name(domain)}').")
+            print(f"Warning: No sheets for domain '{domain_name}'.")
             continue
-        master_sheets = next((s for s in matches if s == _convert_type_to_str_name(domain)), None)
-        signature_sheets = next((s for s in matches if s.endswith(".signature")), None)
-        field_sheets = [s for s in matches if s not in (master_sheets, signature_sheets)]
-        
-        # For signature and field sheets, we expect columns: 'lang', 'canonical', 'aliases'
-        for signature_sheet in [signature_sheets]:
-            if not signature_sheet:
-                continue
-            df = data[signature_sheet]
+
+        # Classify sheets: skip the bare master sheet; process all dotted ones.
+        for sheet in matches:
+            if sheet == domain_name:
+                continue  # master sheet — no row data to index
+            suffix = sheet.split(".", 1)[1]
+            # suffix is either "signature" or a field name like "upp_position"
+            attr_name = suffix
+            value_col = "signature" if suffix == "signature" else suffix
+
+            df = data[sheet]
             for _, row in df.iterrows():
-                signature = row.get("signature")
-                lang = row.get("lang")
+                if row.get("lang") != language:
+                    continue
                 canonical = row.get("canonical")
-                aliases = row.get("aliases")
-                if lang == language and canonical is not None:
-                    attribute: ComponentAttributeInfo = ComponentAttributeInfo(
-                        name="signature",
-                        signature=_convert_comma_delimited_str_to_tuple(signature, type=int)
-                    )
-                    definitions_by_signature[(domain, attribute)] = {canonical: _convert_comma_delimited_str_to_tuple(aliases, type=str)}
-        
-        for field_sheet in field_sheets:
-            if not field_sheet:
-                continue
-            df = data[field_sheet]
-            for _, row in df.iterrows():
-                field_name = field_sheet.split(".", 1)[1]
-                signature = row.get(field_name)
-                lang = row.get("lang")
-                canonical = row.get("canonical")
-                aliases = row.get("aliases")
-                if lang == language and canonical is not None:
-                    attribute: ComponentAttributeInfo = ComponentAttributeInfo(
-                        name=field_name,
-                        signature=_convert_comma_delimited_str_to_tuple(signature, type=int)
-                    )
-                    definitions_by_signature[domain, attribute] = {canonical: _convert_comma_delimited_str_to_tuple(aliases, type=str)}
+                if canonical is None:
+                    continue
 
-    definitions = OrderedDict([(LookupWith.SIGNATURE, definitions_by_signature)])
+                sig_tuple = _convert_comma_delimited_str_to_tuple(row.get(value_col), type=int)
+                aliases = _convert_comma_delimited_str_to_tuple(row.get("aliases"), type=str)
+                attribute = ComponentAttributeInfo(name=attr_name, signature=sig_tuple)
+                alias_map: AliasMap = {canonical: aliases}
 
-    # --------------------------------------------------------------------------- 
-    # PLACEHOLDER: Transform into LookupWith(Enum) flat structures
-    # ---------------------------------------------------------------------------
-     
-    
-    return definitions
+                # Forward index: (class, attribute) → alias map
+                by_signature[(domain, attribute)] = alias_map
 
-file_read_time = timeit(lambda: pd.read_excel(DEFINITIONS_XLSX_PATH, sheet_name=None), number=1)*1000
-fetch_definitions_time = timeit(lambda: fetch_definitions(classes), number=1)*1000
+                # Reverse index: every known string → attribute
+                by_alias[(domain, canonical)] = attribute
+                for alias in aliases:
+                    if alias:  # guard against empty strings
+                        by_alias[(domain, alias)] = attribute
+
+    return OrderedDict(
+        [
+            (LookupWith.SIGNATURE, by_signature),
+            (LookupWith.ALIAS, by_alias),
+        ]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Lookup helpers
+# ---------------------------------------------------------------------------
+
+
+def get_alias_map_by_signature(
+    index: DefinitionsIndex,
+    cls: type,
+    sig: Signature,
+) -> AliasMap | None:
+    """O(1) forward lookup: class + value-signature → alias map."""
+    key = (cls, ComponentAttributeInfo(name="signature", signature=sig))
+    sig_index = index[LookupWith.SIGNATURE]  # type: ignore[assignment]
+    return sig_index.get(key)  # type: ignore[call-arg]
+
+
+def get_attribute_by_name(
+    index: DefinitionsIndex,
+    cls: type,
+    name: str,
+) -> ComponentAttributeInfo | None:
+    """O(1) reverse lookup: class + canonical-or-alias string → attribute info."""
+    """O(1) reverse lookup: class + canonical-or-alias string → attribute info."""
+    alias_index: ByAlias = index[LookupWith.ALIAS]  # type: ignore[assignment]
+    return alias_index.get((cls, name))
+
+
+# ---------------------------------------------------------------------------
+# Timing / diagnostics
+# ---------------------------------------------------------------------------
+
+file_read_time = (
+    timeit(
+        lambda: pd.read_excel(DEFINITIONS_XLSX_PATH, sheet_name=None),
+        number=1,
+    )
+    * 1000
+)
+fetch_definitions_time = timeit(lambda: fetch_definitions(classes), number=1) * 1000
 pprint(f"Read excel file time: {file_read_time:.2f} ms")
-pprint(f"Fetch definitions time - Reading Excel File: {(fetch_definitions_time - file_read_time):.2f} ms")
+pprint(
+    f"Fetch definitions time - Reading Excel File: "
+    f"{(fetch_definitions_time - file_read_time):.2f} ms"
+)
 pprint(f"Fetch definitions time - Total: {fetch_definitions_time:.2f} ms")
 definitions = fetch_definitions(classes)
-pprint(f"asizeof.asizeof(definitions): {asizeof.asizeof(definitions)/1024:.2f} kb")
+pprint(f"asizeof.asizeof(definitions): {asizeof.asizeof(definitions) / 1024:.2f} kb")
 
-# ── Test signatures ───────────────────────────────────────────────────
-test_cases: list[tuple[type, Signature, str]] = [
+# ── Test forward lookup (signature → aliases) ────────────────────────
+print("\n── Forward lookup (signature → aliases) ──")
+test_signatures: list[tuple[type, Signature, str]] = [
     (KnowledgeCode, (12, -99, 37, 2, -99), "KnowledgeCode"),
     (CharacteristicCode, (1, 0, 1), "CharacteristicCode"),
     (SkillCode, (25, 1, -99), "SkillCode"),
 ]
 
-def get_alias_map_indexed(
-    index: index_by_signature,
-    cls: type,
-    sig: Signature,
-) -> AliasMap | None:
-    """O(1) lookup against a pre-built index.
+for cls, sig, label in test_signatures:
+    result = get_alias_map_by_signature(definitions, cls, sig)
+    if result is None:
+        print(f"  {label} {sig}  →  NOT FOUND")
+    else:
+        for canon, aliases in result.items():
+            print(f"  {label} {sig}  →  canonical={canon!r}, aliases={aliases}")
 
-    TRAVERSAL STEPS
-    ────────────────
-    1. Construct the composite key `(cls, sig)`.
-    2. Single dict `.get()` call — Python hashes the tuple, probes
-       the hash table, and returns the value (or None).
-       No iteration, no inner-dict descent.  That work was already
-       done when the index was built.
-    """
-    component = ComponentAttributeInfo(name="signature", signature=sig)
-    return index[LookupWith.SIGNATURE].get((cls, component))
+# ── Test reverse lookup (canonical / alias → attribute) ──────────────
+print("\n── Reverse lookup (name → attribute) ──")
+test_names: list[tuple[type, str, str]] = [
+    (CharacteristicCode, "strength", "CharacteristicCode"),
+    (CharacteristicCode, "str", "CharacteristicCode (alias)"),
+    (SkillCode, "language", "SkillCode"),
+    (KnowledgeCode, "sophontology", "KnowledgeCode"),
+    (CharacteristicCode, "nonexistent", "CharacteristicCode (miss)"),
+]
 
-for cls, sig, label in test_cases:
-        result = get_alias_map_indexed(definitions, cls, sig)
-        if result is None:
-            print(f"  {label} {sig}  →  NOT FOUND")
-        else:
-            for canon, aliases in result.items():
-                print(f"  {label} {sig}  →  canonical={canon!r}, aliases={aliases}")
+for cls, name, label in test_names:
+    attr = get_attribute_by_name(definitions, cls, name)
+    if attr is None:
+        print(f"  {label} {name!r}  →  NOT FOUND")
+    else:
+        print(f"  {label} {name!r}  →  {attr}")
