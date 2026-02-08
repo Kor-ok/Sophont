@@ -125,7 +125,7 @@ SheetName: TypeAlias = str
 def fetch_definitions(
         classes: dict[type, Any], 
         language: str = "en"
-        ) -> Any: # dict[type, list[dict[SheetName, AliasMap]]]
+        ) -> Any: # dict[type, list[dict[SheetName, AliasMap]]] # dict[tuple[type, Signature], AliasMap]
     
     df_sheet_names = read_excel(DEFINITIONS_XLSX_PATH) # DataFrame
     # Build a one-pass mapping from the sheet base (before first '.') -> list of sheet names.

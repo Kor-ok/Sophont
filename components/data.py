@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 from abc import ABC
 from collections.abc import Iterable
-from typing import ClassVar, get_type_hints
+from typing import Any, ClassVar, get_type_hints
 
 from components import component
 from systems.uid.guid import GUID
@@ -51,16 +51,47 @@ class Primitive(ABC):
     category 1 would have a signature that can fetch "strength" as
     mapped by the semantic layer.
 
-    ``Signature`` is a class-level attribute computed automatically for
+    ``signature`` is a class-level attribute computed automatically for
     each concrete subclass — a flattened tuple of primitive field types
     preserving declaration order.
     """
 
-    Signature: ClassVar[tuple[type, ...]] = ()
+    signature: ClassVar[tuple[type, ...]] = ()
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
-        cls.Signature = _get_signature_type(cls)
+        cls.signature = _get_signature_type(cls)
+
+    def get_name(self) -> Any:
+        """Fetch the name of this component from the semantic layer using
+        its signature and field values.
+        """
+        of_class = self.__class__
+        print(f"of_class = {of_class}")
+        signature_values = self._get_signature_value
+        print(f"signature_values = {signature_values}")
+        # From DEFINITIONS where class: "signature" → OrderedDict["signature", signature_values]
+        # from which we want 'canonical' and 'aliases'
+        from components.definitions import DEFINITIONS
+        return DEFINITIONS.canonical_definitions.get(of_class, {}).get(signature_values)
+    
+    def _get_signature_value(self) -> tuple[Any, ...]:
+        """Return a flattened tuple of field values for *cls* corresponding to the
+        types in its signature in the same order as returned by _get_signature_type.
+
+        Results e.g. for a CharacteristicCode with 
+        upp_position 1, subtype 0, and category 1 would be (1, 0, 1).
+        """
+        result: list[Any] = []
+        for field_type in self.signature:
+            for field_name, field_value in self.__dict__.items():
+                if isinstance(field_value, field_type):
+                    if field_type in (int, float, bool):
+                        result.append(field_value)
+                    elif hasattr(field_type, "__annotations__"):
+                        result.extend(field_value._get_signature_value())
+                    break
+        return tuple(result)
 
 
 @component

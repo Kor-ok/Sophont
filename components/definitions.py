@@ -69,7 +69,7 @@ def _collect_module_classes(
 class Definitions:
     """Global Singleton for holding all definitions and licensed material. This is populated at runtime by fetching from the Excel sheets and can be accessed by any component or system that needs it. It is not intended to be modified after initial population, but is not strictly immutable."""
 
-    __slots__ = ("language", "canonical_definitions", "licensed_material", "_is_initialised")
+    __slots__ = ("language", "canonical_definitions", "_is_initialised")
 
     _is_initialised: bool
     _instance: Optional[Definitions] = None
@@ -82,7 +82,7 @@ class Definitions:
         self = super().__new__(cls)
         object.__setattr__(self, "language", language)
         object.__setattr__(self, "canonical_definitions", {})
-        object.__setattr__(self, "licensed_material", {})
+        # object.__setattr__(self, "licensed_material", {})
         object.__setattr__(self, "_is_initialised", False)
 
         cls._instance = self
@@ -93,9 +93,9 @@ class Definitions:
             return
         classes = _collect_module_classes("components.data", (Primitive,))
         definitions = fetch_definitions(classes, language=self.language)
-        licensed_material = fetch_licensed_material(classes, language=self.language)
+        # licensed_material = fetch_licensed_material(classes, language=self.language)
         object.__setattr__(self, "canonical_definitions", definitions)
-        object.__setattr__(self, "licensed_material", licensed_material)
+        # object.__setattr__(self, "licensed_material", licensed_material)
         object.__setattr__(self, "_is_initialised", True)
 
 
