@@ -25,8 +25,16 @@ def _load_fernet() -> Fernet:
     return Fernet(key)
 
 
-def read_excel(excel_or_path: pd.ExcelFile | str, *, sheet_name: str) -> pd.DataFrame:
-    return pd.read_excel(excel_or_path, sheet_name=sheet_name)
+def read_excel(excel_or_path: pd.ExcelFile | str, *, sheet_name: str | None = None) -> pd.DataFrame:
+    if sheet_name is not None:
+        return pd.read_excel(excel_or_path, sheet_name=sheet_name)
+    else:
+        # Get a list of the sheet names.
+        sheet_names = pd.ExcelFile(excel_or_path).sheet_names
+        if not sheet_names:
+            raise ValueError(f"No sheets found in Excel file: {excel_or_path}")
+        # Create a DataFrame that lists the names of the sheets
+        return pd.DataFrame({"sheet_name": sheet_names})
 
 
 def extract_licensed_material(excel_path: str | Path) -> bytes:
