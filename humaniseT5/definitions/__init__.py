@@ -191,7 +191,7 @@ def fetch_definitions(
     return definitions
 
 def fetch_licensed_material(
-    define: dict[str, Any],
+    define: dict[type, Any],
     language: str = "en",
 ) -> Any:
     """Load licensed descriptive text from the encrypted workbook.

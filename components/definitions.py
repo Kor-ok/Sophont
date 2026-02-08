@@ -100,4 +100,4 @@ class Definitions:
 
 
 # Convenience global instance for easy access to definitions and licensed material.
-# DEFINITIONS = Definitions(language="en")
+DEFINITIONS = Definitions(language="en")
