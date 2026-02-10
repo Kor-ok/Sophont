@@ -200,3 +200,6 @@ data/
 
 # LicensedMaterial
 **/T5LicensedMaterial.xlsx
+
+# txt records
+*.txt

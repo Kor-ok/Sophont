@@ -3,15 +3,15 @@ from __future__ import annotations
 import inspect
 import sys
 import threading
-from dataclasses import Field, dataclass, field, fields
+from dataclasses import Field, dataclass, fields
 from typing import (
     Any,
     Callable,
-    Protocol,
     TypeVar,
     overload,
-    runtime_checkable,
 )
+
+from numpy import int8
 
 # dataclass_transform tells static type checkers that @component behaves like @dataclass
 if sys.version_info >= (3, 11):
@@ -22,7 +22,6 @@ else:
 """
 @component(
     flyweight=True,              # Enable/disable instance caching (default: True)
-    validate=True,               # Enable/disable validation (default: True)
     apply_undefined_defaults=True,  # Auto-fill missing int fields with -99
     **dataclass_kwargs           # Pass-through to @dataclass
 )
@@ -31,7 +30,7 @@ else:
 # Constants
 # ---------------------------------------------------------------------------
 
-DEFAULT_UNDEFINED_CODE: int = -99
+DEFAULT_UNDEFINED_CODE: int8 = int8(-99)
 """Sentinel value used when a coded field has no meaningful value yet."""
 
 _T = TypeVar("_T")
@@ -68,70 +67,6 @@ def clear_flyweight_cache(component_type: type[Any] | None = None) -> None:
                 cache.clear()
         elif component_type in _component_registry:
             _component_registry[component_type].clear()
-
-
-# ---------------------------------------------------------------------------
-# Validation Protocol
-# ---------------------------------------------------------------------------
-
-
-@runtime_checkable
-class Validatable(Protocol):
-    """Protocol for components that define custom validation logic."""
-
-    def __validate__(self) -> None:
-        """Raise ValueError or TypeError if the instance state is invalid."""
-        ...
-
-
-# ---------------------------------------------------------------------------
-# Field-level Validator Support
-# ---------------------------------------------------------------------------
-
-
-def validated_field(
-    *,
-    default: Any = ...,
-    default_factory: Callable[[], Any] | None = None,
-    validator: Callable[[Any], None] | None = None,
-    **field_kwargs: Any,
-) -> Any:
-    """Create a dataclass field with an attached validator.
-
-    The validator callable is stored in field.metadata under 'validator'.
-    It should raise ValueError or TypeError on invalid input.
-
-    Args:
-        default: Default value for the field (mutually exclusive with default_factory).
-        default_factory: Factory for mutable defaults (mutually exclusive with default).
-        validator: Optional callable(value) -> None that raises on invalid value.
-        **field_kwargs: Additional keyword arguments passed to dataclasses.field().
-
-    Returns:
-        A dataclass field descriptor with validator metadata attached.
-    """
-    metadata = dict(field_kwargs.pop("metadata", {}) or {})
-    if validator is not None:
-        metadata["validator"] = validator
-
-    if default_factory is not None:
-        return field(default_factory=default_factory, metadata=metadata, **field_kwargs)
-    elif default is not ...:
-        return field(default=default, metadata=metadata, **field_kwargs)
-    else:
-        return field(metadata=metadata, **field_kwargs)
-
-
-def _run_field_validators(instance: Any, cls_fields: tuple[Field[Any], ...]) -> None:
-    """Execute all field-level validators defined in metadata."""
-    for f in cls_fields:
-        validator = f.metadata.get("validator") if f.metadata else None
-        if validator is not None:
-            value = getattr(instance, f.name)
-            try:
-                validator(value)
-            except (ValueError, TypeError) as e:
-                raise type(e)(f"Field '{f.name}': {e}") from e
 
 
 # ---------------------------------------------------------------------------
@@ -209,7 +144,6 @@ def component(
     _cls: None = None,
     *,
     flyweight: bool = ...,
-    validate: bool = ...,
     apply_undefined_defaults: bool = ...,
     **dataclass_kwargs: Any,
 ) -> Callable[[type[_T]], type[_T]]: ...
@@ -220,7 +154,6 @@ def component(
     _cls: type[Any] | None = None,
     *,
     flyweight: bool = True,
-    validate: bool = True,
     apply_undefined_defaults: bool = True,
     **dataclass_kwargs: Any,
 ) -> type[Any] | Callable[[type[Any]], type[Any]]:
@@ -230,9 +163,6 @@ def component(
       - **Slots emulation** for Python 3.9 (native slots in 3.10+).
       - **Thread-safe flyweight interning**: repeated instantiation with the
         same field values returns the cached instance.
-      - **Validation hooks**: if the class defines `__validate__(self) -> None`,
-        it is called after construction. Field-level validators in metadata are
-        also executed.
       - **Undefined-code defaults**: if `apply_undefined_defaults=True`, missing
         int-typed fields receive `DEFAULT_UNDEFINED_CODE` (-99).
       - **Automatic registration** in a global component type registry.
@@ -240,7 +170,6 @@ def component(
     Args:
         _cls: The class being decorated (when used without parentheses).
         flyweight: If True (default), cache and reuse instances by field values.
-        validate: If True (default), run __validate__ and field validators.
         apply_undefined_defaults: If True, fill missing int fields with -99.
         **dataclass_kwargs: Additional kwargs forwarded to @dataclass (except
             frozen, which is always True).
@@ -250,7 +179,7 @@ def component(
 
     Example:
         @component
-        class CharacteristicCode:
+        class CharacteristicCode(Primitive):
             upp_position: int
             subtype: int
             category: int
@@ -266,6 +195,8 @@ def component(
         # 1. Force frozen=True, handle slots for Python version
         # -----------------------------------------------------------------
         dataclass_kwargs["frozen"] = True
+        # We are developing for Python 3.9 so handle slots emulation with
+        # the following:
 
         # Python 3.10+ supports slots=True natively
         use_native_slots = sys.version_info >= (3, 10)
@@ -342,13 +273,13 @@ def component(
                 with _component_registry_lock:
                     cache = _component_registry[cls_inner]
                     if cache_key in cache:
+                        print(f"\033[0;34mCache hit for {cls_inner.__name__} with key {cache_key}\033[0m")
                         return cache[cache_key]
 
                     # Create new instance
                     instance = object.__new__(cls_inner)
                     # Store in cache before init (to handle recursive refs)
                     cache[cache_key] = instance
-
                 return instance
 
             # Preserve the signature on __new__ so inspect.signature(ClassName) works
@@ -364,46 +295,6 @@ def component(
                 pass
 
             dc_cls.__new__ = __new__  # type: ignore[assignment]
-
-        # -----------------------------------------------------------------
-        # 5. Wrap __init__ to run validation after field assignment
-        # -----------------------------------------------------------------
-        if validate:
-
-            def validated_init(self: Any, *args: Any, **kwargs: Any) -> None:
-                # Check if already initialized (flyweight cache hit)
-                if flyweight:
-                    try:
-                        # If any field is already set, this is a cache hit
-                        if cls_fields and hasattr(self, field_names[0]):
-                            getattr(self, field_names[0])
-                            return  # Already initialized
-                    except AttributeError:
-                        pass  # Not yet initialized
-
-                # Apply undefined defaults if needed
-                if apply_undefined_defaults:
-                    kwargs = _apply_undefined_defaults(cls_fields, kwargs)
-
-                original_init(self, *args, **kwargs)
-
-                # Run field-level validators
-                _run_field_validators(self, cls_fields)
-
-                # Run class-level __validate__ if defined
-                if hasattr(self, "__validate__") and callable(self.__validate__):
-                    self.__validate__()
-
-            # Preserve the original __init__ signature so IDEs/type-checkers see constructor params
-            try:
-                validated_init.__signature__ = inspect.signature(original_init)  # type: ignore[attr-defined]
-                validated_init.__doc__ = original_init.__doc__
-                validated_init.__name__ = original_init.__name__
-                validated_init.__qualname__ = original_init.__qualname__
-            except (ValueError, TypeError):
-                pass  # Best effort - some built-in inits don't have inspectable signatures
-
-            dc_cls.__init__ = validated_init  # type: ignore[method-assign]
 
         # -----------------------------------------------------------------
         # 6. Add immutability enforcement
@@ -438,6 +329,42 @@ def component(
 
         dc_cls._as_tuple = _as_tuple  # type: ignore[attr-defined]
         dc_cls._cache_key = _cache_key  # type: ignore[attr-defined]
+
+        # -----------------------------------------------------------------
+        # 8. Primitive support — compute signature after init
+        # -----------------------------------------------------------------
+        # Primitive subclasses gain a ``signature`` attribute: a flattened
+        # tuple of primitive field values computed after the frozen dataclass
+        # __init__ completes.  The attribute is stored in the instance's
+        # __dict__ (inherited from Primitive which has no __slots__) and is
+        # deliberately excluded from the dataclass fields, cache key, and
+        # slots so it does not affect flyweight identity.
+        try:
+            from components.base import Primitive, _compute_signature
+
+            if issubclass(dc_cls, Primitive):
+                _prev_init = dc_cls.__init__
+
+                def _init_with_signature(self: Any, *args: Any, **kwargs: Any) -> None:
+                    _prev_init(self, *args, **kwargs)
+
+                    # print(f"\033[1;33m_prev_init = for {dc_cls.__name__} with args={args}, kwargs={kwargs}\033[0m")
+
+                    if not hasattr(self, "signature"):
+                        # print(f"\033[1;33mComputing signature for instance of {dc_cls.__name__}...\033[0m")
+                        object.__setattr__(self, "signature", _compute_signature(self))
+
+                # Preserve init signature for IDE / introspection.
+                try:
+                    _init_with_signature.__signature__ = inspect.signature(  # type: ignore[attr-defined]
+                        _prev_init
+                    )
+                except (ValueError, TypeError):
+                    pass
+
+                dc_cls.__init__ = _init_with_signature  # type: ignore[method-assign]
+        except ImportError:
+            pass
 
         return dc_cls
 

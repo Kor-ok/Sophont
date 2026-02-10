@@ -3,27 +3,17 @@ from __future__ import annotations
 import dataclasses
 import inspect
 from importlib import import_module
-from typing import NamedTuple, Optional, get_type_hints
+from typing import Optional, get_type_hints
 
-from components.data import Primitive
-from humaniseT5.definitions import (
+from humaniseT5.definitions.api import (
+    ComponentClassInfo,
     fetch_definitions,
-    fetch_licensed_material,
 )
-
-
-class ComponentClassInfo(NamedTuple):
-    """Collected metadata for a single component class."""
-
-    signature: tuple[type, ...]
-    """Flattened primitive-type tuple (from the class's ``Signature`` ClassVar)."""
-    fields: dict[str, type]
-    """Insertion-ordered mapping of field name → resolved type."""
 
 
 def _collect_module_classes(
     module_name: str,
-    base_classes: tuple[type, ...],
+    base_classes: tuple[str, ...],
 ) -> dict[type, ComponentClassInfo]:
     """Collect component classes defined in *module_name* that descend from
     *base_classes*.
@@ -31,14 +21,31 @@ def _collect_module_classes(
     Returns an ordered mapping of class name → ``ComponentClassInfo`` carrying
     the class's flattened ``Signature`` and an insertion-ordered dict of
     ``{field_name: resolved_type}`` for every dataclass field.
+
+    Base-class matching uses ``issubclass`` against lazily-imported classes
+    to avoid the circular import between ``components.base`` and this module.
     """
     module = import_module(module_name)
+
+    # Lazily resolve base class names to actual types so we can use
+    # ``issubclass`` for reliable detection (the @component decorator
+    # wraps classes in a slotted subclass, hiding the original bases).
+    resolved_bases: list[type] = []
+    base_module = import_module("components.base")
+    for name in base_classes:
+        cls = getattr(base_module, name, None)
+        if cls is not None:
+            resolved_bases.append(cls)
+
     result: dict[type, ComponentClassInfo] = {}
 
     for name, obj in vars(module).items():
         if not inspect.isclass(obj):
             continue
-        if not issubclass(obj, base_classes):
+        if not any(issubclass(obj, base) for base in resolved_bases):
+            continue
+        # Skip the abstract bases themselves.
+        if obj in resolved_bases:
             continue
         if getattr(obj, "__module__", None) != module_name:
             continue
@@ -91,7 +98,8 @@ class Definitions:
     def __init__(self, language="en") -> None:
         if self._is_initialised:
             return
-        classes = _collect_module_classes("components.data", (Primitive,))
+
+        classes = _collect_module_classes("components.data", ("Primitive",))
         definitions = fetch_definitions(classes, language=self.language)
         # licensed_material = fetch_licensed_material(classes, language=self.language)
         object.__setattr__(self, "canonical_definitions", definitions)

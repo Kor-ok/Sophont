@@ -1,158 +1,64 @@
 from __future__ import annotations
 
-import dataclasses
-from abc import ABC
 from collections.abc import Iterable
-from typing import Any, ClassVar, get_type_hints
+
+from numpy import bool as np_bool
+from numpy import int8
 
 from components import component
+from components.base import Applied, Primitive
 from systems.uid.guid import GUID
-
-
-def _get_signature_type(
-    cls: type,
-    primitive_types: tuple[type, ...] = (int, float, bool),
-) -> tuple[type, ...]:
-    """Return a flattened tuple of primitive field types for *cls*,
-    preserving declaration order.
-
-    Non-primitive fields whose type carries its own annotations
-    (e.g. another component class) are expanded recursively.
-    """
-    result: list[type] = []
-    hints = get_type_hints(cls)
-
-    # Prefer dataclass fields (excludes ClassVar, ordered correctly).
-    # Fall back to the class's own __annotations__ for classes that
-    # have not yet been processed by @dataclass / @component.
-    try:
-        own_field_names = [f.name for f in dataclasses.fields(cls)]
-    except TypeError:
-        own_field_names = list(cls.__dict__.get("__annotations__", {}))
-
-    for name in own_field_names:
-        field_type = hints.get(name)
-        if field_type is None:
-            continue
-        if field_type in primitive_types:
-            result.append(field_type)
-        elif hasattr(field_type, "__annotations__"):
-            result.extend(_get_signature_type(field_type, primitive_types))
-
-    return tuple(result)
-
-
-@component
-class Primitive(ABC):
-    """Base class for all primitives where their signature can
-    return their defined name from semantic layer utilities.
-
-    i.e. a CharacteristicCode with upp_position 1, subtype 0, and
-    category 1 would have a signature that can fetch "strength" as
-    mapped by the semantic layer.
-
-    ``signature`` is a class-level attribute computed automatically for
-    each concrete subclass — a flattened tuple of primitive field types
-    preserving declaration order.
-    """
-
-    signature: ClassVar[tuple[type, ...]] = ()
-
-    def __init_subclass__(cls, **kwargs: object) -> None:
-        super().__init_subclass__(**kwargs)
-        cls.signature = _get_signature_type(cls)
-
-    def get_name(self) -> Any:
-        """Fetch the name of this component from the semantic layer using
-        its signature and field values.
-        """
-        of_class = self.__class__
-        print(f"of_class = {of_class}")
-        signature_values = self._get_signature_value
-        print(f"signature_values = {signature_values}")
-        # From DEFINITIONS where class: "signature" → OrderedDict["signature", signature_values]
-        # from which we want 'canonical' and 'aliases'
-        from components.definitions import DEFINITIONS
-        return DEFINITIONS.canonical_definitions.get(of_class, {}).get(signature_values)
-    
-    def _get_signature_value(self) -> tuple[Any, ...]:
-        """Return a flattened tuple of field values for *cls* corresponding to the
-        types in its signature in the same order as returned by _get_signature_type.
-
-        Results e.g. for a CharacteristicCode with 
-        upp_position 1, subtype 0, and category 1 would be (1, 0, 1).
-        """
-        result: list[Any] = []
-        for field_type in self.signature:
-            for field_name, field_value in self.__dict__.items():
-                if isinstance(field_value, field_type):
-                    if field_type in (int, float, bool):
-                        result.append(field_value)
-                    elif hasattr(field_type, "__annotations__"):
-                        result.extend(field_value._get_signature_value())
-                    break
-        return tuple(result)
-
-
-@component
-class Applied(ABC):
-    """Base class for all components of a more complex signature
-    that can hold references to Primitive components or other
-    Applied components.
-    """
-
-    pass
 
 
 @component
 class CharacteristicCode(Primitive):
-    upp_position: int
-    subtype: int
+    upp_position: int8
+    subtype: int8
     """0 is default, i.e. upp_position 1 of subtype 0 is strength"""
-    category: int
+    category: int8
     """1 physical, 2 mental, 3 social, 4 obscure"""
 
 
 @component
 class SkillCode(Primitive):
-    key: int
+    key: int8
     """code for the skill, i.e. 21 language"""
-    set: int
+    set: int8
     """1 general, 2 default, 3 talents, 4 personals, 5 intuitions"""
-    group: int
+    group: int8
     """1 base, 2 starship skills, 3 trades, 4 arts, 5 soldier skills"""
 
 
 @component
 class KnowledgeCode(Primitive):
-    key: int
+    key: int8
     """code for the knowledge, i.e. 57 sophontology"""
-    focus: int
+    focus: int8
     """lookup code for the name of the specialisation i.e. 'anglic' """
     associated_skill: SkillCode
 
 
 @component
 class GenderCode(Primitive):
-    key: int
+    key: int8
     """-1 unspecified, 0 solo, 1 female, 2 male, 3 neuter ... etc."""
 
 
 @component
 class GeneCode(Applied):
     characteristic: CharacteristicCode
-    precedence: int
-    die_mult: int
+    precedence: int8
+    die_mult: int8
     gender_link: GenderCode
     characteristic_link: CharacteristicCode
-    contributor_pool_size: int
+    contributor_pool_size: int8
 
 
 @component
 class PheneCode(Applied):
     characteristic: CharacteristicCode
-    is_grafted: bool
-    precedence: int
+    is_grafted: np_bool
+    precedence: int8
     contributor_guid: GUID
 
 
