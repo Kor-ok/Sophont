@@ -5,8 +5,6 @@ from collections.abc import Mapping
 from typing import Any, NamedTuple, Union
 
 import pandas as pd
-from numpy import bool as np_bool
-from numpy import float16, int8
 from typing_extensions import TypeAlias
 
 from humaniseT5.definitions import DEFINITIONS_XLSX_PATH
@@ -16,16 +14,19 @@ from humaniseT5.utils import (
     lowercase_and_strip,
 )
 
-PrimitiveTypes = namedtuple("Primitives", ["int", "float", "bool"])(int8, float16, np_bool)
-UnionPrimitiveTypes: TypeAlias = Union[int8, float16, np_bool]
-Signature: TypeAlias = tuple[UnionPrimitiveTypes, ...]
+PrimitiveTypes = namedtuple("Primitives", ["int", "float", "bool"])(int, float, bool)
+UnionPrimitiveTypes: TypeAlias = Union[int, float, bool]
+Signature: TypeAlias = tuple[Any, ...]
 
 CanonicalStrKey: TypeAlias = str
 StringAliases: TypeAlias = tuple[str, ...]
 AliasMap: TypeAlias = Mapping[CanonicalStrKey, StringAliases]
 FlattenedAliasMap: TypeAlias = str
 
-Class: TypeAlias = type
+Class: TypeAlias = int
+"""Instead of using the actual class objects as keys in the indices, 
+we use their unique integer identities from their subclass_dict. 
+This is for a tighter coupling with a DOTS architecture."""
 
 
 class ComponentAttributeInfo(NamedTuple):
@@ -45,10 +46,10 @@ class ComponentClassInfo(NamedTuple):
 
 
 # Type aliases for the two index shapes inside the definitions dict.
-BySignature: TypeAlias = OrderedDict[tuple[Class, ComponentAttributeInfo], AliasMap]
+BySignature: TypeAlias = OrderedDict[Signature, AliasMap]
 """Forward index: (class, attribute info) → alias map."""
 
-ByAlias: TypeAlias = OrderedDict[tuple[Class, FlattenedAliasMap], ComponentAttributeInfo]
+ByAlias: TypeAlias = OrderedDict[tuple[Class, FlattenedAliasMap], Signature]
 """Reverse index: (class, canonical-or-alias string) → attribute info."""
 
 
@@ -92,6 +93,9 @@ def fetch_definitions(
     by_alias: ByAlias = OrderedDict()
 
     for domain in classes:
+        domain_identity = domain.subclass_dict.get(domain.__name__)
+        signature = domain.signature
+        # print(f"Domain Identity for {domain.__class__.__name__}:", domain_identity)
         domain_name = convert_type_to_str_name(domain)
         matches = base_map.get(domain_name)
         if not matches:
@@ -115,19 +119,19 @@ def fetch_definitions(
                 if canonical is None:
                     continue
 
-                sig_tuple = convert_comma_delimited_str_to_tuple(row.get(value_col), type=int8)
+                sig_tuple = convert_comma_delimited_str_to_tuple(row.get(value_col), type=int)
                 aliases = convert_comma_delimited_str_to_tuple(row.get("aliases"), type=str)
                 attribute = ComponentAttributeInfo(name=attr_name, signature=sig_tuple)
                 alias_map: AliasMap = {canonical: aliases}
 
                 # Forward index: (class, attribute) → alias map
-                by_signature[(domain, attribute)] = alias_map
+                by_signature[signature] = alias_map
 
                 # Reverse index: every known string → attribute
-                by_alias[(domain, canonical)] = attribute
+                by_alias[(domain_identity, canonical)] = signature
                 for alias in aliases:
                     if alias:  # guard against empty strings
-                        by_alias[(domain, alias)] = attribute
+                        by_alias[(domain_identity, alias)] = signature
 
     return DefinitionsIndex(by_signature=by_signature, by_alias=by_alias)
 
@@ -143,8 +147,9 @@ def get_alias_map_by_signature(
     search_index: DefinitionsIndex,
 ) -> AliasMap | None:
     """O(1) forward lookup: class + value-signature → alias map."""
+    domain_identity = cls.subclass_dict.get(cls.__name__)
     return search_index.by_signature.get(
-        (cls, ComponentAttributeInfo(name="signature", signature=sig))
+        (cls.signature)
     )
 
 
@@ -154,5 +159,6 @@ def get_attribute_by_name(
     search_index: DefinitionsIndex,
 ) -> ComponentAttributeInfo | None:
     """O(1) reverse lookup: class + canonical-or-alias string → attribute info."""
+    domain_identity = cls.subclass_dict.get(cls.__name__)
     name = lowercase_and_strip(name)
-    return search_index.by_alias.get((cls, name))
+    return search_index.by_alias.get((domain_identity, name))

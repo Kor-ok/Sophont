@@ -31,7 +31,7 @@ def _collect_module_classes(
     # ``issubclass`` for reliable detection (the @component decorator
     # wraps classes in a slotted subclass, hiding the original bases).
     resolved_bases: list[type] = []
-    base_module = import_module("components.base")
+    base_module = import_module(name="components.base")
     for name in base_classes:
         cls = getattr(base_module, name, None)
         if cls is not None:
@@ -66,23 +66,23 @@ def _collect_module_classes(
             field_map[f.name] = hints.get(f.name, f.type)
 
         result[obj] = ComponentClassInfo(
-            signature=getattr(obj, "Signature", ()),
+            signature=obj.signature,
             fields=field_map,
         )
 
     return result
 
 
-class Definitions:
+class Semantics:
     """Global Singleton for holding all definitions and licensed material. This is populated at runtime by fetching from the Excel sheets and can be accessed by any component or system that needs it. It is not intended to be modified after initial population, but is not strictly immutable."""
 
     __slots__ = ("language", "canonical_definitions", "_is_initialised")
 
     _is_initialised: bool
-    _instance: Optional[Definitions] = None
+    _instance: Optional[Semantics] = None
     language: str
 
-    def __new__(cls, language="en") -> Definitions:
+    def __new__(cls, language="en") -> Semantics:
         if cls._instance is not None:
             return cls._instance
 
@@ -99,8 +99,8 @@ class Definitions:
         if self._is_initialised:
             return
 
-        classes = _collect_module_classes("components.data", ("Primitive",))
-        definitions = fetch_definitions(classes, language=self.language)
+        classes = _collect_module_classes(module_name="components.data", base_classes=("Primitive",))
+        definitions = fetch_definitions(classes=classes, language=self.language)
         # licensed_material = fetch_licensed_material(classes, language=self.language)
         object.__setattr__(self, "canonical_definitions", definitions)
         # object.__setattr__(self, "licensed_material", licensed_material)
@@ -108,4 +108,4 @@ class Definitions:
 
 
 # Convenience global instance for easy access to definitions and licensed material.
-DEFINITIONS = Definitions(language="en")
+SEMANTICS = Semantics(language="en")

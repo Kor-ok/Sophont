@@ -8,10 +8,9 @@ from typing import (
     Any,
     Callable,
     TypeVar,
+    get_type_hints,
     overload,
 )
-
-from numpy import int8
 
 # dataclass_transform tells static type checkers that @component behaves like @dataclass
 if sys.version_info >= (3, 11):
@@ -30,7 +29,7 @@ else:
 # Constants
 # ---------------------------------------------------------------------------
 
-DEFAULT_UNDEFINED_CODE: int8 = int8(-99)
+DEFAULT_UNDEFINED_CODE: int = -99
 """Sentinel value used when a coded field has no meaningful value yet."""
 
 _T = TypeVar("_T")
@@ -126,7 +125,6 @@ def _make_slotted_class(
     slotted_cls.__qualname__ = cls.__qualname__
 
     return slotted_cls
-
 
 # ---------------------------------------------------------------------------
 # The @component Decorator
@@ -348,10 +346,7 @@ def component(
                 def _init_with_signature(self: Any, *args: Any, **kwargs: Any) -> None:
                     _prev_init(self, *args, **kwargs)
 
-                    # print(f"\033[1;33m_prev_init = for {dc_cls.__name__} with args={args}, kwargs={kwargs}\033[0m")
-
                     if not hasattr(self, "signature"):
-                        # print(f"\033[1;33mComputing signature for instance of {dc_cls.__name__}...\033[0m")
                         object.__setattr__(self, "signature", _compute_signature(self))
 
                 # Preserve init signature for IDE / introspection.
@@ -363,9 +358,15 @@ def component(
                     pass
 
                 dc_cls.__init__ = _init_with_signature  # type: ignore[method-assign]
+
+                # Implement type hints for the computed signature attribute
+                annotations = dict(getattr(dc_cls, "__annotations__", {}))
+                annotations["signature"] = "tuple[int, ...]"
+                dc_cls.__annotations__ = annotations
+
         except ImportError:
             pass
-
+        
         return dc_cls
 
     # Support both @component and @component(...)

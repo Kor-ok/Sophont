@@ -6,12 +6,16 @@ from collections.abc import Iterable
 from os import PathLike
 from typing import Any, Union
 
+from colorama import Fore
+from colorama import init as colorama_init
+
 from humaniseT5.authoring.excel import (
     extract_licensed_material,
     open_encrypted_licensed_material,
     read_excel,
 )
 
+colorama_init(autoreset=True)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 DEFINITIONS_XLSX_FILENAME = "Definitions.xlsx"
@@ -33,10 +37,10 @@ def files_status_check(paths: Union[PathOrStr, Iterable[PathOrStr]]) -> None:
     for path in paths:
         p = os.fspath(path)
         if not os.path.isfile(p):
-            print(f"File at path {p} does not exist.")
+            print(Fore.RED + f"File at path {p} does not exist.")
             continue
 
-        error_message = f"File at path {p} is locked by another process."
+        error_message = Fore.RED + f"File at path {p} is locked by another process."
         try:
             if sys.platform.startswith("win"):
                 import msvcrt

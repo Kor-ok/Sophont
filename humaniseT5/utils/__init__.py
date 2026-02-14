@@ -5,8 +5,6 @@ from functools import lru_cache
 from typing import Any
 
 import pandas as pd
-from numpy import bool as np_bool
-from numpy import float16, int8
 
 
 @lru_cache(maxsize=100)
@@ -52,31 +50,31 @@ def convert_comma_delimited_str_to_tuple(s: Any, type: type | None = None) -> tu
     float_re = re.compile(r"^[+-]?(?:\d+\.\d*|\.\d+|\d+[eE][+-]?\d+)$")
     bool_vals = {"true", "false", "yes", "no", "1", "0"}
 
-    def is_int(x: str) -> np_bool:
-        return np_bool(int_re.match(x))
+    def is_int(x: str) -> bool:
+        return bool(int_re.match(x))
 
-    def is_float(x: str) -> np_bool:
-        return np_bool(float_re.match(x)) or is_int(x)
+    def is_float(x: str) -> bool:
+        return bool(float_re.match(x)) or is_int(x)
 
-    def is_bool(x: str) -> np_bool:
-        return np_bool(x.lower() in bool_vals)
+    def is_bool(x: str) -> bool:
+        return x.lower() in bool_vals
 
     # If caller provided a type, use it
     if type is not None:
-        if type is int8:
-            return tuple(int8(p) for p in parts)
-        if type is float16:
-            return tuple(float16(p) for p in parts)
-        if type is np_bool:
+        if type is int:
+            return tuple(int(p) for p in parts)
+        if type is float:
+            return tuple(float(p) for p in parts)
+        if type is bool:
             return tuple(p.lower() in ("true", "1", "yes") for p in parts)
         return tuple(p for p in parts)
 
     # Infer a common type across all parts
     if all(is_int(p) for p in parts):
-        return tuple(int8(p) for p in parts)
+        return tuple(int(p) for p in parts)
     if all(is_float(p) for p in parts):
-        return tuple(float16(p) for p in parts)
+        return tuple(float(p) for p in parts)
     if all(is_bool(p) for p in parts):
-        return tuple(np_bool(p.lower() in ("true", "1", "yes")) for p in parts)
+        return tuple(p.lower() in ("true", "1", "yes") for p in parts)
 
     return tuple(p for p in parts)

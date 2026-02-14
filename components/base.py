@@ -11,9 +11,11 @@ from humaniseT5.definitions.api import (
 
 def _compute_signature(
     instance: Any,
-) -> tuple[Any, ...]:
+) -> tuple[int, ...]:
     """Return a flattened tuple of primitive field values for *instance*,
     preserving declaration order.
+
+    First value of the signature is the subclass index for the instance's class.
 
     Recursively expands nested ``Primitive`` instances to extract their
     primitive values.
@@ -25,7 +27,10 @@ def _compute_signature(
     ``key=41, focus=-99, associated_skill=SkillCode(key=25, set=1, group=-99)``, the
     result is ``(41, -99, 25, 1, -99)``.
     """
-    result: list[Any] = []
+    result: list[int] = []
+
+    # First, append the subclass index for the instance's class to the result.
+    result.append(instance.subclass_dict.get(instance.__class__.__name__, -99))
 
     try:
         instance_fields = dataclasses.fields(instance)
@@ -41,6 +46,15 @@ def _compute_signature(
 
     return tuple(result)
 
+def generate_member_dict(instance: Any) -> dict[int, str]:
+    """Generate a dict mapping field index to field name for a component class."""
+    member_dict = {}
+    for attr_name in instance.mro()[0].__annotations__.keys():
+        of_type = instance.mro()[0].__annotations__[attr_name]
+        included_types = ("int",)
+        if of_type in included_types:
+            member_dict[len(member_dict)] = attr_name
+    return member_dict
 
 class Primitive:
     """Base class where the child class' signature can be used
@@ -54,18 +68,38 @@ class Primitive:
     ``@component`` decorator for each concrete subclass — a flattened tuple
     of primitive field values preserving declaration order.
     """
+    subclass_dict: dict[str, int] = {}
+
+    def __init_subclass__(cls) -> None:
+        """Automatically populate the subclass_dict with each new subclass,
+        making sure not to duplicate entries.
+        
+        The subclass_dict maps the name of each direct subclass to a unique integer index,
+        which will be used for DOTS signatures and efficient lookups using the semantic layer.
+        """
+        if cls.__name__ not in cls.subclass_dict:
+            cls.subclass_dict[cls.__name__] = len(cls.subclass_dict)
+
+        # add signature type hint to the subclass
+        cls.signature: tuple[int, ...]
+        
+        """Automatically populate the member_dict with each new subclass, mapping field index
+          to field name."""
+
+        cls.member_dict = generate_member_dict(cls) 
+        cls.member_dict: dict[int, str]
 
     @property
     def semantics(self) -> Any:
         """Fetch the semantics of this component from the semantic layer using
         its signature and field values.
         """
-        from components.definitions import DEFINITIONS  # lazy to avoid circular import
+        from components.definitions import SEMANTICS  # lazy to avoid circular import
 
         return get_alias_map_by_signature(
             self.__class__,
-            self.signature, # type: ignore[attr-defined] # TODO: ensure type checker understands this is set by the @component decorator 
-            search_index=DEFINITIONS.canonical_definitions,
+            self.signature,
+            search_index=SEMANTICS.canonical_definitions,
         )
 
     @classmethod
@@ -74,10 +108,10 @@ class Primitive:
         E.g. for a CharacteristicCode with alias "Strength", will return an instance
         with the correct signature values for that alias.
         """
-        from components.definitions import DEFINITIONS  # lazy to avoid circular import
+        from components.definitions import SEMANTICS  # lazy to avoid circular import
 
         component_attribute_info = get_attribute_by_name(
-            cls, name, search_index=DEFINITIONS.canonical_definitions
+            cls, name, search_index=SEMANTICS.canonical_definitions
         )
         """
         class ComponentAttributeInfo(NamedTuple):
