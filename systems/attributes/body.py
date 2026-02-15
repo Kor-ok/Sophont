@@ -4,8 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum, auto
 
-from components.primitives.data import FullCode
-from components.primitives.senses import Sensor
+from components.data import FullCode
+from components.senses import Sensor
 from systems.attributes.characteristic import Characteristic
 from systems.attributes.package import AttributePackage
 from systems.attributes.skill import Skill

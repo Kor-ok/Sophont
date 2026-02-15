@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Final, Optional
 
-from components.primitives.characteristics import Characteristics
-from components.primitives.knowledges import Knowledges
-from components.primitives.skills import Skills
+from components.characteristics import Characteristics
+from components.knowledges import Knowledges
+from components.skills import Skills
 
 
 class AttributesSet:

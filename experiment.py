@@ -10,13 +10,13 @@ from colorama import Fore, Style
 from colorama import init as colorama_init
 from typing_extensions import TypeAlias
 
-from components.base import Primitive
-from components.data import KnowledgeCode, SkillCode
-from humaniseT5.definitions import DEFINITIONS_XLSX_PATH
+from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
 from humaniseT5.utils import (
     convert_comma_delimited_str_to_tuple,
     lowercase_and_strip,  # Will be used in the next iteration - Please do not remove
 )
+from semantics.base import Primitive
+from semantics.data import KnowledgeCode, SkillCode
 
 #region SETUP
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓

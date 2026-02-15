@@ -5,12 +5,12 @@ from typing import Optional, Union
 
 from nicegui import ui
 
-from components.primitives.data import (
+from components.data import (
     AliasMap,
     AliasMappedFullCode,
     FullCode,
 )
-from components.primitives.set import ATTRIBUTES
+from components.set import ATTRIBUTES
 from systems.attributes.characteristic import Characteristic
 from systems.attributes.gene import Gene
 from systems.attributes.knowledge import Knowledge

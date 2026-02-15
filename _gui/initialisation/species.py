@@ -3,11 +3,11 @@ from __future__ import annotations
 from collections import defaultdict
 from random import choice, randint
 
-from components.primitives.data import (
+from components.data import (
     AliasMappedFullCode,
     FullCode,
 )
-from components.primitives.set import ATTRIBUTES
+from components.set import ATTRIBUTES
 from entities.sophont.character import Sophont
 from systems.attributes.characteristic import Characteristic
 from systems.attributes.gene import Gene

@@ -11,8 +11,8 @@ from _gui.forms.attribute_builder_base import (
     AttributeType,
     SelectedAttributeDisplayBase,
 )
-from components.primitives.data import FullCode
-from components.primitives.set import ATTRIBUTES
+from components.data import FullCode
+from components.set import ATTRIBUTES
 from systems.attributes.skill import Skill
 
 

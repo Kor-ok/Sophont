@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from components.primitives import (
+from components import (
     KNOWLEDGES_BASE_KNOWLEDGE_CODES,
     KNOWLEDGES_FULL_CODE_TO_STR_ALIASES,
 )
-from components.primitives.base import PrimitiveAttributeBase
-from components.primitives.data import (
+from components.base import PrimitiveAttributeBase
+from components.data import (
     AliasMappedFullCodeCollection,
     CanonicalCodeInt,
     MutabilityLevel,

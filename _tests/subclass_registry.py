@@ -6,11 +6,11 @@ from pprint import pprint
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from components.definitions import SEMANTICS
+from semantics.definitions import SEMANTICS
 
 
 def test_base_class_subclass_dict():
-    from components.base import Primitive
+    from semantics.base import Primitive
     # Get a list of all subclasses of Primitive
     subclasses = Primitive.__subclasses__()
     subclass_dict: dict[str, int] = {subclass.__name__: index for index, subclass in enumerate(subclasses)}
@@ -22,8 +22,8 @@ def test_base_class_subclass_dict():
     print(subclass_dict == Primitive.subclass_dict)
 
 def test_get_base_class_subclass_dict_from_child_instances():
-    from components.base import Primitive
-    from components.data import (
+    from semantics.base import Primitive
+    from semantics.data import (
         CharacteristicCode,
         GenderCode,
         KnowledgeCode,

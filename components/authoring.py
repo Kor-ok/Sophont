@@ -11,7 +11,7 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     np = None  # type: ignore[assignment]
 
-from components.primitives.data import (
+from components.data import (
     AliasMappedFullCode,
     CanonicalCodeInt,
     FullCode,

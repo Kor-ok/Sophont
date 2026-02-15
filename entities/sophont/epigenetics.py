@@ -5,7 +5,7 @@ from typing import Union, cast
 
 from sortedcontainers import SortedKeyList
 
-from components.primitives.data import FullCode
+from components.data import FullCode
 from sophont.acquisitions import Acquired
 from systems.attributes.characteristic import Characteristic
 from systems.attributes.gene import Gene

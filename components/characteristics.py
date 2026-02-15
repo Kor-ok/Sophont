@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from components.primitives import (
+from components import (
     CHARACTERISTICS_BASE_FULL_CODE_TO_STR_ALIASES,
     CHARACTERISTICS_MASTER_CATEGORY_CODES,  # noqa: F401
     CHARACTERISTICS_MATRIX,  # noqa: F401
 )
-from components.primitives.base import PrimitiveAttributeBase
-from components.primitives.data import (
+from components.base import PrimitiveAttributeBase
+from components.data import (
     AliasMappedFullCodeCollection,
     CanonicalCodeInt,
     FullCode,

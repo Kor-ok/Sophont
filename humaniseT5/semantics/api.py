@@ -7,7 +7,7 @@ from typing import Any, NamedTuple, Union
 import pandas as pd
 from typing_extensions import TypeAlias
 
-from humaniseT5.definitions import DEFINITIONS_XLSX_PATH
+from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
 from humaniseT5.utils import (
     convert_comma_delimited_str_to_tuple,
     convert_type_to_str_name,

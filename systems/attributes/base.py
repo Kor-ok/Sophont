@@ -29,7 +29,7 @@ from typing import (
     runtime_checkable,
 )
 
-from components.primitives.data import CanonicalStrKey, FullCode, StringAliases
+from components.data import CanonicalStrKey, FullCode, StringAliases
 
 # -----------------------------------------------------------------------------
 # Type Variables

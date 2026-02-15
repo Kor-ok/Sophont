@@ -12,7 +12,7 @@ _src_path = Path(__file__).parent.parent.parent
 if str(_src_path) not in sys.path:
     sys.path.insert(0, str(_src_path))
 
-from components.primitives.init_mappings import (  # noqa: E402
+from components.init_mappings import (  # noqa: E402
     LANG_CODE,
     XLSX_PATH,
 )

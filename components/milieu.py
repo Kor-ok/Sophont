@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from components.primitives.data import (
+from components.data import (
     AliasMap,
     CanonicalCodeInt,
 )

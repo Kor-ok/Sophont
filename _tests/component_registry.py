@@ -12,8 +12,8 @@ from typing_extensions import TypeAlias
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from components.base import Primitive
-from components.data import KnowledgeCode, SkillCode
+from semantics.base import Primitive
+from semantics.data import KnowledgeCode, SkillCode
 from utils.terminal import divider, header, highlight
 
 colorama_init(autoreset=True)

@@ -9,7 +9,7 @@ from _gui import styles
 from _gui.computed.upp import UPPDisplay
 from _gui.initialisation.globals import IS_DEBUG
 from _gui.initialisation.species import SPECIES_MAP
-from components.primitives.gender import _BASE as gender_map
+from components.gender import _BASE as gender_map
 from entities.sophont.character import Sophont
 
 

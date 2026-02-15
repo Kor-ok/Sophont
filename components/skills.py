@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from components.primitives import (
+from components import (
     SKILLS_BASE_SKILL_CODES,
     SKILLS_MAPPING_BASE_SKILL_CODE_TO_CATEGORIES,
     SKILLS_MASTER_CATEGORY_CODES,
     SKILLS_SUB_CATEGORY_CODES,
 )
-from components.primitives.base import PrimitiveAttributeBase
-from components.primitives.data import (
+from components.base import PrimitiveAttributeBase
+from components.data import (
     AliasMappedFullCodeCollection,
     CanonicalCodeInt,
     MutabilityLevel,

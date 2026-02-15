@@ -5,7 +5,7 @@ import inspect
 from importlib import import_module
 from typing import Optional, get_type_hints
 
-from humaniseT5.definitions.api import (
+from humaniseT5.semantics.api import (
     ComponentClassInfo,
     fetch_definitions,
 )

@@ -41,8 +41,7 @@ from numpy import int8
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from components.definitions import _collect_module_classes
-from humaniseT5.definitions.api import (
+from humaniseT5.semantics.api import (
     ComponentAttributeInfo,
     ComponentClassInfo,
     DefinitionsIndex,
@@ -50,6 +49,7 @@ from humaniseT5.definitions.api import (
     get_alias_map_by_signature,
     get_attribute_by_name,
 )
+from semantics.definitions import _collect_module_classes
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  FIXTURES

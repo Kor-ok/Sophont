@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from components.primitives.data import CanonicalStrKey, FullCode, StringAliases
-from components.primitives.set import ATTRIBUTES
+from components.data import CanonicalStrKey, FullCode, StringAliases
+from components.set import ATTRIBUTES
 from systems.attributes.base import AppliedAttributeBase
 
 

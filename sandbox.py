@@ -11,7 +11,7 @@ from colorama import Fore, Style
 from colorama import init as colorama_init
 from pympler.asizeof import asizeof
 
-from components.data import KnowledgeCode, SkillCode
+from semantics.data import KnowledgeCode, SkillCode
 from utils.dev import CACHE_SIZES
 
 colorama_init(autoreset=True, convert=True)  # Initialize colorama for colored output in the terminal
