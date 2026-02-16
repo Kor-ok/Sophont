@@ -12,7 +12,6 @@ def lowercase_and_strip(s: str) -> str:
     """Convert a string to lowercase and strip leading/trailing whitespace."""
     return s.strip().lower()
 
-@lru_cache(maxsize=1000)
 def convert_type_to_str_name(t: type) -> str:
     """Convert a type object to a string representation, e.g. int -> 'int'."""
     if hasattr(t, "__name__"):
@@ -20,7 +19,7 @@ def convert_type_to_str_name(t: type) -> str:
     else:
         return str(t)
 
-@lru_cache(maxsize=1000)
+@lru_cache(maxsize=300)
 def convert_comma_delimited_str_to_tuple(s: Any, type: type | None = None) -> tuple[Any, ...]:
     """Convert a comma-delimited string like "1, 0, 1" into a tuple of a sensible type.
 

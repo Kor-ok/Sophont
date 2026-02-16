@@ -3,12 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import re
-from collections import OrderedDict
-from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from importlib import import_module
 from types import MappingProxyType
-from typing import Any, NamedTuple, Optional, get_type_hints
+from typing import Any, NamedTuple
 
 import pandas as pd
 from colorama import Fore, Style
@@ -16,13 +13,16 @@ from colorama import init as colorama_init
 from typing_extensions import TypeAlias
 
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
-from humaniseT5.utils import (
-    convert_comma_delimited_str_to_tuple,
-    lowercase_and_strip,  # Will be used in the next iteration - Please do not remove
-)
+from humaniseT5.utils import convert_comma_delimited_str_to_tuple, lowercase_and_strip
 from semantics.base import Primitive
 from semantics.data import CharacteristicCode, KnowledgeCode, SkillCode
-from utils.terminal import divider, header
+from utils.semantics import (
+    collect_module_classes,
+    construct_composite_signature,
+    parse_signature_portion_from_type,
+    return_recursive_types,
+)
+from utils.terminal import header
 
 #region SETUP
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -79,82 +79,6 @@ ByAliasForMemberIdentity: TypeAlias = dict[
 """Reverse member index: (DomainIdentity, MemberIdentity, FlattenedAliasMap) → Signature."""
 #endregion
 
-# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-# ┃                                                                    COMPONENT HELPERS ┃
-# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-def return_recursive_types(
-    cls: type,
-    seen: Optional[set[type]] = None
-) -> OrderedDict[type, tuple[DomainIdentity, MembersLength]]:
-    """Return a dictionary of all types that are recursively referenced by the given class,
-    including self where the key is the class and the value is a tuple of the class's domain identity and members length.
-    Member lengths are + 1 to account for the domain identity at the start of the signature for each class EXCEPT
-    the initial class to allow for self recursion without including the domain identity in the member count for that 
-    initial class."""
-    if seen is None:
-        seen = set()
-    if cls in seen:
-        return OrderedDict({cls: (cls.subclass_dict[cls], len(cls.member_dict))}) # Return the recursive type with its domain identity and members length
-    seen.add(cls)
-    recursive_types = OrderedDict()
-    is_recursive = False
-    for _, field_type in cls.member_dict.values():
-        for class_type, domain_identity in cls.subclass_dict.items():
-            if field_type == class_type:
-                is_recursive = True
-
-    primary_domain_identity = cls.subclass_dict[cls]
-    if is_recursive:
-        for _, field_type in cls.member_dict.values():
-            for class_type, domain_identity in cls.subclass_dict.items():
-                if field_type == class_type:
-                    members_length = len(class_type.member_dict) + 1
-                    recursive_types[class_type] = (domain_identity, members_length)
-                    # Now deal with the self class where if it is recursive, we want to include it in the result with its domain identity and members length, but we don't want to add +1 to the members length for the initial class to allow for self recursion without including the domain identity in the member count for that initial class
-                    self_members_length = len(cls.member_dict)
-                    recursive_types[cls] = (primary_domain_identity, self_members_length) # Keep the existing members length for the initial class to allow for self recursion without including the domain identity in the member count for that initial class
-                    recursive_types.move_to_end(cls, last=False)
-    else:
-        # We only add itself to the recursive types
-        recursive_types[cls] = (primary_domain_identity, len(cls.member_dict) + 1) # Add +1 to account for the domain identity at the start of the signature for each class
-    
-    if not recursive_types:
-        raise ValueError(f"No recursive types found for class {cls.__name__}.")
-    return recursive_types
-
-def construct_composite_signature(parse_signature: Signature, recursive_types: dict[type, tuple[DomainIdentity, MembersLength]]) -> Signature:
-    """Construct a composite signature by adding the domain identity at the start of the parse signature tuple, to create a unique key for the by_signature index."""
-    composite_signature: Signature = ()
-    target_signature_length = sum(members_length for _, members_length in recursive_types.values())
-    cummulative_members_length = 0
-    for cls, (domain_identity, members_length) in recursive_types.items():
-        parse_signature_portion = parse_signature[:members_length - 1]
-        composite_signature += (domain_identity,) + parse_signature_portion
-        if len(composite_signature) >= target_signature_length:
-            break  # Stop once we've reached the target signature length to avoid adding extra domain identities and member values beyond what is needed for the composite signature
-        cummulative_members_length += members_length
-        parse_signature = parse_signature[members_length - 1:]
-    
-    return composite_signature
-
-# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-# ┃                                                                      COLLECT CLASSES ┃
-# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-def collect_module_classes(
-    module_name: str,
-    base_classes: tuple[type, ...],
-) -> Any:
-
-    module = import_module(module_name)
-
-    results = []
-    for _, obj in vars(module).items():
-        # get everything from __module__ = components.data and who's base class is in base_classes
-        if getattr(obj, "__module__", None) == module_name\
-            and any(issubclass(obj, base) for base in base_classes):
-            results.append(obj)
-    
-    return results
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃                                                                        BUILD INDICES ┃
@@ -363,12 +287,12 @@ def display_component_info(info: Any, colour: str = Fore.WHITE, style: str = Sty
 @dataclass
 class SemanticMembersResult:
     member_name: str
-    member_value: int
+    member_code: int
     aliases: tuple[str, ...]
 @dataclass
 class SemanticNestedClassResult:
     cls: type
-    signature: tuple[int, ...]
+    semantic_signature: tuple[int, ...]
     aliases: tuple[str, ...]
     members: list[SemanticMembersResult]
 @dataclass
@@ -378,33 +302,6 @@ class SemanticSearchResult:
 
 def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) -> None:
     """Helper function to get the semantics of a component instance using the by_signature index."""
-    
-    def _parse_signature_portion_from_type(cls: type, primary_signature: Signature) -> tuple[int, ...]:
-        """Helper function to parse a portion of the signature tuple that corresponds to a specific class, using the member_dict of that class to map the values in the signature portion to their corresponding member names."""
-        parsed_result = ()
-        member_dict = cls.member_dict
-        is_recursive = False
-        for _, field_type in member_dict.values():
-            for class_type, domain_identity in cls.subclass_dict.items():
-                if field_type == class_type:
-                    is_recursive = True
-                    break
-        
-        if is_recursive:
-            members_length = len(member_dict) - 1
-        else:
-            members_length = len(member_dict)
-        
-        logger.debug(f"Length of members for class '{cls.__name__}': {members_length}")
-        for index, (member_name, member_type) in member_dict.items():
-            member_value = primary_signature[index + 1:members_length + 1]
-            logger.debug(f"Extracted member value: {member_value}")
-            parsed_result += member_value
-            if len(member_value) > members_length -1:
-                break  # Stop once we've parsed the expected number of member values for this class to avoid adding extra values beyond what is needed for the signature portion corresponding to this class
-
-        logger.debug(f"Parsed signature portion for class '{cls.__name__}': {parsed_result}")
-        return parsed_result
     
     def _get_available_members_from_type(cls: type) -> list[tuple[int, str]]:
         """Helper function to get the available member sheets for a specific class from the by_header index."""
@@ -435,7 +332,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
                 info = info.replace(match.group(0), f"{canonical_alias.capitalize()}")
             for member in nested_class.members:
                 replace = ""
-                replace += f"{member.member_name}={member.member_value}"
+                replace += f"{member.member_name}={member.member_code}"
                 canonical_alias = (member.aliases.split(",")[0]) if member.aliases else "N/A"
                 info = info.replace(replace, canonical_alias.capitalize())
                 
@@ -453,7 +350,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
     )
 
     signature = instance.signature
-    debug_result[instance_object].update({"signature": str(signature)})
+    debug_result[instance_object].update({"component_signature": str(signature)})
 
     instance_subclass_dict = instance.subclass_dict
 
@@ -464,15 +361,15 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
     if instance_domain_identity is None:
         raise ValueError(f"Domain identity for instance type '{instance_type.__name__}' not found in its subclass dict.")
 
-    primary_signature_portion = _parse_signature_portion_from_type(instance_type, signature)
-    debug_result[instance_object][instance_type.__name__].update({"signature": str(primary_signature_portion)})
+    primary_signature_portion = parse_signature_portion_from_type(instance_type, signature)
+    debug_result[instance_object][instance_type.__name__].update({"semantic_signature": str(primary_signature_portion)})
 
     search_result_by_signature = definitions.by_signature.get(signature)
     debug_result[instance_object][instance_type.__name__].update({"aliases": search_result_by_signature})
 
     semantic_nested_class = SemanticNestedClassResult(
         cls=instance_type,
-        signature=primary_signature_portion,
+        semantic_signature=primary_signature_portion,
         aliases=search_result_by_signature if search_result_by_signature is not None else (),
         members=[]
     )
@@ -489,11 +386,11 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
             else:
                 aliases_for_member = definitions.by_member_identity.get((instance_domain_identity, member_identity, primary_signature_portion[member_identity]))
             # print(f"Aliases for member '{member_name}' in domain identity {instance_domain_identity} and signature portion {primary_signature_portion[member_identity + 1]}: {aliases_for_member}")
-            debug_result[instance_object][instance_type.__name__].update({member_name: {"value": primary_signature_portion[member_identity], "aliases": aliases_for_member}})
+            debug_result[instance_object][instance_type.__name__].update({member_name: {"code": primary_signature_portion[member_identity], "aliases": aliases_for_member}})
 
             semantic_members_result = SemanticMembersResult(
                 member_name=member_name,
-                member_value=primary_signature_portion[member_identity],
+                member_code=primary_signature_portion[member_identity],
                 aliases=aliases_for_member if aliases_for_member is not None else ()
             )
             semantic_search_result.nested_classes[-1].members.append(semantic_members_result)
@@ -509,15 +406,15 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
         if portion_type is None:
             raise ValueError(f"Portion type for signature portion {signature_portion} not found in instance subclass dict.")
         debug_result[instance_object][instance_type.__name__].update({portion_type.__name__: {}})
-        nested_signature_portion = _parse_signature_portion_from_type(portion_type, signature_portion)
-        debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({"signature": str(nested_signature_portion)})
+        nested_signature_portion = parse_signature_portion_from_type(portion_type, signature_portion)
+        debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({"semantic_signature": str(nested_signature_portion)})
         
         search_result_by_signature_portion = definitions.by_signature.get(signature_portion)
         debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({"aliases": search_result_by_signature_portion})
 
         semantic_nested_class = SemanticNestedClassResult(
             cls=portion_type,
-            signature=nested_signature_portion,
+            semantic_signature=nested_signature_portion,
             aliases=search_result_by_signature_portion if search_result_by_signature_portion is not None else (),
             members=[]
         )
@@ -533,17 +430,17 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
                 else:
                     aliases_for_member = definitions.by_member_identity.get((domain_identity, member_identity, signature_portion[member_identity + 1]))
                 # print(f"Aliases for member '{member_name}' in domain identity {domain_identity} and signature portion {signature_portion[member_identity + 1]}: {aliases_for_member}")
-                debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({member_name: {"value": signature_portion[member_identity + 1], "aliases": aliases_for_member}})
+                debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({member_name: {"code": signature_portion[member_identity + 1], "aliases": aliases_for_member}})
 
                 semantic_members_result = SemanticMembersResult(
                     member_name=member_name,
-                    member_value=signature_portion[member_identity + 1],
+                    member_code=signature_portion[member_identity + 1],
                     aliases=aliases_for_member if aliases_for_member is not None else ()
                 )
                 semantic_search_result.nested_classes[-1].members.append(semantic_members_result)
 
     _display_semantic_search_result(semantic_search_result)    
-    #display_component_info(debug_result)
+    display_component_info(debug_result)
     
 
 if __name__ == "__main__":
