@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from functools import lru_cache
-from typing import Any, Union
+from typing import Any, get_type_hints
 
 from humaniseT5.semantics.api import (
     get_alias_map_by_signature,
@@ -32,9 +32,9 @@ def _compute_signature(
     result: list[int] = []
 
     # First, append the subclass index for the instance's class to the result.
-    subclass_index = instance.subclass_dict.get(instance.__class__.__name__)
+    subclass_index = instance.subclass_dict.get(instance.__class__)
     if subclass_index is None:
-        raise ValueError(f"Class {instance.__class__.__name__} not found in subclass_dict.")
+        raise ValueError(f"Class {instance.__class__} not found in subclass_dict.")
     result.append(subclass_index)
 
     try:
@@ -51,16 +51,12 @@ def _compute_signature(
     
     return tuple(result)
 
-def generate_member_dict(instance: Any) -> dict[int, Union[str, type]]:
+def generate_member_dict(instance: Any) -> dict[int, tuple[str, type]]:
     """Generate a dict mapping field index to field name for a component class."""
     member_dict = {}
-    for attr_name in instance.mro()[0].__annotations__.keys():
-        # of_type = instance.mro()[0].__annotations__[attr_name]
-        # print(f"Processing attribute '{attr_name}' of type '{of_type}' for class '{instance.__name__}'")
-        # included_types = (int,)
-        # if of_type in included_types:
-        member_dict[len(member_dict)] = attr_name
-    # print(f"Generated member_dict for {instance.__name__}: {member_dict}")
+    for name, type in get_type_hints(instance).items():
+        if name != "subclass_dict":
+            member_dict[len(member_dict)] = name, type
     return member_dict
 
 class Primitive:
@@ -75,7 +71,7 @@ class Primitive:
     ``@component`` decorator for each concrete subclass — a flattened tuple
     of primitive field values preserving declaration order.
     """
-    subclass_dict: dict[str, int] = {}
+    subclass_dict: dict[type, int] = {}
 
     def __init_subclass__(cls) -> None:
         """Automatically populate the subclass_dict with each new subclass,
@@ -83,20 +79,20 @@ class Primitive:
         
         The subclass_dict maps the name of each direct subclass to a unique integer index,
         which will be used for DOTS signatures and efficient lookups using the semantic layer.
-        """
-        if cls.__name__ not in cls.subclass_dict:
-            cls.subclass_dict[cls.__name__] = len(cls.subclass_dict)
+        """        
+        if dataclasses.is_dataclass(cls) and cls not in cls.subclass_dict:
+            cls.subclass_dict[cls] = len(cls.subclass_dict)
 
-        # add signature type hint to the subclass
-        cls.signature: tuple[int, ...]
-        
-        """Automatically populate the member_dict with each new subclass, mapping field index
-          to field name."""
-        # Avoid regenerating the member_dict entry if it already exists, since it is the same for all instances of the class. We can check for this by looking for the presence of the member_dict attribute on the class.
-        if not hasattr(cls, "member_dict"):
-            cls.member_dict = generate_member_dict(cls)
+            # add signature type hint to the subclass
+            cls.signature: tuple[int, ...]
+            
+            """Automatically populate the member_dict with each new subclass, mapping field index
+            to field name."""
+            # Avoid regenerating the member_dict entry if it already exists, since it is the same for all instances of the class. We can check for this by looking for the presence of the member_dict attribute on the class.
+            if not hasattr(cls, "member_dict"):
+                cls.member_dict = generate_member_dict(cls)
 
-        cls.member_dict: dict[int, Union[str, type]]
+            cls.member_dict: dict[int, tuple[str, type]]
 
     @property
     def semantics(self) -> Any:

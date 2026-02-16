@@ -278,6 +278,7 @@ def component(
                     instance = object.__new__(cls_inner)
                     # Store in cache before init (to handle recursive refs)
                     cache[cache_key] = instance
+
                 return instance
 
             # Preserve the signature on __new__ so inspect.signature(ClassName) works
