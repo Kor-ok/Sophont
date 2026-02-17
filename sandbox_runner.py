@@ -11,7 +11,7 @@ from watchfiles import awatch
 colorama_init(autoreset=False)  # Initialize colorama for colored output in the terminal
 
 
-SCRIPT_PATH = "experiment.py" 
+SCRIPT_PATH = "experiment.py"
 
 WATCH_FOR_CHANGES_TOP_DIR =  str(Path(__file__).resolve().parent)
 

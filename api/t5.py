@@ -14,16 +14,11 @@ from typing_extensions import TypeAlias
 
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
 from humaniseT5.utils import convert_comma_delimited_str_to_tuple
-from semantics.base import Primitive
-from semantics.data import CharacteristicCode, KnowledgeCode, SkillCode
 from utils.semantics import (
-    collect_module_classes,
-    construct_component_signature_from_semantic_signature,
     construct_composite_signature,
     get_recursive_component_classes,
     parse_signature_portion_from_type,
 )
-from utils.terminal import header
 
 #region SETUP
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -87,13 +82,14 @@ ByAliasForMemberIdentity: TypeAlias = dict[
 def build_definitions_indices(
     classes: list[type],
     language: str = "en",
+    source: str = DEFINITIONS_XLSX_PATH,
 ) -> Any:
     
     # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     # ┃                                                                         IO ONCE ┃
     # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
     data: dict[str, pd.DataFrame] = pd.read_excel(
-        DEFINITIONS_XLSX_PATH, sheet_name=None, engine="openpyxl"
+        source, sheet_name=None, engine="openpyxl"
     )
 
     # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -145,7 +141,7 @@ def build_definitions_indices(
 
             # Validations of column existence
             check_for_headers = [value_col, "lang", "canonical", "aliases"]
-            for header in check_for_headers:  # noqa: F402
+            for header in check_for_headers:
                 if header not in data[sheet].columns:
                     raise ValueError(f"Expected column '{header}' not found in sheet '{sheet}'")
 
@@ -179,9 +175,7 @@ def build_definitions_indices(
                     # Forward index: (DomainIdentity,Signature) → FlattenedAliasMap
                     # Create a composite signature by adding the domain identity at the start of the signature tuple, to create a unique key for the by_signature index.
                     composite_signature = construct_composite_signature(signature, recursive_types)
-                    component_signature = construct_component_signature_from_semantic_signature(component_cls, signature)
-                    # if composite_signature[0] == 2:
-                    #     print(f"Composite Signature: {composite_signature}")
+
                     by_signature[composite_signature] = flattened_aliases
 
                     # Reverse index: (DomainIdentity, FlattenedAliasMap) → Signature
@@ -327,7 +321,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
 
         for nested_class in result.nested_classes:
             
-            canonical_alias = (nested_class.aliases.split(",")[0]) if nested_class.aliases else "N/A" # type: ignore
+            canonical_alias = (nested_class.aliases.split(",")[0]) if nested_class.aliases else "N/A"
             key_regex = re.compile(r"key=\d+" r"|upp_position=\d+, subtype=\d+" r"|value=\d+")
             match = key_regex.search(info)
             if match:
@@ -335,7 +329,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
             for member in nested_class.members:
                 replace = ""
                 replace += f"{member.member_name}={member.member_code}"
-                canonical_alias = (member.aliases.split(",")[0]) if member.aliases else "N/A" # type: ignore
+                canonical_alias = (member.aliases.split(",")[0]) if member.aliases else "N/A"
                 info = info.replace(replace, canonical_alias.capitalize())
                 
         info = info.replace("-99", "Undefined")
@@ -351,7 +345,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
         nested_classes=[]
     )
 
-    signature = instance.component_signature
+    signature = instance.signature
     debug_result[instance_object].update({"component_signature": str(signature)})
 
     instance_subclass_dict = instance.subclass_dict
@@ -393,7 +387,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
             semantic_members_result = SemanticMembersResult(
                 member_name=member_name,
                 member_code=primary_signature_portion[member_identity],
-                aliases=aliases_for_member if aliases_for_member is not None else () # type: ignore
+                aliases=aliases_for_member if aliases_for_member is not None else ()
             )
             semantic_search_result.nested_classes[-1].members.append(semantic_members_result)
 
@@ -437,30 +431,10 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
                 semantic_members_result = SemanticMembersResult(
                     member_name=member_name,
                     member_code=signature_portion[member_identity + 1],
-                    aliases=aliases_for_member if aliases_for_member is not None else () # type: ignore
+                    aliases=aliases_for_member if aliases_for_member is not None else ()
                 )
                 semantic_search_result.nested_classes[-1].members.append(semantic_members_result)
 
     _display_semantic_search_result(semantic_search_result)    
     display_component_info(debug_result)
     
-
-if __name__ == "__main__":
-
-    classes = collect_module_classes(module_name="semantics.data", base_classes=(Primitive,))
-    definitions: DefinitionsIndices = build_definitions_indices(classes=classes)
-    # header("DEFINITIONS INDICES")
-    # display_definitions_indices(definitions, index_name="by_signature", filter_by_type=KnowledgeCode)
-    # display_definitions_indices(definitions, index_name="by_signature")
-    # display_definitions_indices(definitions, index_name="by_member_identity")
-
-    # initialised_components = [
-    #     initialised_skill_code := SkillCode(key=12, set=1, group=-99),
-    #     initialised_knowledge_code := KnowledgeCode(key=6, focus=-99, associated_skill=initialised_skill_code),
-    #     initialised_charcteristic_code := CharacteristicCode(upp_position=1, subtype=0, category=1)
-    # ]
-    # header("SEMANTICS")
-    # print("\n")
-    # for component in initialised_components:
-    #     get_semantics_from_instance(component, definitions)
-    #     print("\n" + "-"*80 + "\n")

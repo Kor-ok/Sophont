@@ -1,76 +1,14 @@
 from __future__ import annotations
 
-import dataclasses
-import inspect
-from importlib import import_module
-from typing import Optional, get_type_hints
+from typing import Optional
 
-from humaniseT5.semantics.api import (
-    ComponentClassInfo,
-    fetch_definitions,
+from api.t5 import (
+    build_definitions_indices,
 )
-
-
-def _collect_module_classes(
-    module_name: str,
-    base_classes: tuple[str, ...],
-) -> dict[type, ComponentClassInfo]:
-    """Collect component classes defined in *module_name* that descend from
-    *base_classes*.
-
-    Returns an ordered mapping of class name → ``ComponentClassInfo`` carrying
-    the class's flattened ``Signature`` and an insertion-ordered dict of
-    ``{field_name: resolved_type}`` for every dataclass field.
-
-    Base-class matching uses ``issubclass`` against lazily-imported classes
-    to avoid the circular import between ``components.base`` and this module.
-    """
-    module = import_module(module_name)
-
-    # Lazily resolve base class names to actual types so we can use
-    # ``issubclass`` for reliable detection (the @component decorator
-    # wraps classes in a slotted subclass, hiding the original bases).
-    resolved_bases: list[type] = []
-    base_module = import_module(name="components.base")
-    for name in base_classes:
-        cls = getattr(base_module, name, None)
-        if cls is not None:
-            resolved_bases.append(cls)
-
-    result: dict[type, ComponentClassInfo] = {}
-
-    for name, obj in vars(module).items():
-        if not inspect.isclass(obj):
-            continue
-        if not any(issubclass(obj, base) for base in resolved_bases):
-            continue
-        # Skip the abstract bases themselves.
-        if obj in resolved_bases:
-            continue
-        if getattr(obj, "__module__", None) != module_name:
-            continue
-
-        try:
-            cls_fields = dataclasses.fields(obj)
-        except TypeError:
-            continue
-        if not cls_fields:
-            continue
-
-        # Resolve string annotations (from ``from __future__ import annotations``)
-        # to actual types so callers receive real type objects.
-        hints = get_type_hints(obj)
-
-        field_map: dict[str, type] = {}
-        for f in cls_fields:
-            field_map[f.name] = hints.get(f.name, f.type)
-
-        result[obj] = ComponentClassInfo(
-            signature=obj.signature,
-            fields=field_map,
-        )
-
-    return result
+from semantics.base import Primitive
+from utils.semantics import (
+    collect_module_classes,
+)
 
 
 class Semantics:
@@ -99,8 +37,8 @@ class Semantics:
         if self._is_initialised:
             return
 
-        classes = _collect_module_classes(module_name="components.data", base_classes=("Primitive",))
-        definitions = fetch_definitions(classes=classes, language=self.language)
+        classes = collect_module_classes(module_name="components.data", base_classes=(Primitive,))
+        definitions = build_definitions_indices(classes=classes, language=self.language)
         # licensed_material = fetch_licensed_material(classes, language=self.language)
         object.__setattr__(self, "canonical_definitions", definitions)
         # object.__setattr__(self, "licensed_material", licensed_material)

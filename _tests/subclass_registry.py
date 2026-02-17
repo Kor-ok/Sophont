@@ -6,8 +6,6 @@ from pprint import pprint
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from semantics.definitions import SEMANTICS
-
 
 def test_base_class_subclass_dict():
     from semantics.base import Primitive
@@ -41,12 +39,12 @@ def test_get_base_class_subclass_dict_from_child_instances():
         print(f"\nSubclass dict from the instance of {example.__class__.__name__}:")
         pprint(base_subclass_dict, indent=2)
         # Check if the base class subclass_dict is the same as the one from the instance
-        print(f"Is the base class subclass_dict the same as the instance's subclass_dict?")
+        print("Is the base class subclass_dict the same as the instance's subclass_dict?")
         print(base_subclass_dict == Primitive.subclass_dict)
 
     # Get the subclass_dict value from the child instance by using the child instance
     for example in example_subclasses:
-        subclass_dict_value = example.__class__.subclass_dict.get(example.__class__.__name__)
+        subclass_dict_value = example.__class__.subclass_dict.get(example.__class__.__name__) # type: ignore
         print(f"\nSubclass dict value for {example.__class__.__name__}: {subclass_dict_value}")
 
     print("\n")

@@ -45,6 +45,18 @@ class GenderCode(Primitive):
     key: int
     """-1 unspecified, 0 solo, 1 female, 2 male, 3 neuter ... etc."""
 
+class SomeTestClass:
+    field1: int
+
+@component
+class TestComplexComponent(Primitive):
+    field1: int
+    field2: CharacteristicCode
+    field3: int
+    field4: int
+    field5: KnowledgeCode
+    field6: int
+    field7: SomeTestClass
 
 @component
 class GeneCode(Applied):

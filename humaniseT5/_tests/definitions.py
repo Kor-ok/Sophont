@@ -41,15 +41,10 @@ from numpy import int8
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from humaniseT5.semantics.api import (
-    ComponentAttributeInfo,
-    ComponentClassInfo,
-    DefinitionsIndex,
-    fetch_definitions,
-    get_alias_map_by_signature,
-    get_attribute_by_name,
+from api.t5 import (
+    build_definitions_indices,
 )
-from semantics.definitions import _collect_module_classes
+from utils.semantics import collect_module_classes
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  FIXTURES
@@ -68,7 +63,7 @@ def component_classes() -> dict[type, ComponentClassInfo]:
 
     This mirrors the production call-site in ``Definitions.__init__``.
     """
-    return _collect_module_classes("components.data", ("Primitive",))
+    return collect_module_classes("components.data", (Primitive,))
 
 
 @pytest.fixture(scope="session")
@@ -77,7 +72,7 @@ def definitions_index(component_classes: dict[type, ComponentClassInfo]) -> Defi
     session so every test that needs it can share the result without
     re-reading the Excel file.
     """
-    return fetch_definitions(component_classes)
+    return build_definitions_indices(component_classes)
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,6 @@ from typing import (
     Any,
     Callable,
     TypeVar,
-    get_type_hints,
     overload,
 )
 
@@ -315,9 +314,32 @@ def component(
         # -----------------------------------------------------------------
         # 7. Add utility methods
         # -----------------------------------------------------------------
-        def _as_tuple(self: Any) -> tuple[Any, ...]:
-            """Return field values as a tuple (useful for hashing/comparison)."""
-            return tuple(getattr(self, f.name) for f in cls_fields)
+        def _semantic_signature(self: Any) -> tuple[int, ...]:
+            """Return field values in order as a tuple, expanding nested Primitive/Applied components
+            recursively — each recursion returns its values inside its own tuple."""
+            def expand(value: Any) -> Any:
+                # Nested Primitive/Applied -> produce a tuple of its semantic/component values
+                base_class = value.mro()[-2]
+                if isinstance(value, base_class):
+                    # Prefer calling a bound _semantic_signature if present and callable.
+                    if callable(getattr(value, "_semantic_signature", None)):
+                        # Access via getattr to satisfy type-checkers that may
+                        # not know Primitive/Applied exposes a private attribute.
+                        func = getattr(value, "_semantic_signature")
+                        return tuple(func())
+                    comp = getattr(value, "component_signature", ())
+                    # Semantic signatures do not include the domain identity at the start of the signature,
+                    # so we remove it.
+                    comp = comp[1:] if isinstance(comp, tuple) and len(comp) > 0 else comp
+                    return tuple(expand(v) for v in comp)
+
+                # Preserve and recurse into standard iterables as tuples
+                if isinstance(value, (list, set, tuple)):
+                    return tuple(expand(v) for v in value)
+
+                return value
+
+            return tuple(expand(getattr(self, f.name)) for f in cls_fields)
 
         def _cache_key(self: Any) -> tuple[Any, ...]:
             """Return the cache key used for flyweight lookup."""
@@ -326,7 +348,7 @@ def component(
                 for v in (getattr(self, f.name) for f in cls_fields)
             )
 
-        dc_cls._as_tuple = _as_tuple  # type: ignore[attr-defined]
+        dc_cls._semantic_signature = _semantic_signature  # type: ignore[attr-defined]
         dc_cls._cache_key = _cache_key  # type: ignore[attr-defined]
 
         # -----------------------------------------------------------------
@@ -339,7 +361,7 @@ def component(
         # deliberately excluded from the dataclass fields, cache key, and
         # slots so it does not affect flyweight identity.
         try:
-            from semantics.base import Primitive, _compute_signature
+            from semantics.base import Primitive, _compute_component_signature
 
             if issubclass(dc_cls, Primitive):
                 _prev_init = dc_cls.__init__
@@ -347,8 +369,11 @@ def component(
                 def _init_with_signature(self: Any, *args: Any, **kwargs: Any) -> None:
                     _prev_init(self, *args, **kwargs)
 
-                    if not hasattr(self, "signature"):
-                        object.__setattr__(self, "signature", _compute_signature(self))
+                    if not hasattr(self, "component_signature"):
+                        object.__setattr__(self, "component_signature", _compute_component_signature(self))
+
+                    if not hasattr(self, "semantic_signature"):
+                        object.__setattr__(self, "semantic_signature", self._semantic_signature())
 
                 # Preserve init signature for IDE / introspection.
                 try:
@@ -362,7 +387,8 @@ def component(
 
                 # Implement type hints for the computed signature attribute
                 annotations = dict(getattr(dc_cls, "__annotations__", {}))
-                annotations["signature"] = "tuple[int, ...]"
+                annotations["component_signature"] = "tuple[int, ...]"
+                annotations["semantic_signature"] = "tuple[int, ...]"
                 dc_cls.__annotations__ = annotations
 
         except ImportError:

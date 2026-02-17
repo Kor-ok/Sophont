@@ -1,103 +1,178 @@
 from __future__ import annotations
 
-import inspect
 import json
-import math
-from collections import OrderedDict
-from collections.abc import Iterable
-from pprint import pprint
-from timeit import timeit
-from typing import Optional, get_type_hints
+from typing import Any, Union, get_type_hints
 
 from colorama import Fore, Style
 from colorama import init as colorama_init
-from pympler.asizeof import asizeof
-from typing_extensions import TypeAlias
 
-from semantics.base import Primitive
-from semantics.data import CharacteristicCode, GenderCode, KnowledgeCode, SkillCode
-from utils.dev import CACHE_SIZES
+from semantics.data import CharacteristicCode, KnowledgeCode, SkillCode, TestComplexComponent
 from utils.terminal import divider, header
 
 colorama_init(autoreset=True, convert=True)  # Initialize colorama for colored output in the terminal
-DomainIdentity: TypeAlias = int
-"""Instead of using the actual class objects as keys in the indices, 
-we use their unique integer identities from their subclass_dict. 
-This is for a tighter coupling with a DOTS architecture."""
-MemberIdentity: TypeAlias = int
-"""Instead of using the actual field names as keys in the indices,
-we use their integer indices from the member_dict.
-This is for a tighter coupling with a DOTS architecture, where we
-want to avoid string lookups."""
-MembersLength: TypeAlias = int
-"""The number of members in a component, which is needed to know 
-how many values to extract from the signature tuple for each 
-component when we have multiple components recursively nested 
-within each other, to be able to look up the semantics for each 
-component separately."""
-def return_recursive_types(
-    cls: type,
-    seen: Optional[set[type]] = None
-) -> OrderedDict[type, tuple[DomainIdentity, MembersLength]]:
-    """Return a dictionary of all types that are recursively referenced by the given class,
-    including self where the key is the class and the value is a tuple of the class's domain identity and members length.
-    Member lengths are + 1 to account for the domain identity at the start of the signature for each class EXCEPT
-    the initial class to allow for self recursion without including the domain identity in the member count for that 
-    initial class."""
-    if seen is None:
-        seen = set()
-    if cls in seen:
-        return OrderedDict({cls: (cls.subclass_dict[cls], len(cls.member_dict))}) # Return the recursive type with its domain identity and members length
-    seen.add(cls)
-    recursive_types = OrderedDict()
-    is_recursive = False
-    for _, field_type in cls.member_dict.values():
-        for class_type, domain_identity in cls.subclass_dict.items():
-            if field_type == class_type:
-                is_recursive = True
 
-    primary_domain_identity = cls.subclass_dict[cls]
-    if is_recursive:
-        for _, field_type in cls.member_dict.values():
-            for class_type, domain_identity in cls.subclass_dict.items():
-                if field_type == class_type:
-                    members_length = len(class_type.member_dict) + 1
-                    recursive_types[class_type] = (domain_identity, members_length)
-                    # Now deal with the self class where if it is recursive, we want to include it in the result with its domain identity and members length, but we don't want to add +1 to the members length for the initial class to allow for self recursion without including the domain identity in the member count for that initial class
-                    self_members_length = len(cls.member_dict)
-                    # This needs to be at the top of the ordered dict
-                    recursive_types[cls] = (primary_domain_identity, self_members_length) # Keep the existing members length for the initial class to allow for self recursion without including the domain identity in the member count for that initial class
-    else:
-        # We only add itself to the recursive types
-        recursive_types[cls] = (primary_domain_identity, len(cls.member_dict) + 1) # Add +1 to account for the domain identity at the start of the signature for each class
+def display_dict(data: dict) -> None:
+    """Utility function to reparse the data into types that a json encoder can handle."""
+    # keys must be str, int, float, bool or None, not type
+    reparsed_data = {}
+    for key, value in data.items():
+        # stringify everything
+        key = str(key)
+        value = str(value)
+        reparsed_data[key] = value
+
+    print(json.dumps(reparsed_data, indent=4))
+
+def test_instantiated_components():
+    """Test the semantics of instantiated components."""
+    test_classes = [
+        _skill := SkillCode(21, 1, -99),
+        _knowledge := KnowledgeCode(41, -99, _skill),
+        _characteristic := CharacteristicCode(1, 0, 1),
+        _test_complex := TestComplexComponent(6, _characteristic, 4, 3, _knowledge, 1),
+        ]
+    for cls in test_classes:
+        print(f"{Fore.CYAN}Testing class: {cls.__class__.__name__}{Style.RESET_ALL}")
+        domain_identity = cls.domain_identity
+        component_signature = cls.component_signature
+        semantic_signature = cls.semantic_signature
+        cache_key = cls._cache_key()
+        print(f"Domain Identity: {Fore.YELLOW}{domain_identity}")
+        print(f"Component Signature: {component_signature}")
+        print(f"Semantic Signature: {semantic_signature}")
+        print(f"Cache Key: {cache_key}")    
+
+def test_class_level_components():
+    """Test the semantics of class-level components."""
+    test_classes = [
+        SkillCode,
+        KnowledgeCode,
+        CharacteristicCode,
+        TestComplexComponent,
+        ]
+    for cls in test_classes:
+        print(f"{Fore.CYAN}Testing class: {cls.__name__}{Style.RESET_ALL}")
+        member_dict = cls.member_dict
+        display_dict(member_dict)
+
+def test_semantic_map():
+    test_classes: dict[type, tuple[Any, ...]] = { # class to test: expected semantic map
+        CharacteristicCode: (0, 3),
+        SkillCode: (1, 3),
+        KnowledgeCode: (2, 2, (1, 3)),
+        TestComplexComponent: (4, 1, (0, 3), 2, ((2, 2, (1, 3))), 1),
+    }
+    for cls, expected_semantic_map in test_classes.items():
+        print(f"{Fore.CYAN}Testing class: {cls.__name__}{Style.RESET_ALL}")
+        semantic_map = _generate_semantic_map(cls)
+        print(f"Semantic Map: {Fore.GREEN}{semantic_map}{Style.RESET_ALL}")
+        try:
+            assert semantic_map == expected_semantic_map
+            print(f"{Fore.GREEN}Test passed!{Style.RESET_ALL}")
+        except AssertionError:
+            print(f"{Fore.RED}Test failed! Expected: {expected_semantic_map}, Got: {semantic_map}{Style.RESET_ALL}")
+        print("\n" + "-"*80 + "\n")
+        
+
+def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
+    if recursion > 2:
+        raise RecursionError(f"Recursion limit exceeded while generating semantic map for {cls.__name__}. This may indicate a circular reference in the class definitions.")
+    """
+    class TestComplexComponent:
+        field1: int
+        field2: semantics.data.CharacteristicCode
+        field3: int
+        field4: int
+        field5: semantics.data.KnowledgeCode
+        field6: int
+
+    Example: for a ``TestComplexComponent`` with the above fields, the result is
+
+    Semantic Map = (4, 1, (0, 3), 2, ((2, 2, (1, 3))), 1)
+                    ↑  ↑   ↑      ↑    ↑      ↑        ↑
+                    a  b   c      d    e      f        g
+    where:
+    a: the subclass index for TestComplexComponent in its subclass_dict
+    b: the number of fields before the first field of type in domain_map (field1)
+    c: the semantic map for the nested class CharacteristicCode (field2)
+    d: the number of fields between the first field of type in domain_map and the
+       second field of type in domain_map (field3 and field4)
+    e: the semantic map for the nested class KnowledgeCode (field5)
+    f: the deeper semantic map for SkillCode inside KnowledgeCode (field5)
+    g: the number of fields after the last field of type in domain_map (field6) 
+    """
+    domain_map = cls.subclass_dict
+    filtered_members = _filter_type_hints(cls)
+    if recursion == 0:
+        display_dict(filtered_members)
+    semantic_map = (cls.subclass_dict[cls],)
+
+    def _recursive_member_identity_search() -> tuple[int, Union[type, None], bool]:
+        nonlocal member_position
+        items = list(filtered_members.items())
+        count = 0
+        nested_with = None
+
+        while member_position < number_of_members:
+            name, t = items[member_position]
+            member_position += 1
+            if t in domain_map:
+                nested_with = t
+                return count, nested_with, member_position >= number_of_members
+            count += 1
+
+        return count, None, True
+    member_position = 0
+    number_of_members = len(filtered_members)
     
-    if not recursive_types:
-        raise ValueError(f"No recursive types found for class {cls.__name__}.")
-    return recursive_types
+    # Count the number of fields in filtered_members in order before the first
+    # field of type in domain_map
+    while member_position < number_of_members:
+        
+        count, nested, finished = _recursive_member_identity_search()
+        print(f"Position: {Fore.GREEN}{member_position}{Style.RESET_ALL}, Count: {Fore.YELLOW}{count}{Style.RESET_ALL}, Nested: {Fore.GREEN if nested else Fore.BLUE}{nested}{Style.RESET_ALL}, Finished: {Fore.RED if finished else Fore.GREEN}{finished}{Style.RESET_ALL}")
+        if not nested and finished:
+            semantic_map += (count,)
+            break
+        elif nested: # nested and not finished: nested and finished:
+            nested_result = _generate_semantic_map(nested, recursion + 1)
+            semantic_map += (count, (nested_result),)
+        else: # not nested and not finished
+            print(f"{Fore.RED}Unexpected case: not nested and not finished. This should not happen.{Style.RESET_ALL}")
+            semantic_map += (count,)
+        
+    return semantic_map
+
+
+def _filter_type_hints(cls: type) -> Any:
+    base_class = cls.mro()[-2]
+    subclasses = base_class.subclass_dict
+    type_hints = get_type_hints(cls)
+    filtered_type_hints = {}
+    for name, type in type_hints.items():
+        if name not in ("subclass_dict", "member_dict", "component_signature", "semantic_signature"):
+            if type in (int, float, bool) or type in subclasses:
+                filtered_type_hints[name] = type
+    return filtered_type_hints
 
 if __name__ == '__main__':
-    # header("Base Class Subclass Dict")
-    # print(f"Primitive.subclass_dict: {Primitive.subclass_dict}")
-
-    # header("Subclass member dicts")
-    # print(f"KnowledgeCode.member_dict length: {len(KnowledgeCode.member_dict)}")
-    # print(f"{KnowledgeCode.member_dict}")
-    # print(f"SkillCode.member_dict length: {len(SkillCode.member_dict)}")
-    # print(f"{SkillCode.member_dict}")
-
-    # header("Fetching subclass_dict from subclass")
-    # print(f"KnowledgeCode.subclass_dict: {KnowledgeCode.subclass_dict}")
-
-    header("Recursive Type Check")
-    types_to_check = [KnowledgeCode, SkillCode, CharacteristicCode, GenderCode]
-    recursion_results = {}
-    for type_to_check in types_to_check:
-        recursive_types = return_recursive_types(type_to_check)
-        recursion_results[type_to_check] = recursive_types
-    
-
-    # header("Component Signatures")
-    # initialised_skill_code = SkillCode(key=12, set=1, group=-99)
-    # print(f"Signature for {initialised_skill_code}: {initialised_skill_code.signature}")
-    # initialised_knowledge_code = KnowledgeCode(key=6, focus=-99, associated_skill=initialised_skill_code)
-    # print(f"Signature for {initialised_knowledge_code}: {initialised_knowledge_code.signature}")
+    header("Sandbox")
+    print(f"{Fore.YELLOW}This is a sandbox for testing and experimentation. It is not intended for production use.{Style.RESET_ALL}")
+    divider()
+    test_classes: dict[type, tuple[Any, ...]] = { # class to test: expected semantic map
+        CharacteristicCode: (0, 3),
+        SkillCode: (1, 3),
+        KnowledgeCode: (2, 2, (1, 3)),
+        TestComplexComponent: (4, 1, (0, 3), 2, ((2, 2, (1, 3))), 1),
+    }
+    for cls, expected_semantic_map in test_classes.items():
+        print(f"{Fore.CYAN}Testing class: {cls.__name__}{Style.RESET_ALL}")
+        semantic_map = cls.semantic_map
+        print(f"Semantic Map: {Fore.GREEN}{semantic_map}{Style.RESET_ALL}")
+        try:
+            assert semantic_map == expected_semantic_map
+            print(f"{Fore.GREEN}Test passed!{Style.RESET_ALL}")
+        except AssertionError:
+            print(f"{Fore.RED}Test failed! Expected: {expected_semantic_map}, Got: {semantic_map}{Style.RESET_ALL}")
+        print("\n" + "-"*80 + "\n")
+        
