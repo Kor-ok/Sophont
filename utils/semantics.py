@@ -101,14 +101,20 @@ def construct_component_signature_from_semantic_signature(cls: type, semantic_si
     mapping the member values in the semantic signature to their corresponding
     domain identities and members using the semantic_map of the class."""
     component_signature = ()
+    semantic_map = cls.semantic_map # Semantic map: (2, 2,      (1, 3))
     # semantic_signature =                             (15, -99,    59, 5, 1)
     debug_target_component_signature =              (2, 15, -99, 1, 59, 5, 1)
-    semantic_map = cls.semantic_map # Semantic map: (2, 2,      (1, 3))
     
 
     if cls.__name__ == "KnowledgeCode" and semantic_signature[0] == 15:
+        i = 0
+        for element in semantic_map:
+            print(f"Element {i}: {element} is {type(element)}")
+            i += 1
         print(f"Semantic Map Length: {len(semantic_map)}")
         print(f"Semantic Map's 4th element: {semantic_map[2][1]}")
+        print(f"semantic_map[1]: {semantic_map[1]} is {type(semantic_map[1])}")
+        print(f"semantic_map[2]: {semantic_map[2]} is {type(semantic_map[2])}")
         print("\n" + "-"*80)
         print(f"Class: {cls.__name__}:")
         print(f"Semantic signature: {semantic_signature}")
