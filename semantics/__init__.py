@@ -317,9 +317,9 @@ def component(
         def _semantic_signature(self: Any) -> tuple[int, ...]:
             """Return field values in order as a tuple, expanding nested Primitive/Applied components
             recursively — each recursion returns its values inside its own tuple."""
+            
             def expand(value: Any) -> Any:
-                # Nested Primitive/Applied -> produce a tuple of its semantic/component values
-                base_class = value.mro()[-2]
+                base_class = dc_cls.mro()[-2]
                 if isinstance(value, base_class):
                     # Prefer calling a bound _semantic_signature if present and callable.
                     if callable(getattr(value, "_semantic_signature", None)):
