@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import dataclasses
 import warnings
-from array import array
 from functools import lru_cache
 from typing import Any, ClassVar, Union, get_type_hints
 
 
+@lru_cache(maxsize=300)
 def _compute_component_signature(
     instance: Any,
 ) -> bytes:

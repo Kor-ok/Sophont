@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import sys
 import threading
 from array import array
@@ -11,6 +12,8 @@ from typing import (
     TypeVar,
     overload,
 )
+
+logger = logging.getLogger(__name__)
 
 # dataclass_transform tells static type checkers that @component behaves like @dataclass
 if sys.version_info >= (3, 11):
@@ -398,6 +401,7 @@ def component(
 
                     if not hasattr(self, "component_signature"):
                         object.__setattr__(self, "component_signature", _compute_component_signature(self))
+                        logger.debug(f"lru_cache info for {dc_cls.__name__}: {_compute_component_signature.cache_info()}")
 
                     if not hasattr(self, "semantic_signature"):
                         object.__setattr__(self, "semantic_signature", self._semantic_signature())
