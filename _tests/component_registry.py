@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from semantics.base import Primitive
 from semantics.data import KnowledgeCode, SkillCode
+from utils.semantics import collect_module_classes
 from utils.terminal import divider, header, highlight
 
 colorama_init(autoreset=True)
@@ -23,21 +24,21 @@ DomainIdentity: TypeAlias = int
 we use their unique integer identities from their subclass_dict. 
 This is for a tighter coupling with a DOTS architecture."""
 
-def collect_module_classes(
-    module_name: str,
-    base_classes: tuple[type, ...],
-) -> Any:
+# def collect_module_classes(
+#     module_name: str,
+#     base_classes: tuple[type, ...],
+# ) -> Any:
 
-    module = import_module(module_name)
+#     module = import_module(module_name)
 
-    results = []
-    for _, obj in vars(module).items():
-        # get everything from __module__ = components.data and who's base class is in base_classes
-        if getattr(obj, "__module__", None) == module_name\
-            and any(issubclass(obj, base) for base in base_classes):
-            results.append(obj)
+#     results = []
+#     for _, obj in vars(module).items():
+#         # get everything from __module__ = components.data and who's base class is in base_classes
+#         if getattr(obj, "__module__", None) == module_name\
+#             and any(issubclass(obj, base) for base in base_classes):
+#             results.append(obj)
     
-    return results
+#     return results
 
 def display_base_class_subclass_registry(base_classes: tuple[type, ...]) -> None:
     """Test that the subclass registry is correctly populated for all subclasses of the given base classes."""
@@ -141,7 +142,7 @@ def get_matched_class_indices_from_member_name(base_cls: type, member_name: str)
 # Lookups by post initialised signature
 # ---------------------------------------------------------------------------
 
-def display_info_from_signature(signature: tuple[Any, ...], base_cls: type) -> None:
+def display_info_from_signature(signature: bytes, base_cls: type) -> None:
     """Helper function to display the information of a signature by looking up the subclass and member names from the indices."""
     pointer = 0
     while pointer < len(signature) - 1: # -1 to avoid index error if the last value in the signature is a primitive value rather than a domain identity
@@ -163,19 +164,19 @@ if __name__ == "__main__":
 
     base_classes = (Primitive,)
 
-    classes = collect_module_classes("components.data", base_classes)
+    classes = collect_module_classes("semantics.data", base_classes)
 
     initialised_skill_code = SkillCode(key=21, set=1, group=1)
     initialised_knowledge_code = KnowledgeCode(key=57, focus=-99, associated_skill=initialised_skill_code)
 
     
-    highlight(text=f"'signature' direct from {initialised_knowledge_code}:\n{initialised_knowledge_code.signature}", colour=Fore.GREEN)
+    highlight(text=f"'signature' direct from {initialised_knowledge_code}:\n{initialised_knowledge_code.component_signature}", colour=Fore.GREEN)
     
     highlight(text=f"'member_dict' direct from {initialised_knowledge_code}:\n{initialised_knowledge_code.member_dict}", colour=Fore.BLUE)
 
     divider()
-    EXAMPLE_SIGNATURE: tuple[int, ...] = (2, 57, -99, 1, 21, 1, 1)
-    # EXAMPLE_SIGNATURE: tuple[int, ...] = (1, 21, 1, 1)
+    EXAMPLE_SIGNATURE: bytes = b"\x02\x39\x9d\x01\x15\x01\x01" # tuple[int, ...] = (2, 57, -99, 1, 21, 1, 1)
+    # EXAMPLE_SIGNATURE: bytes = b"\x01\x15\x01\x01" #  tuple[int, ...] = (1, 21, 1, 1)
     header("Example signature to test against:", with_divider=False)
     header(str(EXAMPLE_SIGNATURE))
 

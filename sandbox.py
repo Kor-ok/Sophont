@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from array import array
 from typing import Any, Union, get_type_hints
 
 from colorama import Fore, Style
@@ -73,7 +74,6 @@ def test_semantic_map():
             print(f"{Fore.RED}Test failed! Expected: {expected_semantic_map}, Got: {semantic_map}{Style.RESET_ALL}")
         print("\n" + "-"*80 + "\n")
         
-
 def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
     if recursion > 2:
         raise RecursionError(f"Recursion limit exceeded while generating semantic map for {cls.__name__}. This may indicate a circular reference in the class definitions.")
@@ -143,7 +143,6 @@ def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
         
     return semantic_map
 
-
 def _filter_type_hints(cls: type) -> Any:
     base_class = cls.mro()[-2]
     subclasses = base_class.subclass_dict
@@ -155,24 +154,36 @@ def _filter_type_hints(cls: type) -> Any:
                 filtered_type_hints[name] = type
     return filtered_type_hints
 
+def _convert_nested_tuples_to_nested_array(nested_tuple: tuple[Any, ...]) -> array:
+    """Utility function to convert nested tuples to nested arrays.
+    If the input is a tuple of ints, it converts it to an array of ints.
+    """
+    if isinstance(nested_tuple, tuple) and all(isinstance(x, int) for x in nested_tuple):
+        return array('b', nested_tuple)
+    elif isinstance(nested_tuple, tuple):
+        return tuple(_convert_nested_tuples_to_nested_array(x) for x in nested_tuple)
+    else:
+        return nested_tuple
+
 if __name__ == '__main__':
     header("Sandbox")
     print(f"{Fore.YELLOW}This is a sandbox for testing and experimentation. It is not intended for production use.{Style.RESET_ALL}")
     divider()
-    test_classes: dict[type, tuple[Any, ...]] = { # class to test: expected semantic map
-        CharacteristicCode: (0, 3),
-        SkillCode: (1, 3),
-        KnowledgeCode: (2, 2, (1, 3)),
-        TestComplexComponent: (4, 1, (0, 3), 2, ((2, 2, (1, 3))), 1),
-    }
-    for cls, expected_semantic_map in test_classes.items():
-        print(f"{Fore.CYAN}Testing class: {cls.__name__}{Style.RESET_ALL}")
-        semantic_map = cls.semantic_map
-        print(f"Semantic Map: {Fore.GREEN}{semantic_map}{Style.RESET_ALL}")
+    test_classes = [
+        _skill := SkillCode(21, 1, -99),
+        _knowledge := KnowledgeCode(41, -99, _skill),
+        _characteristic := CharacteristicCode(1, 0, 1),
+        _test_complex := TestComplexComponent(6, _characteristic, 4, 3, _knowledge, 1),
+        ]
+    for cls in test_classes:
+        print(f"{Fore.CYAN}Testing class: {cls.__class__.__name__}{Style.RESET_ALL}")
+        component_signature_from_property = cls._component_signature()
+        component_signature_from_class_level = cls.component_signature
+        _converted = array('b', component_signature_from_class_level)
+        print(f"Component Signature from property: {component_signature_from_property}")
+        print(f"Converted Component Signature: {_converted}")
         try:
-            assert semantic_map == expected_semantic_map
+            assert component_signature_from_property == _converted
             print(f"{Fore.GREEN}Test passed!{Style.RESET_ALL}")
         except AssertionError:
-            print(f"{Fore.RED}Test failed! Expected: {expected_semantic_map}, Got: {semantic_map}{Style.RESET_ALL}")
-        print("\n" + "-"*80 + "\n")
-        
+            print(f"{Fore.RED}Test failed! Expected: {_converted}, Got: {component_signature_from_property}{Style.RESET_ALL}")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import sys
 import threading
+from array import array
 from dataclasses import Field, dataclass, fields
 from typing import (
     Any,
@@ -327,10 +328,15 @@ def component(
                         # not know Primitive/Applied exposes a private attribute.
                         func = getattr(value, "_semantic_signature")
                         return tuple(func())
-                    comp = getattr(value, "component_signature", ())
+                    comp = getattr(value, "component_signature", b"")
                     # Semantic signatures do not include the domain identity at the start of the signature,
                     # so we remove it.
-                    comp = comp[1:] if isinstance(comp, tuple) and len(comp) > 0 else comp
+                    
+                    comp = comp[1:] if isinstance(comp, bytes) and len(comp) > 0 else comp
+                    # # Convert bytes to an array of integers for easier handling in the semantic map.
+                    # comp = array('b', comp).tolist() if isinstance(comp, bytes) else comp
+                    # # Convert the array of integers to a tuple for the semantic signature.
+                    # comp = tuple(comp) if isinstance(comp, list) else comp
                     return tuple(expand(v) for v in comp)
 
                 # Preserve and recurse into standard iterables as tuples
@@ -347,9 +353,30 @@ def component(
                 tuple(v) if isinstance(v, (list, set)) else v
                 for v in (getattr(self, f.name) for f in cls_fields)
             )
+        
+        def _component_signature(self: Any) -> array:
+            """Return the component signature as an array of bytes."""
+            sig = self.component_signature
+            # Convert the semantic signature to a flat array of bytes
+            if isinstance(sig, bytes):
+                return array('b', sig)
+            elif isinstance(sig, tuple):
+                # Flatten nested tuples and convert to array of bytes
+                flat_sig = []
+                def flatten(s):
+                    for item in s:
+                        if isinstance(item, tuple):
+                            flatten(item)
+                        else:
+                            flat_sig.append(item)
+                flatten(sig)
+                return array('b', flat_sig)
+            else:
+                raise ValueError(f"Unexpected component signature type: {type(sig)}")
 
         dc_cls._semantic_signature = _semantic_signature  # type: ignore[attr-defined]
         dc_cls._cache_key = _cache_key  # type: ignore[attr-defined]
+        dc_cls._component_signature = _component_signature  # type: ignore[attr-defined]
 
         # -----------------------------------------------------------------
         # 8. Primitive support — compute signature after init
@@ -387,7 +414,7 @@ def component(
 
                 # Implement type hints for the computed signature attribute
                 annotations = dict(getattr(dc_cls, "__annotations__", {}))
-                annotations["component_signature"] = "tuple[int, ...]"
+                annotations["component_signature"] = "bytes"
                 annotations["semantic_signature"] = "tuple[int, ...]"
                 dc_cls.__annotations__ = annotations
 

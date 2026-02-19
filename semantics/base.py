@@ -2,52 +2,41 @@ from __future__ import annotations
 
 import dataclasses
 import warnings
+from array import array
 from functools import lru_cache
 from typing import Any, ClassVar, Union, get_type_hints
 
 
-@lru_cache(maxsize=200)
 def _compute_component_signature(
     instance: Any,
-) -> tuple[int, ...]:
-    """Return a flattened tuple of primitive field values for *instance*,
-    preserving declaration order.
+) -> bytes:
+    """Return a flattened signed-byte signature (immutable `bytes`) for *instance*.
 
-    First value of the signature is the subclass index for the instance's class.
-
-    Recursively expands nested ``Primitive`` instances to extract their
-    primitive values.
-
-    EXAMPLE: for a ``CharacteristicCode(Primitive)`` with
-    ``upp_position=1, subtype=0, category=1`` the result is ``(1, 1, 0, 1)``, where
-    the first value is the subclass index for CharacteristicCode in its
-    subclass_dict, and the rest are the primitive field values in declaration order.
-
-    EXAMPLE: for a ``KnowledgeCode(Primitive)`` with
-    ``key=41, focus=-99, associated_skill=SkillCode(key=25, set=1, group=-99)``, the
-    result is ``(2, 41, -99, 1, 25, 1, -99)``, where the first value is the subclass
-    index for KnowledgeCode in its subclass_dict, and the rest are the primitive
-    field values in declaration order followed by the nested subclass index and its 
-    primitive values.
+    Each integer is stored as a single signed byte; negative values are encoded
+    with two's-complement mapping (value & 0xFF). The result is immutable.
     """
-    result: list[int] = []
+    builder = bytearray()
 
-    # First, append the subclass index for the instance's class to the result.
     subclass_index = Primitive.subclass_dict.get(instance.__class__)
-    result.append(subclass_index)
+    if subclass_index is None:
+        raise KeyError(f"Class {instance.__class__.__name__} not registered in Primitive.subclass_dict")
+    if not (-128 <= int(subclass_index) <= 127):
+        raise ValueError("subclass_index out of signed-byte range")
+    builder.append(int(subclass_index) & 0xFF)
 
-    # Then, for each field in the instance, if the field value is a Primitive,
-    # we recursively compute its signature and extend the result with it. 
-    # Otherwise, we append the field value directly to the result.
-    instance_fields = dataclasses.fields(instance)
-    for f in instance_fields:
+    for f in dataclasses.fields(instance):
         value = getattr(instance, f.name)
         if isinstance(value, Primitive):
-            result.extend(_compute_component_signature(value))
+            # nested returns bytes, which can be extended directly
+            nested = _compute_component_signature(value)
+            builder.extend(nested)
         else:
-            result.append(value)
-    
-    return tuple(result)
+            iv = int(value)
+            if not (-128 <= iv <= 127):
+                raise ValueError(f"field {f.name!r} value {iv} out of signed-byte range")
+            builder.append(iv & 0xFF)
+
+    return bytes(builder)
 
 def generate_member_dict(instance: Any) -> dict[int, tuple[str, type]]:
     # Depracation warning
@@ -144,7 +133,7 @@ class Primitive:
             if cls not in base_dict:
                 cls.member_dict: dict[int, tuple[str, type]]
                 cls.semantic_map: tuple[Any, ...]
-                cls.component_signature: tuple[int, ...]
+                cls.component_signature: bytes
                 cls.semantic_signature: tuple[int, ...]
                 base_dict[cls] = len(base_dict)
                 cls.member_dict = generate_member_dict(cls)
@@ -154,7 +143,6 @@ class Primitive:
     def domain_identity(self) -> int:
         """Return the domain identity for this instance's class."""
         return Primitive.subclass_dict[self.__class__]
-
 
     # @property
     # def semantics(self) -> Any:
