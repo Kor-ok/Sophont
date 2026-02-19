@@ -20,6 +20,7 @@ from utils.semantics import (
     collect_module_classes,
     construct_component_signature_from_semantic_signature,
     construct_composite_signature,
+    generate_signature_oop,
     get_recursive_component_classes,
     parse_signature_portion_from_type,
 )
@@ -48,7 +49,7 @@ how many values to extract from the signature tuple for each
 component when we have multiple components recursively nested 
 within each other, to be able to look up the semantics for each 
 component separately."""
-Signature: TypeAlias = tuple[int, ...]
+Signature: TypeAlias = bytes # tuple[int, ...]
 
 CanonicalStrKey: TypeAlias = str
 StringAliases: TypeAlias = tuple[str, ...]
@@ -127,11 +128,13 @@ def build_definitions_indices(
 
     
     for component_cls, sheets in base_map.items():
+        domain_identity = component_cls.subclass_dict.get(component_cls)
+        print(f"Domain identity for component '{component_cls.__name__}': {domain_identity}")
         # print(f"Processing component: {Fore.YELLOW}{component_cls.__name__}...")
         # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
         # ┃                                                        TYPE RECURSION CHECK ┃
         # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-        recursive_types = get_recursive_component_classes(component_cls)
+        # recursive_types = get_recursive_component_classes(component_cls)
         # print(f" - Types for {Fore.GREEN}'{component_cls.__name__}': {Fore.YELLOW}{recursive_types}")
 
         # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -156,36 +159,26 @@ def build_definitions_indices(
                 
                 flattened_aliases: str = ""
                 
-                signature: tuple[int, ...] = convert_comma_delimited_str_to_tuple(row.get(value_col), type=int)
+                authored_signature: tuple[int, ...] = convert_comma_delimited_str_to_tuple(row.get(value_col), type=int)
                 canonical = row.get("canonical") 
                 flattened_aliases += f"{canonical}, "
                 aliases = convert_comma_delimited_str_to_tuple(row.get("aliases"), type=str)
                 # We put canonical as the first value in the flattened alias map, so that 
                 # we can easily extract it in the reverse lookup without needing to check the alias map separately
                 flattened_aliases += ", ".join(aliases)
-                # print(f"        {Style.DIM}Aliases for signature key {Style.NORMAL}{signature}: {flattened_aliases}")
+                # print(f"        {Style.DIM}Aliases for signature key {Style.NORMAL}{authored_signature}: {flattened_aliases}")
 
                 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                 # ┃                                                        APPLY TO INDICES ┃
                 # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
                 
-                primary_identity, _ = recursive_types.get(component_cls, (None, None))
-                # print(f"Primary identity for component '{component_cls.__name__}': {primary_identity}")
-                if primary_identity is None:
-                    raise ValueError(f"Primary identity for component class '{component_cls.__name__}' not found in recursive types.")
-                
                 if suffix == "signature":
-                    # print(f"Processing signature sheet for component '{component_cls.__name__}' with signature {signature} and aliases {flattened_aliases}...")
-                    # Forward index: (DomainIdentity,Signature) → FlattenedAliasMap
-                    # Create a composite signature by adding the domain identity at the start of the signature tuple, to create a unique key for the by_signature index.
-                    composite_signature = construct_composite_signature(signature, recursive_types)
-                    component_signature = construct_component_signature_from_semantic_signature(component_cls, signature)
-                    # if composite_signature[0] == 2:
-                    #     print(f"Composite Signature: {composite_signature}")
-                    by_signature[composite_signature] = flattened_aliases
+                    component_signature = generate_signature_oop(component_cls.semantic_map, authored_signature)
+
+                    by_signature[component_signature] = flattened_aliases
 
                     # Reverse index: (DomainIdentity, FlattenedAliasMap) → Signature
-                    by_alias_for_signature[(primary_identity, flattened_aliases)] = signature
+                    by_alias_for_signature[(domain_identity, flattened_aliases)] = component_signature
                 else:
                     # Member index: (DomainIdentity, MemberIdentity) → FlattenedAliasMap
                     member_name = suffix
@@ -193,11 +186,11 @@ def build_definitions_indices(
                     if member_identity is None:
                         raise ValueError(f"Member identity for member '{member_name}' of component '{component_cls.__name__}' not found in any of the provided classes.")
                     
-                    code: int = signature[0]  # Unwrap the single value from the tuple for the member index since it's not a signature for the whole component, but just a value for a specific member
-                    by_member_identity[(primary_identity, member_identity, code)] = flattened_aliases
+                    code: int = authored_signature[0]  # Unwrap the single value from the tuple for the member index since it's not a signature for the whole component, but just a value for a specific member
+                    by_member_identity[(domain_identity, member_identity, code)] = flattened_aliases
 
                     # Reverse member index: (DomainIdentity, MemberIdentity, FlattenedAliasMap) → Signature
-                    by_alias_for_member_identity[(primary_identity, member_identity, flattened_aliases)] = code
+                    by_alias_for_member_identity[(domain_identity, member_identity, flattened_aliases)] = code
                 
     return DefinitionsIndices(
         by_header= MappingProxyType(base_map),
@@ -449,9 +442,9 @@ if __name__ == "__main__":
 
     classes = collect_module_classes(module_name="semantics.data", base_classes=(Primitive,))
     definitions: DefinitionsIndices = build_definitions_indices(classes=classes)
-    # header("DEFINITIONS INDICES")
+    header("DEFINITIONS INDICES")
     # display_definitions_indices(definitions, index_name="by_signature", filter_by_type=KnowledgeCode)
-    # display_definitions_indices(definitions, index_name="by_signature")
+    display_definitions_indices(definitions, index_name="by_signature")
     # display_definitions_indices(definitions, index_name="by_member_identity")
 
     # initialised_components = [

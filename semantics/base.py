@@ -5,6 +5,8 @@ import warnings
 from functools import lru_cache
 from typing import Any, ClassVar, Union, get_type_hints
 
+from utils.semantics import SemanticMap
+
 
 @lru_cache(maxsize=300)
 def _compute_component_signature(
@@ -37,15 +39,6 @@ def _compute_component_signature(
             builder.append(iv & 0xFF)
 
     return bytes(builder)
-
-def generate_member_dict(instance: Any) -> dict[int, tuple[str, type]]:
-    # Depracation warning
-    warnings.warn("generate_member_dict is deprecated and will be removed in a future version. Use semantic_map instead.", DeprecationWarning, stacklevel=2)
-    member_dict = {}
-    for name, type in get_type_hints(instance).items():
-        if name not in ("subclass_dict", "member_dict", "component_signature", "semantic_signature", "semantic_map"):
-            member_dict[len(member_dict)] = name, type
-    return member_dict
 
 def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
     if recursion > 2:
@@ -123,6 +116,7 @@ def _filter_type_hints(cls: type) -> Any:
             if type in (int, float, bool) or type in subclasses:
                 filtered_type_hints[name] = type
     return filtered_type_hints
+
 class Primitive:
 
     subclass_dict: ClassVar[dict[type, int]] = {}
@@ -131,65 +125,16 @@ class Primitive:
         if dataclasses.is_dataclass(cls):
             base_dict = Primitive.subclass_dict
             if cls not in base_dict:
-                cls.member_dict: dict[int, tuple[str, type]]
-                cls.semantic_map: tuple[Any, ...]
+                cls.semantic_map: SemanticMap
                 cls.component_signature: bytes
                 cls.semantic_signature: tuple[int, ...]
                 base_dict[cls] = len(base_dict)
-                cls.member_dict = generate_member_dict(cls)
-                cls.semantic_map = _generate_semantic_map(cls)
+                cls.semantic_map = SemanticMap.from_raw(_generate_semantic_map(cls))
 
     @property
     def domain_identity(self) -> int:
         """Return the domain identity for this instance's class."""
         return Primitive.subclass_dict[self.__class__]
-
-    # @property
-    # def semantics(self) -> Any:
-    #     """Fetch the semantics of this component from the semantic layer using
-    #     its signature and field values.
-    #     """
-    #     from semantics.definitions import SEMANTICS  # lazy to avoid circular import
-
-    #     return get_alias_map_by_signature(
-    #         self.__class__,
-    #         self.component_signature,
-    #         search_index=SEMANTICS.canonical_definitions,
-    #     )
-
-    # @classmethod
-    # def by_name(cls, name: str) -> Primitive:
-    #     """Factory method to create an instance of the child class by alias lookup.
-    #     E.g. for a CharacteristicCode with alias "Strength", will return an instance
-    #     with the correct signature values for that alias.
-    #     """
-    #     from semantics.definitions import SEMANTICS  # lazy to avoid circular import
-
-    #     component_attribute_info = get_attribute_by_name(
-    #         cls, name, search_index=SEMANTICS.canonical_definitions
-    #     )
-    #     """
-    #     class ComponentAttributeInfo(NamedTuple):
-    #         name: str
-    #         # Name of the attribute domain used elsewhere, e.g. 'subtype' in CharacteristicCode.
-    #         signature: Signature
-    #         # The attribute's signature, i.e. the flattened tuple of primitive types
-        
-    #     To create the new object, we apply the sequence of signature values to each 
-    #     field in the class, in declaration order. We can get the field names and 
-    #     types from dataclasses.fields(cls).
-    #     """
-    #     # Conditional check that cls is a dataclass and has fields, otherwise we can't proceed with this method.
-    #     if not dataclasses.is_dataclass(cls):
-    #         raise TypeError(f"Class {cls.__name__} must be a dataclass to use by_name factory method.")
-    #     field_names = [f.name for f in dataclasses.fields(cls)] 
-    #     sig = component_attribute_info.signature
-        
-    #     return cls(**{
-    #         **{name: value for name, value in zip(field_names[:-1], sig)},
-    #         field_names[-1]: tuple(sig[len(field_names) - 1 :]),
-    #     })
-
 
 class Applied:
     """Base class for all components of a more complex signature
