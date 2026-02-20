@@ -12,10 +12,10 @@ from colorama import Fore, Style
 from colorama import init as colorama_init
 from typing_extensions import TypeAlias
 
+from components.base import Primitive
+from components.data import CharacteristicCode, KnowledgeCode, SkillCode
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
-from humaniseT5.utils import convert_comma_delimited_str_to_tuple
-from semantics.base import Primitive
-from semantics.data import CharacteristicCode, KnowledgeCode, SkillCode
+from humaniseT5.utils import Converters
 from utils.semantics import (
     collect_module_classes,
     construct_component_signature_from_semantic_signature,
@@ -159,10 +159,10 @@ def build_definitions_indices(
                 
                 flattened_aliases: str = ""
                 
-                authored_signature: tuple[int, ...] = convert_comma_delimited_str_to_tuple(row.get(value_col), type=int)
+                authored_signature: tuple[int, ...] = convert_authored_data_via_ast(row.get("aliases"), type=int)
                 canonical = row.get("canonical") 
                 flattened_aliases += f"{canonical}, "
-                aliases = convert_comma_delimited_str_to_tuple(row.get("aliases"), type=str)
+                aliases = convert_authored_data_via_ast(row.get("aliases"), type=str)
                 # We put canonical as the first value in the flattened alias map, so that 
                 # we can easily extract it in the reverse lookup without needing to check the alias map separately
                 flattened_aliases += ", ".join(aliases)
@@ -440,7 +440,7 @@ def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) 
 
 if __name__ == "__main__":
 
-    classes = collect_module_classes(module_name="semantics.data", base_classes=(Primitive,))
+    classes = collect_module_classes(module_name="components.data", base_classes=(Primitive,))
     definitions: DefinitionsIndices = build_definitions_indices(classes=classes)
     header("DEFINITIONS INDICES")
     # display_definitions_indices(definitions, index_name="by_signature", filter_by_type=KnowledgeCode)
