@@ -1,79 +1,160 @@
 from __future__ import annotations
 
+import ast
 import re
-from functools import lru_cache
-from typing import Any
+from collections.abc import Mapping
+from typing import Any, Generic, TypeVar, Union
 
 import pandas as pd
+from typing_extensions import Self, TypeAlias
 
 
-@lru_cache(maxsize=100)
-def lowercase_and_strip(s: str) -> str:
-    """Convert a string to lowercase and strip leading/trailing whitespace."""
-    return s.strip().lower()
+def _iterable_type_checker(input_value: Any) -> Any:
+    """Helper function to check if the input value is an iterable of a specific shape of types."""
+    if isinstance(input_value, list):
+        if all(isinstance(item, int) for item in input_value):
+            return list[int]
+        elif all(isinstance(item, str) for item in input_value):
+            return list[str]
+    elif isinstance(input_value, tuple):
+        if all(isinstance(item, int) for item in input_value):
+            return tuple[int, ...] # Flat tuple of ints
+        elif all(isinstance(item, (int, tuple)) for item in input_value):
+            return NestedIntTuple # Nested tuple of ints
+    return type(input_value)
 
-def convert_type_to_str_name(t: type) -> str:
-    """Convert a type object to a string representation, e.g. int -> 'int'."""
-    if hasattr(t, "__name__"):
-        return t.__name__
-    else:
-        return str(t)
+def _sanitise_input_for_ast_literal_eval(x: Any, type: type) -> Any:
+    """Helper function to sanitise input for ast.literal_eval, which can be strict about certain formats."""
+    if isinstance(x, str):
+        x = x.strip()
+        # If the string looks like a list or tuple but isn't properly formatted, try to fix it.
+        if (x.startswith("[") and x.endswith("]")) or (x.startswith("(") and x.endswith(")")):
+            try:
+                return ast.literal_eval(x)
+            except Exception:
+                pass
+        else:
+            # print(f"Input '{x}' is not in a list or tuple format. Attempting to sanitise based on expected type {type}.")
+            if type == list[str]:
+                # This means the input doesn't have "" around the strings between commas, so 
+                # we can try to add them and evaluate again.
+                regex = r'(?<!")\b(\w+)\b(?!")' # Matches unquoted words
+                # Check if there are any unquoted words in the string list input
+                if re.search(regex, x):
+                    corrected_list_str = re.sub(regex, r'"\1"', x) # Add quotes around unquoted words
+                try:
+                    return ast.literal_eval(f"[{corrected_list_str}]")
+                except Exception:
+                    pass
+            elif type == list[int]:
+                # We need to ensure that the input is in the format of a list of integers, e.g. "1, 2, 3" should become "[1, 2, 3]".
+                if not x.startswith("[") and not x.endswith("]"):
+                    corrected_list_str = f"[{x}]"
+                    try:
+                        return ast.literal_eval(corrected_list_str)
+                    except Exception:
+                        pass
+            # if type is list then add the square brackets and if type is tuple then add the parentheses
+            elif type is list:
+                try:
+                    return ast.literal_eval(f"[{x}]")
+                except Exception:
+                    pass
+            elif type is tuple:
+                try:             
+                    return ast.literal_eval(f"({x})")
+                except Exception:
+                    pass
+    return x
 
-@lru_cache(maxsize=300)
-def convert_comma_delimited_str_to_tuple(s: Any, type: type | None = None) -> tuple[Any, ...]:
-    """Convert a comma-delimited string like "1, 0, 1" into a tuple of a sensible type.
+T = TypeVar("T", covariant=True)
 
-    Rules:
-    - If `s` is already a tuple/list, return a tuple(s).
-    - If `s` is not a string, return a single-element tuple `(s,)`.
-    - Ignore empty items produced by consecutive commas or surrounding whitespace.
-    - If `type` is provided, coerce every item to that type.
-    - If `type` is not provided, infer the most specific common type across all items
-      using these checks (in order): all-int -> int, all-float-or-int -> float,
-      all-bool -> bool, otherwise str.
+NestedIntTuple: TypeAlias = tuple[Union[int, "NestedIntTuple"], ...]
+ConvertersType: TypeAlias = Union[Mapping[Union[int, str], Any], None]
+
+class AuthoredValue(Generic[T]):
+    """Holds a runtime value while preserving a typing hint so typing.get_args(...)
+    can retrieve the carried type via instance.__orig_class__.
     """
-    # If Pandas is providing a nan, convert to empty tuple
-    if isinstance(s, float) and pd.isna(s):
-        return tuple()
-    if isinstance(s, (tuple, list)):
-        return tuple(s)
-    if not isinstance(s, str):
-        return (s,)
+    def __init__(self, type_arg: Any, value: Any) -> None:
+        # Prefer creating a parameterised Generic so typing.get_args(instance.__orig_class__)
+        # returns the supplied type_arg. If that fails, expose a lightweight proxy with __args__.
+        try:
+            # e.g. AuthoredValue[list[int]] or AuthoredValue[tuple[int, ...]]
+            self.__orig_class__ = AuthoredValue[type_arg]  # type: ignore[index]
+        except Exception:
+            proxy = type("_AuthoredValueProxy", (), {})()
+            setattr(proxy, "__args__", (type_arg,))
+            self.__orig_class__ = proxy
+        self.value = value
 
-    parts = [p.strip() for p in s.split(",")]
-    parts = [p for p in parts if p != ""]
-    if not parts:
-        return tuple()
+    @property
+    def value(self) -> Any:
+        return self._value
 
-    int_re = re.compile(r"^[+-]?\d+$")
-    float_re = re.compile(r"^[+-]?(?:\d+\.\d*|\.\d+|\d+[eE][+-]?\d+)$")
-    bool_vals = {"true", "false", "yes", "no", "1", "0"}
+    @value.setter
+    def value(self, value: Any) -> None:
+        self._value = value
 
-    def is_int(x: str) -> bool:
-        return bool(int_re.match(x))
+    # When a caller references the instance without further arguments, 
+    # return the actual carried value NOT the AuthoredValue instance itself.
+    def __getattribute__(self, name: str) -> Any:
+        if name == "__value__":
+            return super().__getattribute__("value")
+        return super().__getattribute__(name)
+    
+    def __repr__(self) -> str:
+        return repr(self.value)
 
-    def is_float(x: str) -> bool:
-        return bool(float_re.match(x)) or is_int(x)
+class Converters:
 
-    def is_bool(x: str) -> bool:
-        return x.lower() in bool_vals
+    @staticmethod
+    def to_python_int(x) -> None | AuthoredValue:
+        if pd.isna(x):
+            return None
+        return AuthoredValue(int, x)
 
-    # If caller provided a type, use it
-    if type is not None:
-        if type is int:
-            return tuple(int(p) for p in parts)
-        if type is float:
-            return tuple(float(p) for p in parts)
-        if type is bool:
-            return tuple(p.lower() in ("true", "1", "yes") for p in parts)
-        return tuple(p for p in parts)
+    @staticmethod
+    def list_int(x) -> None | AuthoredValue:
+        if pd.isna(x):
+            return None
+        val = _sanitise_input_for_ast_literal_eval(x, list[int])
+        this_type = list[int]
+        value = AuthoredValue(this_type, val)
+        return value
 
-    # Infer a common type across all parts
-    if all(is_int(p) for p in parts):
-        return tuple(int(p) for p in parts)
-    if all(is_float(p) for p in parts):
-        return tuple(float(p) for p in parts)
-    if all(is_bool(p) for p in parts):
-        return tuple(p.lower() in ("true", "1", "yes") for p in parts)
+    @staticmethod
+    def to_str(x) -> None | AuthoredValue:
+        if pd.isna(x):
+            return None
+        this_type = str
+        value = AuthoredValue(this_type, x)
+        return value
 
-    return tuple(p for p in parts)
+    @staticmethod
+    def list_str(x) -> None | AuthoredValue:
+        if pd.isna(x):
+            return None
+        val = _sanitise_input_for_ast_literal_eval(x, list[str])
+        this_type = list[str]
+        value = AuthoredValue(this_type, val)
+        return value
+
+    @staticmethod
+    def tuple_ints(x) -> None | AuthoredValue:
+        if pd.isna(x):
+            return None
+        val = _sanitise_input_for_ast_literal_eval(x, tuple)
+        this_type = _iterable_type_checker(val)
+        value = AuthoredValue(this_type, val)
+        return value
+    
+    @staticmethod
+    def to_python_bool(x) -> None | AuthoredValue:
+        if pd.isna(x):
+            return None
+        val = x
+        this_type = bool
+        value = AuthoredValue(this_type, val)
+        return value
+    
