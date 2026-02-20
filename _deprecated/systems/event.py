@@ -7,7 +7,8 @@ from enum import IntFlag, auto
 from typing import Union
 
 from systems.attributes.package import AttributePackage
-from systems.uid.guid import GUID
+
+from utils.guid import GUID
 
 
 class LogicFlag(IntFlag):

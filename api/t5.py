@@ -13,7 +13,7 @@ from colorama import init as colorama_init
 from typing_extensions import TypeAlias
 
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
-from humaniseT5.utils import convert_comma_delimited_str_to_tuple
+from humaniseT5.utils import convert_authored_data_via_ast
 from utils.semantics import (
     construct_composite_signature,
     get_recursive_component_classes,
@@ -152,10 +152,10 @@ def build_definitions_indices(
                 
                 flattened_aliases: str = ""
                 
-                signature: tuple[int, ...] = convert_comma_delimited_str_to_tuple(row.get(value_col), type=int)
+                signature: tuple[int, ...] = convert_authored_data_via_ast(row.get(value_col), type=int)
                 canonical = row.get("canonical") 
                 flattened_aliases += f"{canonical}, "
-                aliases = convert_comma_delimited_str_to_tuple(row.get("aliases"), type=str)
+                aliases = convert_authored_data_via_ast(row.get("aliases"), type=str)
                 # We put canonical as the first value in the flattened alias map, so that 
                 # we can easily extract it in the reverse lookup without needing to check the alias map separately
                 flattened_aliases += ", ".join(aliases)

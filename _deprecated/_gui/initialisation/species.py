@@ -14,7 +14,8 @@ from systems.attributes.gene import Gene
 from systems.attributes.genotype import Genotype
 from systems.attributes.phene import Phene
 from systems.attributes.species import Species
-from systems.uid.guid import GUID
+
+from utils.guid import GUID
 
 CharacteristicName = str
 CharacteristicCodeCollection = list[FullCode]

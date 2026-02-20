@@ -9,7 +9,8 @@ from systems.attributes.gene import Gene
 from systems.attributes.knowledge import Knowledge
 from systems.attributes.phene import Phene
 from systems.attributes.skill import Skill
-from systems.uid.guid import GUID
+
+from utils.guid import GUID
 
 T = TypeVar("T", Skill, Knowledge, Gene, Phene, Characteristic)
 """

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from random import randint
 
-from _gui.initialisation.species import example_sophont_1
 from components.set import ATTRIBUTES
 from systems.attributes.package import AttributePackage
 from systems.attributes.phene import Phene
 from systems.attributes.skill import Skill
-from systems.uid.guid import GUID
+
+from _gui.initialisation.species import example_sophont_1
+from utils.guid import GUID
 
 
 def initialise_example_data() -> None:

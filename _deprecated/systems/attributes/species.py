@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from systems.attributes.genotype import Genotype
-from systems.uid.guid import GUID
+
+from utils.guid import GUID
 
 
 class Species:

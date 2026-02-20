@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from systems.attributes.species import Species
+
 from humaniseT5.space.location import Location
 from sophont.aptitudes import Aptitudes
 from sophont.epigenetics import Epigenetics
 from sophont.personals import Personals
-from systems.attributes.species import Species
-from systems.uid.guid import GUID
+from utils.guid import GUID
 
 
 class Sophont:

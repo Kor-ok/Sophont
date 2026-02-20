@@ -5,7 +5,7 @@ from typing import Optional
 from api.t5 import (
     build_definitions_indices,
 )
-from semantics.base import Primitive
+from components.base import Primitive
 from utils.semantics import (
     collect_module_classes,
 )

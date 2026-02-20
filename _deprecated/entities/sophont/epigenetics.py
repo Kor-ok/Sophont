@@ -3,16 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Union, cast
 
-from sortedcontainers import SortedKeyList
-
 from components.data import FullCode
-from sophont.acquisitions import Acquired
+from sortedcontainers import SortedKeyList
 from systems.attributes.characteristic import Characteristic
 from systems.attributes.gene import Gene
 from systems.attributes.package import AttributePackage
 from systems.attributes.phene import Phene
 from systems.attributes.species import Species
-from systems.uid.guid import GUID
+
+from sophont.acquisitions import Acquired
+from utils.guid import GUID
 
 
 def _package_key(acquired: Acquired) -> int:
