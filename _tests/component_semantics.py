@@ -41,7 +41,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from api.t5 import DefinitionsIndices, build_definitions_indices
-from semantics.base import Primitive
+from components.base import Primitive
 from utils.semantics import (
     collect_module_classes,
     construct_composite_signature,

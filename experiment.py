@@ -5,24 +5,21 @@ import logging
 import re
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, get_type_hints
 
 import pandas as pd
 from colorama import Fore, Style
 from colorama import init as colorama_init
 from typing_extensions import TypeAlias
 
-from components.base import Primitive
+from components.base import Primitive, _filter_type_hints
 from components.data import CharacteristicCode, KnowledgeCode, SkillCode
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
-from humaniseT5.utils import Converters
+from humaniseT5.utils import DEFAULT_INT, AuthoredValue, Converters, ConvertersType
 from utils.semantics import (
+    _bytes_to_ints,
     collect_module_classes,
-    construct_component_signature_from_semantic_signature,
-    construct_composite_signature,
     generate_signature_oop,
-    get_recursive_component_classes,
-    parse_signature_portion_from_type,
 )
 from utils.terminal import header
 
@@ -81,6 +78,12 @@ ByAliasForMemberIdentity: TypeAlias = dict[
 """Reverse member index: (DomainIdentity, MemberIdentity, FlattenedAliasMap) → Signature."""
 #endregion
 
+converters: ConvertersType = {
+    "signature": Converters.tuple_int,
+    "canonical": Converters.to_str,
+    "aliases": Converters.list_str,
+    "associated_skill": Converters.tuple_int,
+}
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃                                                                        BUILD INDICES ┃
@@ -94,7 +97,7 @@ def build_definitions_indices(
     # ┃                                                                         IO ONCE ┃
     # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
     data: dict[str, pd.DataFrame] = pd.read_excel(
-        DEFINITIONS_XLSX_PATH, sheet_name=None, engine="openpyxl"
+        DEFINITIONS_XLSX_PATH, sheet_name=None, engine="openpyxl", converters=converters
     )
 
     # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -126,17 +129,10 @@ def build_definitions_indices(
     by_alias_for_signature: ByAliasForSignature = {}
     by_alias_for_member_identity: ByAliasForMemberIdentity = {}
 
+    by_header: dict[type, list[str]] = {}
     
     for component_cls, sheets in base_map.items():
         domain_identity = component_cls.subclass_dict.get(component_cls)
-        print(f"Domain identity for component '{component_cls.__name__}': {domain_identity}")
-        # print(f"Processing component: {Fore.YELLOW}{component_cls.__name__}...")
-        # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-        # ┃                                                        TYPE RECURSION CHECK ┃
-        # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-        # recursive_types = get_recursive_component_classes(component_cls)
-        # print(f" - Types for {Fore.GREEN}'{component_cls.__name__}': {Fore.YELLOW}{recursive_types}")
-
         # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
         # ┃                                                              PROCESS SHEETS ┃
         # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -157,23 +153,29 @@ def build_definitions_indices(
                 if row.get("lang") != language:
                     continue
                 
-                flattened_aliases: str = ""
-                
-                authored_signature: tuple[int, ...] = convert_authored_data_via_ast(row.get("aliases"), type=int)
-                canonical = row.get("canonical") 
-                flattened_aliases += f"{canonical}, "
-                aliases = convert_authored_data_via_ast(row.get("aliases"), type=str)
-                # We put canonical as the first value in the flattened alias map, so that 
-                # we can easily extract it in the reverse lookup without needing to check the alias map separately
-                flattened_aliases += ", ".join(aliases)
-                # print(f"        {Style.DIM}Aliases for signature key {Style.NORMAL}{authored_signature}: {flattened_aliases}")
+                authored_signature = row.get(value_col)
+                # if hasattr(authored_signature, "value"):
+                #     print(f"        Authored signature: {authored_signature.value}")
+                # else:
+                #     print(f"        Authored signature: {authored_signature}")
+                canonical: AuthoredValue = row.get("canonical") # str
+                # print(f"        Canonical: {canonical.value}")
+                aliases: AuthoredValue = row.get("aliases") # list[str]
+                # print(f"        Aliases: {aliases.value }")
 
+                # We create a flattened alias map by joining the canonical and aliases with commas,
+                flattened_aliases = ",".join([canonical.value] + aliases.value)
+                # print(f"        Flattened aliases: {flattened_aliases}")
                 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
                 # ┃                                                        APPLY TO INDICES ┃
                 # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
                 
                 if suffix == "signature":
-                    component_signature = generate_signature_oop(component_cls.semantic_map, authored_signature)
+                    # print(f"        Processing signature sheet: {Fore.BLUE}{sheet}...")
+                    component_signature = generate_signature_oop(
+                        component_cls.semantic_map,
+                        authored_signature.value
+                        )
 
                     by_signature[component_signature] = flattened_aliases
 
@@ -181,16 +183,17 @@ def build_definitions_indices(
                     by_alias_for_signature[(domain_identity, flattened_aliases)] = component_signature
                 else:
                     # Member index: (DomainIdentity, MemberIdentity) → FlattenedAliasMap
-                    member_name = suffix
-                    member_identity = next((index for cls in classes if component_cls in cls.subclass_dict for index, (name, type) in cls.member_dict.items() if name == member_name), None)
-                    if member_identity is None:
-                        raise ValueError(f"Member identity for member '{member_name}' of component '{component_cls.__name__}' not found in any of the provided classes.")
-                    
-                    code: int = authored_signature[0]  # Unwrap the single value from the tuple for the member index since it's not a signature for the whole component, but just a value for a specific member
-                    by_member_identity[(domain_identity, member_identity, code)] = flattened_aliases
+                    member_map = component_cls.semantic_map.members
+                    search_for = f"{component_cls.__name__}.{suffix}"
+                    # print(f"Searching for {search_for}...")
+                    for (name, _), member_identity in member_map.items():
+                        if name == search_for:
+                            by_member_identity[(domain_identity, member_identity, authored_signature)] = flattened_aliases
 
-                    # Reverse member index: (DomainIdentity, MemberIdentity, FlattenedAliasMap) → Signature
-                    by_alias_for_member_identity[(domain_identity, member_identity, flattened_aliases)] = code
+                            # Reverse member index: (DomainIdentity, MemberIdentity, FlattenedAliasMap) → Signature
+                            by_alias_for_member_identity[(domain_identity, member_identity, flattened_aliases)] = authored_signature
+                            break
+                    
                 
     return DefinitionsIndices(
         by_header= MappingProxyType(base_map),
@@ -238,12 +241,12 @@ def display_definitions_indices(definitions: DefinitionsIndices, index_name: str
     else:
         print(f"{Fore.GREEN}Forward index (by_signature):{Style.RESET_ALL}")
         for signature, aliases in definitions.by_signature.items():
-            print(f"{Fore.GREEN}{signature} → {aliases}{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}{_bytes_to_ints(signature)} → {aliases}{Style.RESET_ALL}")
             # With a counter for the number of entries in the index
 
         print(f"\n{Fore.CYAN}Reverse index (by_alias_for_signature):{Style.RESET_ALL}")
         for (domain_identity, flattened_aliases), signature in definitions.by_alias_for_signature.items():
-            print(f"{Fore.CYAN}(Domain ID: {domain_identity}, Aliases: {flattened_aliases}) → {signature}{Style.RESET_ALL}")
+            print(f"{Fore.CYAN}(Domain ID: {domain_identity}, Aliases: {flattened_aliases}) → {_bytes_to_ints(signature)}{Style.RESET_ALL}")
         
         print(f"\n{Fore.BLUE}Member index (by_member_identity):{Style.RESET_ALL}")
         for (domain_identity, member_identity, signature), aliases in definitions.by_member_identity.items():
@@ -297,145 +300,26 @@ class SemanticSearchResult:
 
 def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) -> None:
     """Helper function to get the semantics of a component instance using the by_signature index."""
+    print(f"{Fore.GREEN}Getting semantics for instance of type '{instance.__class__.__name__}'...{Style.RESET_ALL}")
+    semantic_map = instance.semantic_map
+    for (key, type), member_identity in semantic_map.members.items():
+        print(f"{member_identity}: {key} {type}")
+    print()
+    for element in semantic_map.elements:
+        print(f"Depth: {element.depth}, Domain Identity: {element.domain_identity}, Pre-nested Count: {element.pre_nested_count}")
     
-    def _get_available_members_from_type(cls: type) -> list[tuple[int, str]]:
-        """Helper function to get the available member sheets for a specific class from the by_header index."""
-        available_members: list[str] = definitions.by_header.get(cls, [])
-        for member in available_members:
-            if member == cls.__name__ + ".signature":
-                available_members.remove(cls.__name__ + ".signature") # We remove the signature sheet from the available members since we have already used it to get the semantics for the instance, and we want to focus on the member sheets for the next steps of looking up the semantics for each member separately.
-        available_member_identities: list[tuple[int, str]] = []
-        for member in available_members:
-            member_name = member.split(".", 1)[1]
-            member_identity = next((index for cls in classes if instance.__class__ in cls.subclass_dict for index, (name, type) in cls.member_dict.items() if name == member_name), None)
-            if member_identity is None:
-                raise ValueError(f"Member identity for member '{member_name}' of component '{instance.__class__.__name__}' not found in any of the provided classes.")
-            available_member_identities.append((member_identity, member_name))
+    index_header = definitions.by_header.get(instance.__class__, [])
+    print(f"\n{Fore.YELLOW}Index header for instance's class: {index_header}{Style.RESET_ALL}")
 
-        return available_member_identities
-    
-    def _display_semantic_search_result(result: SemanticSearchResult) -> None:
-        """Helper function to display the semantic search result in a readable format."""
-        info = str(result.instance)
-
-        for nested_class in result.nested_classes:
-            
-            canonical_alias = (nested_class.aliases.split(",")[0]) if nested_class.aliases else "N/A" # type: ignore
-            key_regex = re.compile(r"key=\d+" r"|upp_position=\d+, subtype=\d+" r"|value=\d+")
-            match = key_regex.search(info)
-            if match:
-                info = info.replace(match.group(0), f"{canonical_alias.capitalize()}")
-            for member in nested_class.members:
-                replace = ""
-                replace += f"{member.member_name}={member.member_code}"
-                canonical_alias = (member.aliases.split(",")[0]) if member.aliases else "N/A" # type: ignore
-                info = info.replace(replace, canonical_alias.capitalize())
-                
-        info = info.replace("-99", "Undefined")
-        print(info)
-
-    debug_result = {}
-
-    instance_object = instance
-    debug_result.update({instance_object: {}})
-    
-    semantic_search_result = SemanticSearchResult(
-        instance=instance,
-        nested_classes=[]
-    )
-
-    signature = instance.component_signature
-    debug_result[instance_object].update({"component_signature": str(signature)})
-
-    instance_subclass_dict = instance.subclass_dict
-
-    instance_type = instance.__class__
-    debug_result[instance_object].update({instance_type.__name__: {}})
-
-    instance_domain_identity = instance_subclass_dict.get(instance_type)
-    if instance_domain_identity is None:
-        raise ValueError(f"Domain identity for instance type '{instance_type.__name__}' not found in its subclass dict.")
-
-    primary_signature_portion = parse_signature_portion_from_type(instance_type, signature)
-    debug_result[instance_object][instance_type.__name__].update({"semantic_signature": str(primary_signature_portion)})
-
-    search_result_by_signature = definitions.by_signature.get(signature)
-    debug_result[instance_object][instance_type.__name__].update({"aliases": search_result_by_signature})
-
-    semantic_nested_class = SemanticNestedClassResult(
-        cls=instance_type,
-        semantic_signature=primary_signature_portion,
-        aliases=search_result_by_signature if search_result_by_signature is not None else (),
-        members=[]
-    )
-    semantic_search_result.nested_classes.append(semantic_nested_class)
-
-    available_members = _get_available_members_from_type(instance_type)
-    recursive_types = get_recursive_component_classes(instance_type)
-    if available_members:
-        for member_identity, member_name in available_members:
-            if len(recursive_types) > 1:
-                member_identity += 1
-            if primary_signature_portion[member_identity] == -99:
-                aliases_for_member = "UNDEFINED"
-            else:
-                aliases_for_member = definitions.by_member_identity.get((instance_domain_identity, member_identity, primary_signature_portion[member_identity]))
-            # print(f"Aliases for member '{member_name}' in domain identity {instance_domain_identity} and signature portion {primary_signature_portion[member_identity + 1]}: {aliases_for_member}")
-            debug_result[instance_object][instance_type.__name__].update({member_name: {"code": primary_signature_portion[member_identity], "aliases": aliases_for_member}})
-
-            semantic_members_result = SemanticMembersResult(
-                member_name=member_name,
-                member_code=primary_signature_portion[member_identity],
-                aliases=aliases_for_member if aliases_for_member is not None else () # type: ignore
-            )
-            semantic_search_result.nested_classes[-1].members.append(semantic_members_result)
-
-    if len(recursive_types) > 1:
-
-        signature_portion = signature[recursive_types[instance_type][1]:] # We take the portion of the signature that corresponds to the recursive type, which is the initial class in the recursive types ordered dict, and we use the members length from the recursive types to know how many values to extract from the signature for this portion.
-        portion_type: type
-        for type_class, domain_identity in instance_subclass_dict.items():
-            if domain_identity == signature_portion[0]:
-                portion_type = type_class
+    available_members = {}
+    for sheet in index_header:
+        # If sheet appears in semantic_map.members key then add it to available members with the member identity as the value
+        for (name, type), member_identity in semantic_map.members.items():
+            if name == sheet:
+                available_members[name] = member_identity
                 break
-        if portion_type is None:
-            raise ValueError(f"Portion type for signature portion {signature_portion} not found in instance subclass dict.")
-        debug_result[instance_object][instance_type.__name__].update({portion_type.__name__: {}})
-        nested_signature_portion = parse_signature_portion_from_type(portion_type, signature_portion)
-        debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({"semantic_signature": str(nested_signature_portion)})
-        
-        search_result_by_signature_portion = definitions.by_signature.get(signature_portion)
-        debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({"aliases": search_result_by_signature_portion})
-
-        semantic_nested_class = SemanticNestedClassResult(
-            cls=portion_type,
-            semantic_signature=nested_signature_portion,
-            aliases=search_result_by_signature_portion if search_result_by_signature_portion is not None else (),
-            members=[]
-        )
-        semantic_search_result.nested_classes.append(semantic_nested_class)
-
-        available_members = _get_available_members_from_type(portion_type)
-        # print(f"Available members for {portion_type.__name__}: {available_members}")
-
-        if available_members:
-            for member_identity, member_name in available_members:
-                if signature_portion[member_identity + 1] == -99:
-                    aliases_for_member = "UNDEFINED"
-                else:
-                    aliases_for_member = definitions.by_member_identity.get((domain_identity, member_identity, signature_portion[member_identity + 1]))
-                # print(f"Aliases for member '{member_name}' in domain identity {domain_identity} and signature portion {signature_portion[member_identity + 1]}: {aliases_for_member}")
-                debug_result[instance_object][instance_type.__name__][portion_type.__name__].update({member_name: {"code": signature_portion[member_identity + 1], "aliases": aliases_for_member}})
-
-                semantic_members_result = SemanticMembersResult(
-                    member_name=member_name,
-                    member_code=signature_portion[member_identity + 1],
-                    aliases=aliases_for_member if aliases_for_member is not None else () # type: ignore
-                )
-                semantic_search_result.nested_classes[-1].members.append(semantic_members_result)
-
-    _display_semantic_search_result(semantic_search_result)    
-    display_component_info(debug_result)
+    print(f"\n{Fore.CYAN}Available members: {available_members}{Style.RESET_ALL}")
+    
     
 
 if __name__ == "__main__":
@@ -444,16 +328,18 @@ if __name__ == "__main__":
     definitions: DefinitionsIndices = build_definitions_indices(classes=classes)
     header("DEFINITIONS INDICES")
     # display_definitions_indices(definitions, index_name="by_signature", filter_by_type=KnowledgeCode)
-    display_definitions_indices(definitions, index_name="by_signature")
+    # display_definitions_indices(definitions, index_name="by_signature")
     # display_definitions_indices(definitions, index_name="by_member_identity")
+    display_definitions_indices(definitions, index_name="by_header")
+    # display_definitions_indices(definitions)
 
-    # initialised_components = [
-    #     initialised_skill_code := SkillCode(key=12, set=1, group=-99),
-    #     initialised_knowledge_code := KnowledgeCode(key=6, focus=-99, associated_skill=initialised_skill_code),
-    #     initialised_charcteristic_code := CharacteristicCode(upp_position=1, subtype=0, category=1)
-    # ]
-    # header("SEMANTICS")
-    # print("\n")
-    # for component in initialised_components:
-    #     get_semantics_from_instance(component, definitions)
-    #     print("\n" + "-"*80 + "\n")
+    initialised_components = [
+        initialised_skill_code := SkillCode(key=12, set=1, group=-99),
+        initialised_knowledge_code := KnowledgeCode(key=6, focus=-99, associated_skill=initialised_skill_code),
+        initialised_charcteristic_code := CharacteristicCode(upp_position=1, subtype=0, category=1)
+    ]
+    header("SEMANTICS")
+    print("\n")
+    for component in initialised_components:
+        get_semantics_from_instance(component, definitions)
+        print("\n" + "-"*80 + "\n")
