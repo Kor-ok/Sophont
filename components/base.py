@@ -17,30 +17,30 @@ def _compute_component_signature(
     Each integer is stored as a single signed byte; negative values are encoded
     with two's-complement mapping (value & 0xFF). The result is immutable.
     """
-    builder = bytearray()
+    result: list[int] = []
 
-    subclass_index = Primitive.subclass_dict.get(instance.__class__)
+    subclass_index = instance.subclass_dict.get(instance.__class__)
     if subclass_index is None:
-        raise KeyError(f"Class {instance.__class__.__name__} not registered in Primitive.subclass_dict")
-    if not (-128 <= int(subclass_index) <= 127):
-        raise ValueError("subclass_index out of signed-byte range")
-    builder.append(int(subclass_index) & 0xFF)
+        raise ValueError(f"Class {instance.__class__.__name__} not found in subclass_dict.")
+    result.append(subclass_index)
 
-    for f in dataclasses.fields(instance):
+    instance_fields = dataclasses.fields(instance)
+
+    for f in instance_fields:
         value = getattr(instance, f.name)
         if isinstance(value, Primitive):
-            # nested returns bytes, which can be extended directly
             nested = _compute_component_signature(value)
-            builder.extend(nested)
+            # Convert nested bytes to a list of integers for concatenation
+            nested_ints = struct.unpack(f"{len(nested)}b", nested)
+            result.extend(nested_ints)
         else:
-            iv = int(value)
-            if not (-128 <= iv <= 127):
-                raise ValueError(f"field {f.name!r} value {iv} out of signed-byte range")
-            builder.append(iv & 0xFF)
+            result.append(value)
 
-    return struct.pack(f"{len(builder)}b", *builder)
+    return struct.pack(f"{len(result)}b", *result)
 
-def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
+Map = tuple[Any, ...]
+Members = dict[tuple[str, type], int]
+def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Map, Members]:
     if recursion > 2:
         raise RecursionError(f"Recursion limit exceeded while generating semantic map for {cls.__name__}. This may indicate a circular reference in the class definitions.")
     """
@@ -69,7 +69,11 @@ def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
     """
     domain_map = cls.subclass_dict
     filtered_members = _filter_type_hints(cls)
-    semantic_map = (cls.subclass_dict[cls],)
+    semantic_map: Map = (cls.subclass_dict[cls],)
+    members: Members = {}
+
+    for name, type in filtered_members.items():
+        members[(f"{cls.__name__}.{name}", type)] = len(members)
 
     def _recursive_member_identity_search() -> tuple[int, Union[type, None], bool]:
         nonlocal member_position
@@ -86,9 +90,9 @@ def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
             count += 1
 
         return count, None, True
+    
     member_position = 0
     number_of_members = len(filtered_members)
-    
     # Count the number of fields in filtered_members in order before the first
     # field of type in domain_map
     while member_position < number_of_members:
@@ -98,15 +102,16 @@ def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Any, ...]:
             semantic_map += (count,)
             break
         elif nested: # nested and not finished: nested and finished:
-            nested_result = _generate_semantic_map(nested, recursion + 1)
+            nested_result, nested_members = _generate_semantic_map(nested, recursion + 1)
+            members.update(nested_members)
             semantic_map += (count, (nested_result),)
         else: # not nested and not finished
             semantic_map += (count,)
         
-    return semantic_map
+    return semantic_map, members
 
 
-def _filter_type_hints(cls: type) -> Any:
+def _filter_type_hints(cls: type) -> dict[str, type]:
     base_class = cls.mro()[-2]
     subclasses = base_class.subclass_dict
     type_hints = get_type_hints(cls)
@@ -129,7 +134,8 @@ class Primitive:
                 cls.component_signature: bytes
                 cls.semantic_signature: tuple[int, ...]
                 base_dict[cls] = len(base_dict)
-                cls.semantic_map = SemanticMap.from_raw(_generate_semantic_map(cls))
+                map, members = _generate_semantic_map(cls)
+                cls.semantic_map = SemanticMap.from_raw(map, members)
 
     @property
     def domain_identity(self) -> int:
