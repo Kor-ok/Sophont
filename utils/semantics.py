@@ -187,10 +187,12 @@ def generate_signature_algorithmic(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def _expected_bytes(expected: tuple[int, ...] | int) -> bytes:
+def _expected_bytes(expected: tuple[int, ...] | int | list[int]) -> bytes:
     """Convert an expected-result tuple of signed ints to bytes."""
     if isinstance(expected, int):
         expected = (expected,)
+    elif isinstance(expected, list):
+        expected = tuple(expected)
     return struct.pack(f"{len(expected)}b", *expected)
 
 
