@@ -78,16 +78,66 @@ ByAliasForMemberIdentity: TypeAlias = dict[
 """Reverse member index: (DomainIdentity, MemberIdentity, FlattenedAliasMap) → Signature."""
 #endregion
 
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃                                                                   PANDAS CONVERTERS ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 converters: ConvertersType = {
     "signature": Converters.tuple_int,
     "canonical": Converters.to_str,
     "aliases": Converters.list_str,
     "associated_skill": Converters.tuple_int,
 }
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃                                                                             HELPERS ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+BaseMap = dict[type, list[str]]
+HeaderMap = dict[type, list[str]]
+Members = dict[tuple[str, type], int]
+def _generate_base_and_header_maps(classes: list[type], data_frame: dict[str, pd.DataFrame]) -> tuple[BaseMap, HeaderMap]:
+    base_map: BaseMap = {}
+    member_maps: dict[type, Members] = {}
+    header_map: HeaderMap = {}
+    for component_cls in classes:
+        base_map.setdefault(component_cls, [])
+        for sheet_name in data_frame:
+            if sheet_name.startswith(component_cls.__name__ + "."):
+                member_name = sheet_name
+                base_map[component_cls].append(member_name)
+                
+    for component_cls in classes:
+        member_maps[component_cls] = component_cls.semantic_map.members
 
-# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-# ┃                                                                        BUILD INDICES ┃
-# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+    for component_cls in classes:
+        header_map.setdefault(component_cls, [])
+        for member_name in member_maps[component_cls].keys():
+            # If member_name[0] appears in any of the values in base_map then add member_name[0] to header_map for the component_cls key
+            if member_name[0] in [member for members in base_map.values() for member in members]:
+                header_map[component_cls].append(member_name[0])
+
+    # print(f"{Fore.GREEN}Generated base map:{Style.RESET_ALL}")
+    # for cls, members in base_map.items():
+    #     print(f"{cls}:{Style.RESET_ALL}")
+    #     for member in members:
+    #         print(f"    {Fore.GREEN}{member}{Style.RESET_ALL}")
+
+    # print(f"\n{Fore.BLUE}Generated members map:{Style.RESET_ALL}")
+    # for component_cls, members in member_maps.items():
+    #     print(f"{component_cls}:{Style.RESET_ALL}")
+    #     for (name, type) , index in members.items():
+    #         print(f"    {Fore.BLUE}{index}: {name}{Style.RESET_ALL}")
+
+    # print(f"\n{Fore.CYAN}Generated header map:{Style.RESET_ALL}")
+    # for cls, headers in header_map.items():
+    #     print(f"{cls}:{Style.RESET_ALL}")
+    #     for header in headers:
+    #         print(f"    {Fore.CYAN}{header}{Style.RESET_ALL}")
+    
+    return base_map, header_map
+
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+# ┃                                                                       BUILD INDICES ┃
+# ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
 def build_definitions_indices(
     classes: list[type],
     language: str = "en",
@@ -103,23 +153,8 @@ def build_definitions_indices(
     # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     # ┃                                                  SANITISE AUTHORED WITH RUNTIME ┃
     # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-    # The sheet names in the Excel File are in the format "ComponentName" i.e. 
-    # "CharacteristicCode" or "SkillCode",
-    # and "ComponentName.member_name" i.e. 
-    # "CharacteristicCode.upp_position" or "SkillCode.key"
-    base_map: dict[type, list[str]] = {}
-    for component_cls in classes:
-        # We use the component class name as the key in the base map, 
-        # and the value is a list of the Excel sheet names that start with that component
-        # class name, i.e. all the sheets relevant to that component class, including the
-        # sheet for the signature and the sheets for each member.
-        base_map.setdefault(component_cls, [])
-        for sheet_name in data:
-            if sheet_name.startswith(component_cls.__name__ + "."): # Looking only for the "." prefixed sheets
-                member_name = sheet_name
-                base_map[component_cls].append(member_name)
-    # print(f"Base map: {Fore.CYAN}{json.dumps(base_map, indent=4)}")
-
+    base_map, header_map = _generate_base_and_header_maps(classes, data_frame=data)
+    
     # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
     # ┃                                                                           BUILD ┃
     # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
@@ -129,7 +164,6 @@ def build_definitions_indices(
     by_alias_for_signature: ByAliasForSignature = {}
     by_alias_for_member_identity: ByAliasForMemberIdentity = {}
 
-    by_header: dict[type, list[str]] = {}
     
     for component_cls, sheets in base_map.items():
         domain_identity = component_cls.subclass_dict.get(component_cls)
@@ -196,7 +230,7 @@ def build_definitions_indices(
                     
                 
     return DefinitionsIndices(
-        by_header= MappingProxyType(base_map),
+        by_header= MappingProxyType(header_map),
         by_signature= MappingProxyType(by_signature), 
         by_alias_for_signature= MappingProxyType(by_alias_for_signature), 
         by_member_identity= MappingProxyType(by_member_identity), 

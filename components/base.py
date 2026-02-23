@@ -5,8 +5,12 @@ import struct
 from functools import lru_cache
 from typing import Any, ClassVar, Union, get_type_hints
 
+from colorama import Fore, Style
+from colorama import init as colorama_init
+
 from utils.semantics import SemanticMap
 
+colorama_init(autoreset=True)
 
 @lru_cache(maxsize=300)
 def _compute_component_signature(
@@ -38,9 +42,10 @@ def _compute_component_signature(
 
     return struct.pack(f"{len(result)}b", *result)
 
+
 Map = tuple[Any, ...]
 Members = dict[tuple[str, type], int]
-def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Map, Members]:
+def _recursive_semantic_map(cls: type, recursion: int = 0, _root: bool = True) -> tuple[Map, Members]:
     if recursion > 2:
         raise RecursionError(f"Recursion limit exceeded while generating semantic map for {cls.__name__}. This may indicate a circular reference in the class definitions.")
     """
@@ -69,11 +74,12 @@ def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Map, Members]
     """
     domain_map = cls.subclass_dict
     filtered_members = _filter_type_hints(cls)
-    semantic_map: Map = (cls.subclass_dict[cls],)
-    members: Members = {}
+    
+    cumm_semantic_map: Map = (cls.subclass_dict[cls],)
+    cumm_members_map: Members = {}
 
     for name, type in filtered_members.items():
-        members[(f"{cls.__name__}.{name}", type)] = len(members)
+        cumm_members_map[(f"{cls.__name__}.{name}", type)] = len(cumm_members_map)
 
     def _recursive_member_identity_search() -> tuple[int, Union[type, None], bool]:
         nonlocal member_position
@@ -99,17 +105,37 @@ def _generate_semantic_map(cls: type, recursion: int = 0) -> tuple[Map, Members]
         
         count, nested, finished = _recursive_member_identity_search()
         if not nested and finished:
-            semantic_map += (count,)
+            cumm_semantic_map += (count,)
             break
         elif nested: # nested and not finished: nested and finished:
-            nested_result, nested_members = _generate_semantic_map(nested, recursion + 1)
-            members.update(nested_members)
-            semantic_map += (count, (nested_result),)
+            # pass _root=False for internal recursive calls
+            nested_result, nested_members = _recursive_semantic_map(nested, recursion + 1, False)
+            cumm_members_map.update(nested_members)
+            cumm_semantic_map += (count, (nested_result),)
         else: # not nested and not finished
-            semantic_map += (count,)
-        
-    return semantic_map, members
+            cumm_semantic_map += (count,)
+    
+    return cumm_semantic_map, cumm_members_map
 
+def _generate_semantic_map(cls: type) -> tuple[Map, Members]:
+    """Generate a semantic map for *cls*.
+
+    The semantic map is a nested tuple structure that encodes the positions of
+    fields of types in the domain (i.e. Primitive subclasses) and their nested
+    structures. It also returns a mapping of member names and types to their
+    positions in the signature.
+
+    The recursion limit is set to 2 to prevent infinite loops in case of circular references.
+    """
+    semantic_map, member_map = _recursive_semantic_map(cls, recursion=0, _root=True)
+
+    # print(f"  {Fore.GREEN}Semantic map {cls.__name__}:{Style.RESET_ALL}")
+    # print(f"    {Fore.BLUE}Semantic Map: {semantic_map}{Style.RESET_ALL}")
+    # print(f"    {Fore.CYAN}Members:{Style.RESET_ALL}")
+    # for (name, type) , index in member_map.items():
+    #     print(f"      {Fore.CYAN}{index}: {name}{Style.RESET_ALL}")
+
+    return semantic_map, member_map
 
 def _filter_type_hints(cls: type) -> dict[str, type]:
     base_class = cls.mro()[-2]
@@ -117,7 +143,7 @@ def _filter_type_hints(cls: type) -> dict[str, type]:
     type_hints = get_type_hints(cls)
     filtered_type_hints = {}
     for name, type in type_hints.items():
-        if name not in ("subclass_dict", "member_dict", "component_signature", "semantic_signature", "semantic_map"):
+        if name not in ("subclass_dict", "component_signature", "semantic_signature", "semantic_map"):
             if type in (int, float, bool) or type in subclasses:
                 filtered_type_hints[name] = type
     return filtered_type_hints
@@ -134,6 +160,7 @@ class Primitive:
                 cls.component_signature: bytes
                 cls.semantic_signature: tuple[int, ...]
                 base_dict[cls] = len(base_dict)
+                # print(f"{Fore.YELLOW}Registered {cls.__name__}{Style.RESET_ALL}")
                 map, members = _generate_semantic_map(cls)
                 cls.semantic_map = SemanticMap.from_raw(map, members)
 

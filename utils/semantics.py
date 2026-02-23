@@ -5,7 +5,12 @@ import struct
 from collections import OrderedDict
 from importlib import import_module
 from itertools import chain
-from typing import Any, NamedTuple, Optional, get_type_hints
+from typing import Any, NamedTuple, Optional, Sequence, get_type_hints
+
+from colorama import Fore, Style
+from colorama import init as colorama_init
+
+colorama_init(autoreset=True)
 
 logger = logging.getLogger(__name__)
 
@@ -103,21 +108,30 @@ def generate_signature_oop(
       three attribute lookups (``element.depth``, ``.domain_identity``,
       ``.pre_nested_count``).
     """
-    result: list[int] = []
+    result = []
     seen: set[tuple[int, int]] = set()
     sig_idx = 0
+
     for depth, domain_id, count in semantic_map.elements:
         key = (depth, domain_id)
         if key not in seen:
             seen.add(key)
-            result.append(domain_id)
+            result += (domain_id,)
         end = sig_idx + count
         if isinstance(semantic_signature, int):
-            result.extend([semantic_signature] * count)
+            result += [semantic_signature] * count
         else:
-            result.extend(semantic_signature[sig_idx:end])
+            flat_list = flatten_iter(semantic_signature[sig_idx:end])
+            result += flat_list
         sig_idx = end
-    return struct.pack(f"{len(result)}b", *result)
+    
+    try:
+        result_bytes = struct.pack(f"{len(result)}b", *result)
+    except struct.error as e:
+        logger.error(f"Error packing result: {e}. Result list: {result}")
+        raise
+
+    return result_bytes
 
 def generate_signature_algorithmic(
     raw: tuple[Any, ...],
@@ -183,3 +197,16 @@ def _expected_bytes(expected: tuple[int, ...] | int) -> bytes:
 def _bytes_to_ints(data: bytes) -> tuple[int, ...]:
     """Unpack bytes back to a tuple of signed ints (for display)."""
     return struct.unpack(f"{len(data)}b", data)
+
+def flatten_iter(obj):
+    stack = list(obj)[::-1]
+    result = []
+
+    while stack:
+        x = stack.pop()
+        if isinstance(x, tuple):
+            stack.extend(x[::-1])
+        else:
+            result.append(x)
+
+    return result
