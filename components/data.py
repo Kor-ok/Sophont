@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from components import component
 from components.base import Applied, Primitive
 from utils.guid import GUID
+from utils.inspection import ModuleGraph
 
 """
 The intention here is to use the custom @component decorator as the transition point between OOP and DOTS,
@@ -86,3 +87,6 @@ class GenotypeCode(Applied):
 class SpeciesCode(Applied):
     genotype: GenotypeCode
     identifying_guid: GUID
+
+
+MODULE_GRAPH = ModuleGraph()
