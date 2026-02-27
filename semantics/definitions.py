@@ -7,9 +7,10 @@ from api.t5 import (
     get_semantics_from_instance,
 )
 from components.base import Primitive
-from components.data import MODULE_GRAPH
+from components.primitives import MODULE_GRAPH
 
 classes = MODULE_GRAPH.subclasses_of(Primitive)
+
 
 class Semantics:
     """Global Singleton for holding all definitions and licensed material. This is populated at runtime by fetching from the Excel sheets and can be accessed by any component or system that needs it. It is not intended to be modified after initial population, but is not strictly immutable."""
@@ -46,7 +47,7 @@ class Semantics:
 
     def __setattr__(self, key, value):
         raise AttributeError("Semantics is immutable and cannot be modified after initialisation.")
-    
+
     def of(self, instance: Any) -> dict[type, dict[str, Any]]:
         """Helper method to get the semantics of a component instance using the by_signature index."""
         return get_semantics_from_instance(instance, self.canonical_definitions, classes)
