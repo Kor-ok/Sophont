@@ -195,7 +195,6 @@ def _expected_bytes(expected: tuple[int, ...] | int | list[int]) -> bytes:
         expected = tuple(expected)
     return struct.pack(f"{len(expected)}b", *expected)
 
-
 def _bytes_to_ints(data: bytes) -> tuple[int, ...]:
     """Unpack bytes back to a tuple of signed ints (for display)."""
     return struct.unpack(f"{len(data)}b", data)
@@ -212,3 +211,9 @@ def flatten_iter(obj):
             result.append(x)
 
     return result
+
+def nested_tuple_to_nested_list(tup):
+    if isinstance(tup, tuple):
+        return [nested_tuple_to_nested_list(item) for item in tup]
+    else:
+        return tup

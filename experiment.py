@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import itertools as it
 import json
 import logging
-from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, NamedTuple, get_args, get_type_hints
+from typing import Any, NamedTuple
 
 import pandas as pd
 from colorama import Fore, Style
@@ -17,13 +15,11 @@ from components.data import CharacteristicCode, KnowledgeCode, SkillCode, TestCo
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
 from humaniseT5.utils import AuthoredValue, Converters, ConvertersType
 from utils.semantics import (
-    SemanticMap,
     _bytes_to_ints,
     _expected_bytes,
     collect_module_classes,
-    flatten_iter,
-    generate_signature_algorithmic,
     generate_signature_oop,
+    nested_tuple_to_nested_list,
 )
 from utils.terminal import header
 
@@ -306,8 +302,18 @@ def display_component_info(info: Any, colour: str = Fore.WHITE, style: str = Sty
     def convert(obj: Any) -> Any:
         if isinstance(obj, dict):
             return {convert(key): convert(value) for key, value in obj.items()}
+        elif isinstance(obj, type) and hasattr(obj, "__name__"):
+            return obj.__name__
         elif isinstance(obj, (list, tuple)):
-            return [convert(item) for item in obj]
+            converted = [convert(item) for item in obj]
+            # Turn into a flattened string
+            converted_str = ", ".join(str(item) for item in converted)
+            # Surround with [] or () depending on original type
+            if isinstance(obj, list):
+                converted_str = f"[{converted_str}]"
+            else:
+                converted_str = f"({converted_str})"
+            return converted_str
         elif isinstance(obj, (int, float, str)):
             return obj
         else:
@@ -331,135 +337,213 @@ def display_semantic_elements(elements: list[tuple[int, int, int]], colour: str 
 # ┃                                                              SEMANTIC SEARCH HELPERS ┃
 # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-def _split_flattened_aliases(flattened_aliases: str) -> tuple[str, ...]:
+def _split_flattened_aliases(flattened_aliases: str | None) -> tuple[str, ...]:
+    if flattened_aliases is None:
+        return ("UNDEFINED",)
     return tuple(alias.strip().capitalize() for alias in flattened_aliases.split(",") if alias.strip())
 
-def _compute_nested_component_signatures_from_root_component_signature(
-    root_component_signature: bytes,
-    root_semantic_signature: tuple[int, ...],
-    instance_semantic_map: SemanticMap,
-) -> list[bytes] | None:
-    """Given a root component signature and its semantic map, compute the signatures of any nested components."""
-    semantic_elements = instance_semantic_map.elements
-    nested_signatures: dict[type, bytes] = {}
+def signature_transformer(semantic_signature: list, semantic_mapping: list) -> list:
+    # ── 1. Recursive generator — tag every atom with its nesting depth ───
+    def atoms_with_depth(arr: list, depth: int = 0):
+        """Yield (depth, value) for each non-list element."""
+        for item in arr:
+            if isinstance(item, list):
+                yield from atoms_with_depth(item, depth + 1)
+            else:
+                yield (depth, item)
 
-    flattened_component_signature = flatten_iter(_bytes_to_ints(root_component_signature))
-    print(f"{Fore.GREEN}{Style.DIM}Root component signature: ({len(flattened_component_signature)})\n                          {Style.RESET_ALL}{Fore.GREEN}{Style.BRIGHT}{flattened_component_signature}{Style.RESET_ALL}")
-    print(f"{Fore.MAGENTA}{Style.DIM}Root semantic signature:\n                          {Style.RESET_ALL}{Fore.MAGENTA}{Style.BRIGHT}{root_semantic_signature}{Style.RESET_ALL}")
+    tagged = list(atoms_with_depth(semantic_signature))
 
-    print(f"\n{Fore.YELLOW}{Style.DIM}Root Domain:{Style.RESET_ALL}{Style.NORMAL}")
-    domain_map = []
-    for element in semantic_elements:
-        from components.base import Primitive
-        subclass_dict = Primitive.subclass_dict
-        depth, domain_id, count = element
-        class_from_domain_id = next((cls for cls, id in subclass_dict.items() if id == domain_id), None)
-        domain_map.append((depth, domain_id, class_from_domain_id, count))
-        print(f"    {Fore.YELLOW}{Style.DIM}{depth} - id: {Style.NORMAL}{domain_id}{Style.DIM}, #: {Style.NORMAL}{count}{Style.DIM}{Fore.GREEN} - [{class_from_domain_id.__name__ if class_from_domain_id else 'Unknown'}]{Style.DIM}{Style.RESET_ALL}")
+    # ── 2 hierarchical listing ─────────────────────────────────────
     
-    print(f"\n{Fore.LIGHTCYAN_EX}{Style.NORMAL}Nested Domains:{Style.RESET_ALL}{Style.NORMAL}")
-    for depth, domain_id, class_from_domain_id, count in domain_map:
-        if depth > 0:
-            print(f"    {Fore.LIGHTCYAN_EX}{Style.DIM}{depth} - id: {Style.NORMAL}{domain_id}{Style.DIM}, #: {Style.NORMAL}{count}{Style.DIM}{Fore.GREEN} - [{class_from_domain_id.__name__ if class_from_domain_id else 'Unknown'}]{Style.DIM}{Style.RESET_ALL}")
-            nested_signatures[class_from_domain_id] = bytes(1) # Placeholder
+    def hierarchy(
+        tagged_atoms: list[tuple[int, int]],
+        pattern: list[list[int]],
+    ) -> list[list[int]]:
+        """Produce a hierarchical listing with embedded IDs from the pattern.
 
-    print()
-    final_result = []
-    first_domain = domain_map[0]
-    first_domain_id = first_domain[1]
-    first_domain_count = first_domain[3]
-    final_result.append(first_domain_id)
-    final_result.extend(flatten_iter(flattened_component_signature[1:first_domain_count+1]))
-    seen = set()
-    seen.add((0, first_domain_id))
+        Algorithm
+        ---------
+        1.  Build per-depth **consumable iterators** from the tagged stream.
+            For depth *d*, the iterator yields every atom whose depth >= d,
+            but resets (starts a new subtree) whenever a shallower atom is
+            encountered — exactly the os.walk()-style contiguous subtree
+            semantics.
 
-    iterator = it.count(start = first_domain_count, step = 1)
-    i_slice = it.islice(iterator, len(flattened_component_signature))
-    print(f"{Style.DIM}iSlice: {list(i_slice)}{Style.RESET_ALL}")
+        2.  Walk the ``pattern`` entries ``[depth, id, count]``.  Each step
+            consumes ``count`` atoms from the iterator for that depth.
+            When depth *increases* relative to the previous step, the
+            ``id`` is prepended as a boundary marker.
+
+        3.  Atoms consumed at depth *d* are appended to **every output
+            row for depth <= d** (a deeper atom is part of every
+            ancestor's subtree).  The ``id`` marker is likewise pushed
+            into each ancestor row.
+
+        Returns one output row per contiguous subtree, ordered by
+        ascending depth level, with IDs embedded.
+        """
+        if not tagged_atoms:
+            return []
+
+        max_depth = max(d for d, _ in tagged_atoms)
+
+        # ── 1. Build per-depth value pools and subtree boundaries ────
+        # For each target depth, collect values (depth >= target) and
+        # record where subtree breaks occur (depth < target).
+        # We model each depth as a flat list with sentinel ``None``
+        # values at subtree boundaries so the consumer can track which
+        # subtree it is writing into.
+        depth_pools: dict[int, list[int | None]] = {}
+        for target_depth in range(max_depth + 1):
+            pool: list[int | None] = []
+            in_subtree = False
+            for depth, value in tagged_atoms:
+                if depth < target_depth:
+                    # Surfaced above target — flush subtree boundary
+                    if in_subtree:
+                        pool.append(None)  # sentinel: subtree boundary
+                        in_subtree = False
+                elif depth == target_depth:
+                    # Exact match — collect the atom
+                    in_subtree = True
+                    pool.append(value)
+                else:
+                    # Deeper than target — still inside a subtree,
+                    # but don't collect (consumed via its own pool)
+                    in_subtree = True
+            depth_pools[target_depth] = pool
+
+        # ── 2. Per-depth cursor + subtree-index tracking ─────────────
+        depth_cursors: dict[int, int] = {d: 0 for d in depth_pools}
+        # How many complete subtrees we've entered at each depth
+        depth_subtree_idx: dict[int, int] = {d: 0 for d in depth_pools}
+
+        # Output rows: one per subtree per depth level.
+        # We'll collect them in a dict keyed by (depth, subtree_index).
+        rows: dict[tuple[int, int], list[int]] = {}
+
+        def _ensure_row(d: int, si: int) -> list[int]:
+            if (d, si) not in rows:
+                rows[(d, si)] = []
+            return rows[(d, si)]
+
+        def _consume(target_depth: int, count: int) -> list[int]:
+            """Consume *count* real values from *target_depth*'s pool,
+            advancing past any sentinel boundaries encountered."""
+            pool = depth_pools[target_depth]
+            cursor = depth_cursors[target_depth]
+            values: list[int] = []
+            while len(values) < count and cursor < len(pool):
+                item = pool[cursor]
+                cursor += 1
+                if item is None:
+                    # Crossed a subtree boundary
+                    depth_subtree_idx[target_depth] += 1
+                else:
+                    values.append(item)
+            depth_cursors[target_depth] = cursor
+            return values
+
+        # ── 3. Walk the pattern ──────────────────────────────────────
+        prev_depth = -1
+        for step_depth, step_id, step_count in pattern:
+            entering_deeper = step_depth > prev_depth
+
+            # Consume atoms from this depth's pool
+            consumed = _consume(step_depth, step_count)
+
+            # Determine the current subtree index at each level that
+            # should receive these values.
+            for d in range(step_depth + 1):
+                si = depth_subtree_idx[d]
+                row = _ensure_row(d, si)
+                if entering_deeper:
+                    row.append(step_id)
+                row.extend(consumed)
+
+            prev_depth = step_depth
+
+        # ── 4. Collect rows in depth-then-subtree order ──────────────
+        result: list[list[int]] = []
+        for d in range(max_depth + 1):
+            si = 0
+            while (d, si) in rows:
+                result.append(rows[(d, si)])
+                si += 1
+
+        return result
     
-    step_result = []
-    print(f"{Style.DIM}First Result = {Style.NORMAL}{Style.RESET_ALL}{Style.NORMAL}{final_result}\n")
-    for depth, domain_id, class_from_domain_id, count in domain_map[1:]: # Skip the first domain since we've already processed it
-        step_result.clear()
-        step = next(iterator)
-        added_to_seen = False
-        print(f"{Style.DIM}iSlice: {iter(i_slice)}{Style.RESET_ALL}")
-        print(f"{Style.DIM}Step      = {step}{Style.RESET_ALL}")
-        print(f"{Style.DIM}Count     = {Style.RESET_ALL}{Style.NORMAL}{count}{Style.RESET_ALL}")
-        print(f"{Style.DIM}id        = {Style.RESET_ALL}{Style.NORMAL}{domain_id}{Style.RESET_ALL}             {Style.DIM}{Fore.GREEN}[{class_from_domain_id.__name__ if class_from_domain_id else 'Unknown'}]{Style.RESET_ALL}")
-        if (depth, domain_id) not in seen:
-            step_result.append(domain_id)
-            seen.add((depth, domain_id))
-            added_to_seen = True
-            step_result.extend(flatten_iter(flattened_component_signature[step:step+count]))
-        else:
-            step_result.extend(flatten_iter(flattened_component_signature[step:step+count]))
-        print(f"{Style.DIM}+Seen = {Style.RESET_ALL}{Style.NORMAL}{added_to_seen}{Style.RESET_ALL}")
-        print(f"            {Style.DIM}Step Result = {Style.NORMAL}{Style.RESET_ALL}{Style.NORMAL}{step_result}")
-        
-        final_result.extend(step_result)
-
-    print(f"             {Style.DIM}Root = {Style.RESET_ALL}{Style.DIM}{flattened_component_signature}{Style.RESET_ALL}")    
-    print(f"            {Style.DIM}Value = {Style.NORMAL}{Style.RESET_ALL}{Fore.GREEN}{Style.BRIGHT}{final_result}")
-
-    print(f"\n{Style.DIM}Current Nested Signatures:{Style.RESET_ALL}")
-    for cls, sig in nested_signatures.items():
-        print(f"    {Fore.BLUE}{Style.BRIGHT}{sig}: {Fore.GREEN}{Style.DIM}[{cls.__name__}]{Style.RESET_ALL}")
-
-
-    pass
+    result = hierarchy(tagged, semantic_mapping)
+    return result
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
 # ┃                                                                      SEMANTIC SEARCH ┃
 # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) -> None:
+def get_semantics_from_instance(instance: Any, definitions: DefinitionsIndices) -> dict[type, dict[str, Any]]:
     """Helper function to get the semantics of a component instance using the by_signature index."""
     print(f"{Style.DIM}Semantics for '{instance}'...{Style.NORMAL}")
-    flattened_semantic_signature = flatten_iter(instance.semantic_signature)
-    component_signature = instance.component_signature
-    # print(f"{Fore.MAGENTA}Component signature: bytes = {component_signature}{Style.RESET_ALL}")
-    # print(f"{Fore.MAGENTA}Component signature: ints = {_bytes_to_ints(component_signature)}{Style.RESET_ALL}")
-    # print(f"{Fore.MAGENTA}Semantic Signature: list[int] = {flattened_semantic_signature}{Style.RESET_ALL}")
-    instance_name_flattened_aliases = definitions.by_signature.get(instance.component_signature)
-    instance_name = _split_flattened_aliases(instance_name_flattened_aliases) if instance_name_flattened_aliases else ("Unknown",)
-    # print(f"{Fore.GREEN}{instance.__class__.__name__}: {instance_name[0]} ({', '.join(instance_name[1:])}){Style.RESET_ALL}")
     print()
     
+    semantic_signature = instance.semantic_signature
+    semantic_signature_array = nested_tuple_to_nested_list(semantic_signature)
+
     semantic_map = instance.semantic_map
     semantic_elements = semantic_map.elements
-        
-    nested_domains = []
-    for depth, domain_id, count in semantic_elements:
-        nested_domain_class = next((cls for cls, id in instance.subclass_dict.items() if id == domain_id), None)
-        nested_domains.append((domain_id, count, nested_domain_class)) # if depth > 0 else None
-    
-    # print(f"\n{Fore.YELLOW}{Style.DIM}Nested domains:{Style.RESET_ALL}{Style.NORMAL}")
-    # for domain_id, count, nested_domain_class in nested_domains:
-    #     print(f"    {Fore.YELLOW}Domain ID: {domain_id}, Count: {count}, Class: {nested_domain_class.__name__ if nested_domain_class else 'Unknown'}{Style.RESET_ALL}{Style.NORMAL}")
-    
-    nested_signatures: list[int] = []
-    nested_semantic_maps: list[SemanticMap] = []
-    # for nested_domain in nested_domains:
-    #     nested_domain_class = nested_domain[2]
-    #     print(f"    {Fore.YELLOW}{Style.DIM}Domain = {Style.NORMAL}{nested_domain[0]}{Style.DIM} ({nested_domain_class.__name__}){Style.RESET_ALL}{Style.NORMAL}")
-    #     nested_signatures.append(nested_domain[0])
-        
-    #     nested_semantic_map = nested_domain_class.semantic_map
-    #     nested_semantic_maps.append(nested_semantic_map)
+    array_transform_pattern = [[depth, domain_id, count] for depth, domain_id, count in semantic_elements]
 
-    #     nested_semantic_members = nested_semantic_map.members
-    #     nested_semantic_elements = nested_semantic_map.elements
-        
-    #     display_semantic_elements(nested_semantic_elements, colour=Fore.YELLOW, style=Style.DIM, padding=4)
-    #     display_semantic_members(nested_semantic_members, colour=Fore.CYAN, style=Style.NORMAL, padding=4)
-    #     print()
+    transformed_signature = signature_transformer(semantic_signature_array, array_transform_pattern)
+    # print(f"{Style.DIM}Transformed signature(s): {Style.NORMAL}{Style.RESET_ALL}")
+
+    signature_semantics = {}
+
+    for item in transformed_signature:
+        domain_identity = item[0]
+        component_cls = next((cls for cls in classes if cls.subclass_dict.get(cls) == domain_identity), None)
+        signature_semantics[component_cls] = item
+
+        # Convert the item to bytes for lookup in the by_signature index
+        signature_bytes = _expected_bytes(item)
+        canonical, *alias_list = _split_flattened_aliases(definitions.by_signature.get(signature_bytes))
+        signature_semantics[component_cls] = {
+            "component_signature": item,
+            "canonical": canonical,
+            "aliases": alias_list
+        }
     
-    _ = _compute_nested_component_signatures_from_root_component_signature(
-        root_component_signature=component_signature,
-        root_semantic_signature=instance.semantic_signature,
-        instance_semantic_map=semantic_map,
-    )
+    # display_component_info(signature_semantics, colour=Fore.GREEN, style=Style.BRIGHT)
+
+    first_component_cls: type = list(signature_semantics.keys())[0]
+    available_headers = definitions.by_header.get(first_component_cls)
+    semantic_members = first_component_cls.semantic_map.members
+    
+    members: dict[tuple[str, type], int] = {}
+    for (member_name, _), member_identity in semantic_members.items():
+        if member_name in available_headers:
+            # Get the actual class from the member name by splitting on the first dot and looking up the class with that name in the classes list
+            member_cls_name = member_name.split(".", 1)[0]
+            member_cls = next((cls for cls in classes if cls.__name__ == member_cls_name), None)
+            if member_cls is not None:
+                members[(member_name, member_cls)] = member_identity 
+    
+    for (member_name, member_cls), member_identity in members.items():
+        cls_identity = member_cls.subclass_dict.get(member_cls)
+        member_value = signature_semantics[member_cls]["component_signature"][member_identity + 1]
+        # print(f"{member_cls}: Class Id: {cls_identity}, Member Id: {member_identity}, Value: {member_value}")
+        member_canonical, *member_alias_list  = _split_flattened_aliases(definitions.by_member_identity.get((cls_identity, member_identity, member_value)))
+        # print(f"    Canonical: {member_canonical}")
+        # print(f"    Aliases: {member_alias_list}")
+        signature_semantics[member_cls][member_name] = {
+            "member_identity": member_identity,
+            "value": member_value,
+            "canonical": member_canonical,
+            "aliases": member_alias_list
+            }
+    
+    # display_component_info(signature_semantics, colour=Fore.CYAN, style=Style.BRIGHT)
+    return signature_semantics
+         
 
 if __name__ == "__main__":
 
@@ -468,7 +552,7 @@ if __name__ == "__main__":
     header("DEFINITIONS INDICES")
     # display_definitions_indices(definitions, index_name="by_signature", filter_by_type=KnowledgeCode)
     # display_definitions_indices(definitions, index_name="by_signature")
-    # display_definitions_indices(definitions, index_name="by_member_identity")
+    display_definitions_indices(definitions, index_name="by_member_identity")
     # display_definitions_indices(definitions, index_name="by_header")
     # display_definitions_indices(definitions)
 
@@ -488,5 +572,6 @@ if __name__ == "__main__":
     header("SEMANTICS")
     print("\n")
     for component in initialised_components:
-        get_semantics_from_instance(component, definitions)
+        semantics = get_semantics_from_instance(component, definitions)
+        display_component_info(semantics, colour=Fore.CYAN, style=Style.BRIGHT)
         print("\n" + "-"*80 + "\n")
