@@ -4,12 +4,12 @@ import inspect
 import logging
 import sys
 import threading
-from array import array
-from dataclasses import Field, dataclass, fields
+from dataclasses import MISSING, Field, dataclass, fields
 from typing import (
     Any,
     Callable,
     TypeVar,
+    cast,
     overload,
 )
 
@@ -21,13 +21,7 @@ if sys.version_info >= (3, 11):
 else:
     from typing_extensions import dataclass_transform
 
-"""
-@component(
-    flyweight=True,              # Enable/disable instance caching (default: True)
-    apply_undefined_defaults=True,  # Auto-fill missing int fields with -99
-    **dataclass_kwargs           # Pass-through to @dataclass
-)
-"""
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -86,7 +80,7 @@ def _apply_undefined_defaults(
         if f.name in result:
             continue
         # Only fill in for fields that have no default and are typed as int
-        if f.default is not ... or f.default_factory is not None:  # type: ignore[misc]
+        if f.default is not MISSING or f.default_factory is not MISSING:  # type: ignore[misc]
             continue
         # Check type annotation for int
         if f.type in (int, "int"):
@@ -129,6 +123,7 @@ def _make_slotted_class(
 
     return slotted_cls
 
+
 # ---------------------------------------------------------------------------
 # The @component Decorator
 # ---------------------------------------------------------------------------
@@ -160,35 +155,7 @@ def component(
 ) -> type[Any] | Callable[[type[Any]], type[Any]]:
     """Decorator for ECS-style immutable, slotted, flyweight components.
 
-    Wraps a class with @dataclass(frozen=True, ...) and provides:
-      - **Slots emulation** for Python 3.9 (native slots in 3.10+).
-      - **Thread-safe flyweight interning**: repeated instantiation with the
-        same field values returns the cached instance.
-      - **Undefined-code defaults**: if `apply_undefined_defaults=True`, missing
-        int-typed fields receive `DEFAULT_UNDEFINED_CODE` (-99).
-      - **Automatic registration** in a global component type registry.
-
-    Args:
-        _cls: The class being decorated (when used without parentheses).
-        flyweight: If True (default), cache and reuse instances by field values.
-        apply_undefined_defaults: If True, fill missing int fields with -99.
-        **dataclass_kwargs: Additional kwargs forwarded to @dataclass (except
-            frozen, which is always True).
-
-    Returns:
-        The decorated component class.
-
-    Example:
-        @component
-        class CharacteristicCode(Primitive):
-            upp_position: int
-            subtype: int
-            category: int
-
-        # Flyweight behavior:
-        a = CharacteristicCode(1, 2, 3)
-        b = CharacteristicCode(1, 2, 3)
-        assert a is b  # Same instance
+    See _prototypes.component_decorator.py
     """
 
     def wrap(cls: type[Any]) -> type[Any]:
@@ -258,9 +225,9 @@ def component(
                 for f in cls_fields:
                     if f.name in bound_kwargs:
                         cache_key_parts.append(bound_kwargs[f.name])
-                    elif f.default is not ...:  # type: ignore[comparison-overlap]
+                    elif f.default is not MISSING:
                         cache_key_parts.append(f.default)
-                    elif f.default_factory is not None:  # type: ignore[misc]
+                    elif f.default_factory is not MISSING:  # type: ignore[misc]
                         cache_key_parts.append(f.default_factory())  # type: ignore[misc]
                     else:
                         # Missing required field - let dataclass raise
@@ -274,7 +241,6 @@ def component(
                 with _component_registry_lock:
                     cache = _component_registry[cls_inner]
                     if cache_key in cache:
-                        print(f"\033[0;34mCache hit for {cls_inner.__name__} with key {cache_key}\033[0m")
                         return cache[cache_key]
 
                     # Create new instance
@@ -286,9 +252,7 @@ def component(
 
             # Preserve the signature on __new__ so inspect.signature(ClassName) works
             try:
-                # Build signature for __new__: (cls, field1, field2, ...) -> ClassName
                 init_sig = inspect.signature(original_init)
-                # Replace 'self' with 'cls' for __new__
                 new_params = [inspect.Parameter("cls", inspect.Parameter.POSITIONAL_OR_KEYWORD)] + [
                     p for name, p in init_sig.parameters.items() if name != "self"
                 ]
@@ -299,13 +263,8 @@ def component(
             dc_cls.__new__ = __new__  # type: ignore[assignment]
 
         # -----------------------------------------------------------------
-        # 6. Add immutability enforcement
+        # 5. Add immutability enforcement
         # -----------------------------------------------------------------
-        def __setattr_frozen__(self: Any, name: str, value: Any) -> None:
-            # Allow setting during __init__ (frozen dataclass handles this)
-            raise AttributeError(f"Cannot modify immutable component '{dc_cls.__name__}'")
-
-        # The frozen dataclass already handles this, but we ensure it's set
         if not hasattr(dc_cls, "__delattr__") or dc_cls.__delattr__ is object.__delattr__:
 
             def __delattr_frozen__(self: Any, name: str) -> None:
@@ -316,33 +275,26 @@ def component(
             dc_cls.__delattr__ = __delattr_frozen__  # type: ignore[method-assign]
 
         # -----------------------------------------------------------------
-        # 7. Add utility methods
+        # 6. Add utility methods
         # -----------------------------------------------------------------
+        
+        _base_class = dc_cls.mro()[-2]
+
         def _semantic_signature(self: Any) -> tuple[int, ...]:
-            """Return field values in order as a tuple, expanding nested Primitive/Applied components
-            recursively — each recursion returns its values inside its own tuple."""
-            
+            """Return field values as a tuple, expanding nested Primitive/Applied
+            components recursively into sub-tuples."""
+
             def expand(value: Any) -> Any:
-                base_class = dc_cls.mro()[-2]
-                if isinstance(value, base_class):
-                    # Prefer calling a bound _semantic_signature if present and callable.
-                    if callable(getattr(value, "_semantic_signature", None)):
-                        # Access via getattr to satisfy type-checkers that may
-                        # not know Primitive/Applied exposes a private attribute.
-                        func = getattr(value, "_semantic_signature")
-                        return tuple(func())
+                if isinstance(value, _base_class):
+                    func = getattr(value, "_semantic_signature", None)
+                    if callable(func):
+                        # func is an attribute found via getattr; narrow its type for the checker
+                        func_callable = cast(Callable[[], tuple[Any, ...]], func)
+                        return tuple(func_callable())
                     comp = getattr(value, "component_signature", b"")
-                    # Semantic signatures do not include the domain identity at the start of the signature,
-                    # so we remove it.
-                    
                     comp = comp[1:] if isinstance(comp, bytes) and len(comp) > 0 else comp
-                    # # Convert bytes to an array of integers for easier handling in the semantic map.
-                    # comp = array('b', comp).tolist() if isinstance(comp, bytes) else comp
-                    # # Convert the array of integers to a tuple for the semantic signature.
-                    # comp = tuple(comp) if isinstance(comp, list) else comp
                     return tuple(expand(v) for v in comp)
 
-                # Preserve and recurse into standard iterables as tuples
                 if isinstance(value, (list, set, tuple)):
                     return tuple(expand(v) for v in value)
 
@@ -350,48 +302,15 @@ def component(
 
             return tuple(expand(getattr(self, f.name)) for f in cls_fields)
 
-        def _cache_key(self: Any) -> tuple[Any, ...]:
-            """Return the cache key used for flyweight lookup."""
-            return tuple(
-                tuple(v) if isinstance(v, (list, set)) else v
-                for v in (getattr(self, f.name) for f in cls_fields)
-            )
-        
-        def _component_signature(self: Any) -> array:
-            """Return the component signature as an array of bytes."""
-            sig = self.component_signature
-            # Convert the semantic signature to a flat array of bytes
-            if isinstance(sig, bytes):
-                return array('b', sig)
-            elif isinstance(sig, tuple):
-                # Flatten nested tuples and convert to array of bytes
-                flat_sig = []
-                def flatten(s):
-                    for item in s:
-                        if isinstance(item, tuple):
-                            flatten(item)
-                        else:
-                            flat_sig.append(item)
-                flatten(sig)
-                return array('b', flat_sig)
-            else:
-                raise ValueError(f"Unexpected component signature type: {type(sig)}")
-
         dc_cls._semantic_signature = _semantic_signature  # type: ignore[attr-defined]
-        dc_cls._cache_key = _cache_key  # type: ignore[attr-defined]
-        dc_cls._component_signature = _component_signature  # type: ignore[attr-defined]
 
         # -----------------------------------------------------------------
-        # 8. Primitive support — compute signature after init
+        # 7. Primitive support — compute signature after init
         # -----------------------------------------------------------------
-        # Primitive subclasses gain a ``signature`` attribute: a flattened
-        # tuple of primitive field values computed after the frozen dataclass
-        # __init__ completes.  The attribute is stored in the instance's
-        # __dict__ (inherited from Primitive which has no __slots__) and is
-        # deliberately excluded from the dataclass fields, cache key, and
-        # slots so it does not affect flyweight identity.
+
         try:
-            from components.base import Primitive, _compute_component_signature
+            from components.base import Primitive
+            from utils.components import compute_component_signature
 
             if issubclass(dc_cls, Primitive):
                 _prev_init = dc_cls.__init__
@@ -400,11 +319,23 @@ def component(
                     _prev_init(self, *args, **kwargs)
 
                     if not hasattr(self, "component_signature"):
-                        object.__setattr__(self, "component_signature", _compute_component_signature(self))
-                        logger.debug(f"lru_cache info for {dc_cls.__name__}: {_compute_component_signature.cache_info()}")
+                        object.__setattr__(
+                            self,
+                            "component_signature",
+                            compute_component_signature(self, (Primitive,)),
+                        )
+                        logger.debug(
+                            "lru_cache info for %s: %s",
+                            dc_cls.__name__,
+                            compute_component_signature.cache_info(),
+                        )
 
                     if not hasattr(self, "semantic_signature"):
-                        object.__setattr__(self, "semantic_signature", self._semantic_signature())
+                        object.__setattr__(
+                            self,
+                            "semantic_signature",
+                            self._semantic_signature(),
+                        )
 
                 # Preserve init signature for IDE / introspection.
                 try:
@@ -424,7 +355,7 @@ def component(
 
         except ImportError:
             pass
-        
+
         return dc_cls
 
     # Support both @component and @component(...)

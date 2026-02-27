@@ -104,7 +104,7 @@ def build_class_graph(
             sc for sc in cls.__subclasses__()
             if sc.__name__ in module_classes
         ]
-        print(f"  Found subclasses: {[sc.__name__ for sc in subclasses]}")
+        
 
         result[cls] = {
             "decorators": decorators,
@@ -163,13 +163,19 @@ class ModuleGraph:
 
     def bases_of(self, cls: type) -> list[type]:
         """Direct bases of *cls* (excluding ``object``)."""
-        entry = self.graph.get(cls)
-        return entry["bases"] if entry else []
+        results = []
+        for entry_cls, info in self.graph.items():
+            if cls in info["subclasses"]:
+                results.append(entry_cls)
+        return results
 
     def subclasses_of(self, cls: type) -> list[type]:
         """Direct subclasses of *cls* that are also in this module."""
-        entry = self.graph.get(cls)
-        return entry["subclasses"] if entry else []
+        results = []
+        for entry_cls, info in self.graph.items():
+            if cls in info["bases"]:
+                results.append(entry_cls)
+        return results
 
     def roots(self) -> list[type]:
         """Classes that  have no bases  (tree  roots). If *internal*  is ``True``
