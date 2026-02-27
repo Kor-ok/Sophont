@@ -1,34 +1,8 @@
 from __future__ import annotations
 
-import logging
 import struct
-from collections import OrderedDict
-from importlib import import_module
-from itertools import chain
-from typing import Any, NamedTuple, Optional, Sequence, get_type_hints
+from typing import Any, NamedTuple, Optional
 
-from colorama import Fore, Style
-from colorama import init as colorama_init
-
-colorama_init(autoreset=True)
-
-logger = logging.getLogger(__name__)
-
-def collect_module_classes(
-    module_name: str,
-    base_classes: tuple[type, ...],
-) -> Any:
-
-    module = import_module(module_name)
-
-    results = []
-    for _, obj in vars(module).items():
-        # get everything from __module__ = components.data and who's base class is in base_classes
-        if getattr(obj, "__module__", None) == module_name\
-            and any(issubclass(obj, base) for base in base_classes):
-            results.append(obj)
-    
-    return results
 
 class SemanticMapElement(NamedTuple):
     """Immutable flyweight: one flattened node of the semantic map."""
@@ -39,10 +13,8 @@ class SemanticMapElement(NamedTuple):
 
 
 class SemanticMap:
-    """Pre-parsed semantic map — parse once, reuse for many signature generations.
-
-    Analogous to a *Component type definition* in ECS terms.
-    Follows the flyweight / immutable-item pattern used elsewhere in the repo.
+    """Pre-parsed semantic map
+    See prototype: _prototypes.semantic_mapping.py
     """
 
     __slots__ = ("elements", "members")
@@ -56,7 +28,6 @@ class SemanticMap:
     def __init__(self, elements: tuple[SemanticMapElement, ...], members: dict[tuple[str, type], int]) -> None:
         pass
 
-    # -- factory ----------------------------------------------------------
 
     @staticmethod
     def from_raw(raw: tuple[Any, ...], members: dict[tuple[str, type], int]) -> SemanticMap:
@@ -71,12 +42,7 @@ class SemanticMap:
         raw: tuple[Any, ...],
         depth: int,
     ) -> list[SemanticMapElement]:
-        """Recursively flatten *raw* into an ordered list of elements.
-
-        Cleaner iteration compared to the original while-loop:
-        • Identifies domain_identity once at position 0.
-        • Dispatches remaining items by type in a single pass.
-        """
+        """Recursively flatten *raw* into an ordered list of elements."""
         if not raw:
             return []
         result: list[SemanticMapElement] = []
@@ -96,18 +62,7 @@ def generate_signature_oop(
     semantic_map: SemanticMap,
     semantic_signature: tuple[int, ...] | int,
 ) -> bytes:
-    """Hot-path OOP signature generation from a pre-parsed map.
-
-    Optimisations over the original:
-    • **No debug logging / I/O** in the hot path — this alone removed ~95 %
-      of the per-call cost when the logger was active (f-string evaluation +
-      ``logger.debug`` call overhead even at non-DEBUG levels).
-    • Uses ``struct.pack`` for a single C-level int→bytes conversion instead of
-      building an intermediate ``array('b', ...)`` then calling ``.tobytes()``.
-    • Iterates via NamedTuple unpacking — one tuple unpack per element replaces
-      three attribute lookups (``element.depth``, ``.domain_identity``,
-      ``.pre_nested_count``).
-    """
+    """OOP based signature generation from a pre-parsed map."""
     result = []
     seen: set[tuple[int, int]] = set()
     sig_idx = 0
@@ -128,8 +83,7 @@ def generate_signature_oop(
     try:
         result_bytes = struct.pack(f"{len(result)}b", *result)
     except struct.error as e:
-        logger.error(f"Error packing result: {e}. Result list: {result}")
-        raise
+        raise ValueError(f"Error packing result: {e}. Result list: {result}") from e
 
     return result_bytes
 
@@ -141,15 +95,6 @@ def generate_signature_algorithmic(
 
     Walks the nested raw-tuple map and assembles the component signature in one
     recursive traversal, fusing the parse and generate steps.
-
-    Optimisations over the original ``generate_component_signature_via_itertools``:
-    • **Fused parse + generate** — eliminates an entire intermediate list of
-      ``(depth, domain_id, count)`` tuples.
-    • Uses ``nonlocal`` instead of a mutable-list-as-int workaround.
-    • Removes the (unused) ``itertools.chain`` import.
-    • Removes the redundant ``elif isinstance(element_value, tuple)`` branch
-      (already handled by the preceding ``if``).
-    • Uses ``struct.pack`` for direct int→bytes conversion.
     """
     result: list[int] = []
     seen: set[tuple[int, int]] = set()
@@ -181,7 +126,96 @@ def generate_signature_algorithmic(
     _walk(raw, 0)
     return struct.pack(f"{len(result)}b", *result)
 
+def signature_transformer(semantic_signature: list, semantic_mapping: list) -> list:
+    """Produce a hierarchical listing with embedded IDs from the pattern.
+    See prototype: _prototypes.semantic_mapping.py
+    """
+    def atoms_with_depth(arr: list, depth: int = 0):
+        """Yield (depth, value) for each non-list element."""
+        for item in arr:
+            if isinstance(item, list):
+                yield from atoms_with_depth(item, depth + 1)
+            else:
+                yield (depth, item)
 
+    tagged = list(atoms_with_depth(semantic_signature))
+    
+    def hierarchy(
+        tagged_atoms: list[tuple[int, int]],
+        pattern: list[list[int]],
+    ) -> list[list[int]]:
+        
+        if not tagged_atoms:
+            return []
+
+        max_depth = max(d for d, _ in tagged_atoms)
+
+        depth_pools: dict[int, list[int | None]] = {}
+        for target_depth in range(max_depth + 1):
+            pool: list[int | None] = []
+            in_subtree = False
+            for depth, value in tagged_atoms:
+                if depth < target_depth:
+                    if in_subtree:
+                        pool.append(None)  # sentinel: subtree boundary
+                        in_subtree = False
+                elif depth == target_depth:
+                    in_subtree = True
+                    pool.append(value)
+                else:
+                    in_subtree = True
+            depth_pools[target_depth] = pool
+
+        depth_cursors: dict[int, int] = {d: 0 for d in depth_pools}
+        depth_subtree_idx: dict[int, int] = {d: 0 for d in depth_pools}
+
+        rows: dict[tuple[int, int], list[int]] = {}
+
+        def _ensure_row(d: int, si: int) -> list[int]:
+            if (d, si) not in rows:
+                rows[(d, si)] = []
+            return rows[(d, si)]
+
+        def _consume(target_depth: int, count: int) -> list[int]:
+            pool = depth_pools[target_depth]
+            cursor = depth_cursors[target_depth]
+            values: list[int] = []
+            while len(values) < count and cursor < len(pool):
+                item = pool[cursor]
+                cursor += 1
+                if item is None:
+                    depth_subtree_idx[target_depth] += 1
+                else:
+                    values.append(item)
+            depth_cursors[target_depth] = cursor
+            return values
+
+        prev_depth = -1
+        for step_depth, step_id, step_count in pattern:
+            entering_deeper = step_depth > prev_depth
+
+            consumed = _consume(step_depth, step_count)
+
+            for d in range(step_depth + 1):
+                si = depth_subtree_idx[d]
+                row = _ensure_row(d, si)
+                if entering_deeper:
+                    row.append(step_id)
+                row.extend(consumed)
+
+            prev_depth = step_depth
+
+        result: list[list[int]] = []
+        for d in range(max_depth + 1):
+            si = 0
+            while (d, si) in rows:
+                result.append(rows[(d, si)])
+                si += 1
+
+        return result
+    
+    result = hierarchy(tagged, semantic_mapping)
+    return result
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -217,3 +251,8 @@ def nested_tuple_to_nested_list(tup):
         return [nested_tuple_to_nested_list(item) for item in tup]
     else:
         return tup
+
+def split_flattened_aliases(flattened_aliases: str | None) -> tuple[str, ...]:
+    if flattened_aliases is None:
+        return ("UNDEFINED",)
+    return tuple(alias.strip().capitalize() for alias in flattened_aliases.split(",") if alias.strip())
