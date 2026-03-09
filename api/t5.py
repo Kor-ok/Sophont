@@ -10,7 +10,8 @@ from typing_extensions import TypeAlias
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
 from humaniseT5.utils import AuthoredValue, Converters, ConvertersType
 from utils.semantics import (
-    _expected_bytes,
+    convert_bytes_to_tuple,
+    convert_to_bytes,
     generate_signature_oop,
     nested_tuple_to_nested_list,
     signature_transformer,
@@ -187,11 +188,11 @@ def build_definitions_indices(
 # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 
-def get_semantics_from_instance(
+def get_primitive_semantics_from_instance(
     instance: Any,
     definitions: DefinitionsIndices,
     classes: list[type],
-) -> dict[type, dict[str, Any]]:
+) -> dict[type, dict[tuple[int, str] | str, Any]]:  # SemanticInfo
     """Return human-readable semantics for a component *instance* by
     resolving its signature and per-member values against *definitions*."""
 
@@ -207,24 +208,25 @@ def get_semantics_from_instance(
     transformed_signature = signature_transformer(semantic_signature_array, array_transform_pattern)
 
     # -- resolve each component's full signature ---------------------------------
-    signature_semantics: dict[type, dict[str, Any]] = {}
+    signature_semantics: dict[type, dict[tuple[int, str] | str, Any]] = {}
 
     for item in transformed_signature:
         component_cls = identity_to_cls.get(item[0])
         if component_cls is None:
             raise KeyError(f"Unknown component identity: {item[0]}")
 
-        signature_bytes = _expected_bytes(item)
+        signature_bytes = convert_to_bytes(item)
         canonical, *alias_list = split_flattened_aliases(
             definitions.by_signature.get(signature_bytes)
         )
         signature_semantics[component_cls] = {
-            "component_signature": item,
             "canonical": canonical,
             "aliases": alias_list,
         }
 
     # -- resolve per-member values for the root component ------------------------
+    component_signature = convert_bytes_to_tuple(instance.component_signature)
+
     first_component_cls: type = next(iter(signature_semantics))
     available_headers = definitions.by_header.get(first_component_cls)
     semantic_members = first_component_cls.semantic_map.members
@@ -238,12 +240,12 @@ def get_semantics_from_instance(
 
     for (member_name, member_cls), member_identity in members.items():
         cls_identity = member_cls.subclass_dict.get(member_cls)
-        member_value = signature_semantics[member_cls]["component_signature"][member_identity + 1]
+        member_value = component_signature[member_identity + 1]
         member_canonical, *member_alias_list = split_flattened_aliases(
             definitions.by_member_identity.get((cls_identity, member_identity, member_value))
         )
-        signature_semantics[member_cls][member_name] = {
-            "member_identity": member_identity,
+        signature_semantics[member_cls][(member_identity, member_name)] = {
+            # "member": member_identity,
             "value": member_value,
             "canonical": member_canonical,
             "aliases": member_alias_list,
