@@ -1,7 +1,141 @@
 from __future__ import annotations
 
 import struct
+from dataclasses import dataclass
 from typing import Any, NamedTuple, Optional
+
+
+class SemanticsDescriptor:
+    """Descriptor that lazily computes and caches ``SemanticInfo`` on first access.
+
+    Installed as a class attribute on every ``Primitive`` subclass.  The
+    cached value is stored in the instance ``__dict__`` (bypassing frozen
+    dataclass guards) so subsequent access is a plain attribute lookup
+    with no descriptor overhead.
+    """
+
+    __slots__ = ()
+
+    def __set_name__(self, owner: type, name: str) -> None:
+        pass  # name is always "semantics"
+
+    def __get__(self, instance: Any, owner: type | None = None) -> SemanticInfo:
+        if instance is None:
+            # Class-level access — return the descriptor itself so the
+            # annotation is still visible to the IDE.
+            return self  # type: ignore[return-value]
+
+        # Check if already cached on the instance
+        try:
+            return object.__getattribute__(instance, "_cached_semantics")
+        except AttributeError:
+            pass
+
+        from semantics.definitions import SEMANTICS
+
+        info = SemanticInfo(dictionary=SEMANTICS.of(instance))
+        object.__setattr__(instance, "_cached_semantics", info)
+        return info
+
+
+@dataclass
+class SemanticInfo:
+    dictionary: dict[type, dict[tuple[int, str] | str, Any]]
+
+    # ------------------------------------------------------------------
+    # Whole-dictionary views
+    # ------------------------------------------------------------------
+
+    @property
+    def canonical(self) -> tuple[str, ...]:
+        """Return the top-level canonical name for each component type."""
+        result = []
+        for cls, semantics in self.dictionary.items():
+            canonical_value = semantics.get("canonical")
+            if canonical_value is not None:
+                result.append(canonical_value)
+            else:
+                result.append("UNDEFINED")
+        return tuple(result)
+
+    @property
+    def aliases(self) -> tuple[tuple[str, ...], ...]:
+        """Return alias lists for each component type."""
+        result = []
+        for cls, semantics in self.dictionary.items():
+            alias_value = semantics.get("aliases")
+            if alias_value is not None:
+                result.append(tuple(alias_value))
+            else:
+                result.append(())
+        return tuple(result)
+
+    @property
+    def members(self) -> dict[type, dict[str, dict[str, Any]]]:
+        """Return per-member semantic entries grouped by component type.
+
+        Only keys that are ``(int, str)`` tuples (member entries) are
+        included.  The outer dict is keyed by component type, the inner
+        dict is keyed by the member name string.
+        """
+        out: dict[type, dict[str, dict[str, Any]]] = {}
+        for cls, semantics in self.dictionary.items():
+            member_entries: dict[str, dict[str, Any]] = {}
+            for key, value in semantics.items():
+                if isinstance(key, tuple) and len(key) == 2:
+                    _identity, member_name = key
+                    member_entries[member_name] = value
+            if member_entries:
+                out[cls] = member_entries
+        return out
+
+    # ------------------------------------------------------------------
+    # Filtered / narrowed accessors
+    # ------------------------------------------------------------------
+
+    def of_type(self, cls: type) -> SemanticInfo:
+        """Return a narrowed ``SemanticInfo`` containing only entries for *cls*."""
+        filtered = {k: v for k, v in self.dictionary.items() if k is cls}
+        return SemanticInfo(dictionary=filtered)
+
+    def of_types(self, *classes: type) -> SemanticInfo:
+        """Return a narrowed ``SemanticInfo`` containing only entries for the given types."""
+        cls_set = set(classes)
+        filtered = {k: v for k, v in self.dictionary.items() if k in cls_set}
+        return SemanticInfo(dictionary=filtered)
+
+    def member(self, member_name: str) -> dict[str, Any] | None:
+        """Look up a single member entry by its name across all component types.
+
+        Returns the first matching member dict, or ``None`` if not found.
+        """
+        for _cls, semantics in self.dictionary.items():
+            for key, value in semantics.items():
+                if isinstance(key, tuple) and len(key) == 2 and key[1] == member_name:
+                    return value
+        return None
+
+    def member_canonical(self, member_name: str) -> str:
+        """Shortcut: canonical name for a specific member, or ``'UNDEFINED'``."""
+        entry = self.member(member_name)
+        if entry is not None:
+            return entry.get("canonical", "UNDEFINED")
+        return "UNDEFINED"
+
+    # ------------------------------------------------------------------
+    # Convenience
+    # ------------------------------------------------------------------
+
+    @property
+    def types(self) -> tuple[type, ...]:
+        """Return the component types present in this info."""
+        return tuple(self.dictionary.keys())
+
+    def __bool__(self) -> bool:
+        return bool(self.dictionary)
+
+    def __len__(self) -> int:
+        return len(self.dictionary)
 
 
 class SemanticMapElement(NamedTuple):
@@ -19,15 +153,18 @@ class SemanticMap:
 
     __slots__ = ("elements", "members")
 
-    def __new__(cls, elements: tuple[SemanticMapElement, ...], members: dict[tuple[str, type], int]) -> SemanticMap:
+    def __new__(
+        cls, elements: tuple[SemanticMapElement, ...], members: dict[tuple[str, type], int]
+    ) -> SemanticMap:
         instance = super().__new__(cls)
         instance.elements = elements
         instance.members = members
         return instance
 
-    def __init__(self, elements: tuple[SemanticMapElement, ...], members: dict[tuple[str, type], int]) -> None:
+    def __init__(
+        self, elements: tuple[SemanticMapElement, ...], members: dict[tuple[str, type], int]
+    ) -> None:
         pass
-
 
     @staticmethod
     def from_raw(raw: tuple[Any, ...], members: dict[tuple[str, type], int]) -> SemanticMap:
@@ -35,7 +172,7 @@ class SemanticMap:
         return SemanticMap(
             elements=tuple(SemanticMap._parse(raw, 0)),
             members=members,
-            )
+        )
 
     @staticmethod
     def _parse(
@@ -79,13 +216,14 @@ def generate_signature_oop(
             flat_list = flatten_iter(semantic_signature[sig_idx:end])
             result += flat_list
         sig_idx = end
-    
+
     try:
         result_bytes = struct.pack(f"{len(result)}b", *result)
     except struct.error as e:
         raise ValueError(f"Error packing result: {e}. Result list: {result}") from e
 
     return result_bytes
+
 
 def generate_signature_algorithmic(
     raw: tuple[Any, ...],
@@ -126,10 +264,12 @@ def generate_signature_algorithmic(
     _walk(raw, 0)
     return struct.pack(f"{len(result)}b", *result)
 
+
 def signature_transformer(semantic_signature: list, semantic_mapping: list) -> list:
     """Produce a hierarchical listing with embedded IDs from the pattern.
     See prototype: _prototypes.semantic_mapping.py
     """
+
     def atoms_with_depth(arr: list, depth: int = 0):
         """Yield (depth, value) for each non-list element."""
         for item in arr:
@@ -139,12 +279,11 @@ def signature_transformer(semantic_signature: list, semantic_mapping: list) -> l
                 yield (depth, item)
 
     tagged = list(atoms_with_depth(semantic_signature))
-    
+
     def hierarchy(
         tagged_atoms: list[tuple[int, int]],
         pattern: list[list[int]],
     ) -> list[list[int]]:
-        
         if not tagged_atoms:
             return []
 
@@ -213,15 +352,17 @@ def signature_transformer(semantic_signature: list, semantic_mapping: list) -> l
                 si += 1
 
         return result
-    
+
     result = hierarchy(tagged, semantic_mapping)
     return result
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-def _expected_bytes(expected: tuple[int, ...] | int | list[int]) -> bytes:
+def convert_to_bytes(expected: tuple[int, ...] | int | list[int]) -> bytes:
     """Convert an expected-result tuple of signed ints to bytes."""
     if isinstance(expected, int):
         expected = (expected,)
@@ -229,9 +370,11 @@ def _expected_bytes(expected: tuple[int, ...] | int | list[int]) -> bytes:
         expected = tuple(expected)
     return struct.pack(f"{len(expected)}b", *expected)
 
-def _bytes_to_ints(data: bytes) -> tuple[int, ...]:
+
+def convert_bytes_to_tuple(data: bytes) -> tuple[int, ...]:
     """Unpack bytes back to a tuple of signed ints (for display)."""
     return struct.unpack(f"{len(data)}b", data)
+
 
 def flatten_iter(obj):
     stack = list(obj)[::-1]
@@ -246,13 +389,17 @@ def flatten_iter(obj):
 
     return result
 
+
 def nested_tuple_to_nested_list(tup):
     if isinstance(tup, tuple):
         return [nested_tuple_to_nested_list(item) for item in tup]
     else:
         return tup
 
+
 def split_flattened_aliases(flattened_aliases: str | None) -> tuple[str, ...]:
     if flattened_aliases is None:
         return ("UNDEFINED",)
-    return tuple(alias.strip().capitalize() for alias in flattened_aliases.split(",") if alias.strip())
+    return tuple(
+        alias.strip().capitalize() for alias in flattened_aliases.split(",") if alias.strip()
+    )
