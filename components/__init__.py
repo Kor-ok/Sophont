@@ -10,12 +10,19 @@ from typing import (
     Callable,
     TypeVar,
     cast,
+    get_args,
+    get_origin,
+    get_type_hints,
     overload,
 )
 
 from utils.semantics import SemanticsDescriptor
 
 logger = logging.getLogger(__name__)
+
+_FIELD_REQUIRED = 0
+_FIELD_DEFAULT = 1
+_FIELD_FACTORY = 2
 
 # dataclass_transform tells static type checkers that @component behaves like @dataclass
 if sys.version_info >= (3, 11):
@@ -90,6 +97,70 @@ def _apply_undefined_defaults(
     return result
 
 
+def _compile_component_field_specs(
+    cls_fields: tuple[Field[Any], ...],
+) -> tuple[tuple[str, int, Any], ...]:
+    """Return compact per-field metadata for constructor-time cache-key building."""
+    compiled_specs: list[tuple[str, int, Any]] = []
+    for cls_field in cls_fields:
+        if cls_field.default is not MISSING:
+            compiled_specs.append((cls_field.name, _FIELD_DEFAULT, cls_field.default))
+        elif cls_field.default_factory is not MISSING:  # type: ignore[misc]
+            compiled_specs.append((cls_field.name, _FIELD_FACTORY, cls_field.default_factory))
+        else:
+            compiled_specs.append((cls_field.name, _FIELD_REQUIRED, None))
+    return tuple(compiled_specs)
+
+
+def _get_undefined_int_fields(cls_fields: tuple[Field[Any], ...]) -> tuple[str, ...]:
+    """Return required int field names that should receive the undefined sentinel."""
+    return tuple(
+        cls_field.name
+        for cls_field in cls_fields
+        if cls_field.default is MISSING
+        and cls_field.default_factory is MISSING  # type: ignore[misc]
+        and cls_field.type in (int, "int")
+    )
+
+
+def _annotation_contains_subclass(annotation: Any, base_class: type[Any]) -> bool:
+    """Return True when a type annotation directly or transitively contains *base_class*."""
+    if annotation is None:
+        return False
+
+    origin = get_origin(annotation)
+    if origin is None:
+        return isinstance(annotation, type) and issubclass(annotation, base_class)
+
+    return any(
+        arg is not type(None) and _annotation_contains_subclass(arg, base_class)
+        for arg in get_args(annotation)
+    )
+
+
+def _compile_semantic_display_fields(
+    component_cls: type[Any],
+    cls_fields: tuple[Field[Any], ...],
+    primitive_base: type[Any],
+) -> tuple[str, ...]:
+    """Return field names whose annotations contain Primitive subclasses."""
+    module = sys.modules.get(component_cls.__module__)
+    globalns = vars(module) if module is not None else {}
+    localns = dict(vars(component_cls))
+    try:
+        type_hints = get_type_hints(component_cls, globalns=globalns, localns=localns)
+    except (NameError, TypeError):
+        type_hints = getattr(component_cls, "__annotations__", {})
+
+    return tuple(
+        cls_field.name
+        for cls_field in cls_fields
+        if _annotation_contains_subclass(
+            type_hints.get(cls_field.name, cls_field.type), primitive_base
+        )
+    )
+
+
 # ---------------------------------------------------------------------------
 # Slots Emulation for Python 3.9
 # ---------------------------------------------------------------------------
@@ -161,6 +232,10 @@ def component(
     """
 
     def wrap(cls: type[Any]) -> type[Any]:
+        had_custom_str = "__str__" in cls.__dict__
+        had_custom_repr = "__repr__" in cls.__dict__
+        had_custom_rich_repr = "__rich_repr__" in cls.__dict__
+
         # -----------------------------------------------------------------
         # 1. Force frozen=True, handle slots for Python version
         # -----------------------------------------------------------------
@@ -177,6 +252,8 @@ def component(
         dc_cls: type[Any] = dataclass(**dataclass_kwargs)(cls)
         cls_fields: tuple[Field[Any], ...] = fields(dc_cls)
         field_names = tuple(f.name for f in cls_fields)
+        compiled_field_specs = _compile_component_field_specs(cls_fields)
+        undefined_int_fields = _get_undefined_int_fields(cls_fields)
 
         # -----------------------------------------------------------------
         # 2. Emulate slots for Python 3.9
@@ -195,6 +272,12 @@ def component(
             # Re-apply dataclass to the slotted subclass for proper init/repr
             dc_cls = dataclass(frozen=True)(dc_cls)
             cls_fields = fields(dc_cls)
+            field_names = tuple(f.name for f in cls_fields)
+            compiled_field_specs = _compile_component_field_specs(cls_fields)
+            undefined_int_fields = _get_undefined_int_fields(cls_fields)
+
+        dc_cls.__component_field_names__ = field_names
+        dc_cls.__component_field_specs__ = compiled_field_specs
 
         # -----------------------------------------------------------------
         # 3. Thread-safe flyweight registration
@@ -214,23 +297,25 @@ def component(
             def __new__(cls_inner: type[Any], *args: Any, **kwargs: Any) -> Any:
                 # Handle positional args -> kwargs mapping
                 bound_kwargs = dict(kwargs)
-                for i, arg in enumerate(args):
-                    if i < len(field_names):
-                        bound_kwargs[field_names[i]] = arg
+                for field_name, arg in zip(field_names, args):
+                    bound_kwargs[field_name] = arg
 
                 # Optionally apply undefined defaults
-                if apply_undefined_defaults:
-                    bound_kwargs = _apply_undefined_defaults(cls_fields, bound_kwargs)
+                if apply_undefined_defaults and undefined_int_fields:
+                    if any(field_name not in bound_kwargs for field_name in undefined_int_fields):
+                        bound_kwargs = dict(bound_kwargs)
+                        for field_name in undefined_int_fields:
+                            bound_kwargs.setdefault(field_name, DEFAULT_UNDEFINED_CODE)
 
                 # Build cache key from field values (use defaults for missing)
                 cache_key_parts: list[Any] = []
-                for f in cls_fields:
-                    if f.name in bound_kwargs:
-                        cache_key_parts.append(bound_kwargs[f.name])
-                    elif f.default is not MISSING:
-                        cache_key_parts.append(f.default)
-                    elif f.default_factory is not MISSING:  # type: ignore[misc]
-                        cache_key_parts.append(f.default_factory())  # type: ignore[misc]
+                for field_name, default_kind, default_value in compiled_field_specs:
+                    if field_name in bound_kwargs:
+                        cache_key_parts.append(bound_kwargs[field_name])
+                    elif default_kind == _FIELD_DEFAULT:
+                        cache_key_parts.append(default_value)
+                    elif default_kind == _FIELD_FACTORY:
+                        cache_key_parts.append(default_value())
                     else:
                         # Missing required field - let dataclass raise
                         cache_key_parts.append(None)
@@ -302,11 +387,64 @@ def component(
 
                 return value
 
-            return tuple(expand(getattr(self, f.name)) for f in cls_fields)
+            return tuple(expand(getattr(self, field_name)) for field_name in field_names)
 
         dc_cls._semantic_signature = _semantic_signature
 
         dc_cls.semantics = SemanticsDescriptor()
+
+        primitive_base: type[Any] | None = None
+        semantic_display_fields: tuple[str, ...] = ()
+
+        def _render_pretty_value(value: Any) -> Any:
+            if primitive_base is not None and isinstance(value, primitive_base):
+                canonical = value.semantics.canonical
+                if canonical:
+                    return canonical[0]
+                return value.__class__.__name__
+
+            if isinstance(value, tuple):
+                return tuple(_render_pretty_value(item) for item in value)
+
+            if isinstance(value, list):
+                return [_render_pretty_value(item) for item in value]
+
+            if isinstance(value, set):
+                return {_render_pretty_value(item) for item in value}
+
+            return value
+
+        def _render_debug_value(value: Any) -> str:
+            pretty_value = _render_pretty_value(value)
+
+            if isinstance(pretty_value, str):
+                return pretty_value
+
+            if isinstance(pretty_value, tuple):
+                inner = ", ".join(_render_debug_value(item) for item in pretty_value)
+                if len(pretty_value) == 1:
+                    inner += ","
+                return f"({inner})"
+
+            if isinstance(pretty_value, list):
+                return f"[{', '.join(_render_debug_value(item) for item in pretty_value)}]"
+
+            if isinstance(pretty_value, set):
+                items = sorted(_render_debug_value(item) for item in pretty_value)
+                return f"{{{', '.join(items)}}}"
+
+            return repr(pretty_value)
+
+        if not had_custom_str:
+
+            def __str__(self: Any) -> str:
+                parts: list[str] = []
+                for field_name in field_names:
+                    value = getattr(self, field_name)
+                    parts.append(f"{field_name}={_render_debug_value(value)}")
+                return f"{self.__class__.__name__}({', '.join(parts)})"
+
+            dc_cls.__str__ = __str__  # type: ignore[method-assign]
 
         # -----------------------------------------------------------------
         # 7. Primitive support — compute signature after init
@@ -315,6 +453,31 @@ def component(
         try:
             from components.base import Applied, Primitive
             from utils.components import compute_component_signature
+
+            primitive_base = Primitive
+            semantic_display_fields = _compile_semantic_display_fields(
+                dc_cls, cls_fields, Primitive
+            )
+            dc_cls.__semantic_display_fields__ = semantic_display_fields
+
+            if issubclass(dc_cls, Primitive):
+                if not had_custom_repr:
+
+                    def __repr__(self: Any) -> str:
+                        canonical = self.semantics.canonical
+                        if canonical:
+                            return repr(canonical[0])
+                        return repr(self.__class__.__name__)
+
+                    dc_cls.__repr__ = __repr__  # type: ignore[method-assign]
+
+            elif not had_custom_rich_repr:
+
+                def __rich_repr__(self: Any) -> Any:
+                    for field_name in field_names:
+                        yield field_name, _render_pretty_value(getattr(self, field_name))
+
+                dc_cls.__rich_repr__ = __rich_repr__  # type: ignore[method-assign]
 
             if issubclass(dc_cls, (Primitive, Applied)):
                 _prev_init = dc_cls.__init__

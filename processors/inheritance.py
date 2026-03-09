@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from random import choice, randint
 from typing import Any, Optional
 
@@ -81,10 +82,7 @@ class InheritanceProcessor:
             pool_size, gender_links, characteristic_links
         )
 
-        for guid, info in contributor_guids.items():
-            print(f"Contributor GUID: {guid:08X}")
-            for key, value in info.items():
-                print(f"  {key}: {SEMANTICS.of(value)[value.__class__]['canonical']}")
+        pprint(contributor_guids, expand_all=True)
 
         print()
 
@@ -103,20 +101,10 @@ class InheritanceProcessor:
                 else:
                     contributor_guid = choice(list(contributor_guids.keys()))
 
-            gene = GeneCode(
-                characteristic=gene.characteristic,
-                precedence=gene.precedence,
-                die_mult=gene.die_mult,
-                gender_link=gene.gender_link,
-                characteristic_link=gene.characteristic_link,
-                contributor_pool_size=gene.contributor_pool_size,
-                contributor_guid=contributor_guid,
-            )
+            gene = replace(gene, contributor_guid=contributor_guid)
+
             genes += (gene,)
 
-        genotype = GenotypeCode(
-            genes=genes,
-            phenes=species.genotype.phenes,
-        )
+        genotype = replace(species.genotype, genes=genes)
 
         return genotype
