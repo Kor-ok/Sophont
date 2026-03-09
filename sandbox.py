@@ -5,7 +5,8 @@ from random import randint
 from rich.pretty import pprint
 
 from components.applied import UPP, GeneCode, GenotypeCode, PheneCode, SpeciesCode
-from components.primitives import CharacteristicCode
+from components.primitives import CharacteristicCode, GenderCode
+from processors.inheritance import InheritanceProcessor
 from semantics.definitions import SEMANTICS
 from utils.guid import GUID
 
@@ -35,7 +36,7 @@ def apply_dice_rolls(die_mult: int) -> tuple[int, ...]:
 entity_registry = {}
 
 
-class DemoEntity:
+class Entities:
     """Experimental ECS entity manager for testing the applied components."""
 
     @staticmethod
@@ -54,8 +55,7 @@ class DemoEntity:
     @staticmethod
     def add_component(entity, component) -> bool:
         try:
-            # Add only the component signature to the entity registry for simplicity
-            entity_registry[entity] += (component.component_signature,)
+            entity_registry[entity] += (component,)
             return True
         except Exception:
             return False
@@ -63,17 +63,20 @@ class DemoEntity:
     @staticmethod
     def remove_component(entity, component) -> bool:
         try:
-            entity_registry[entity] = tuple(
-                sig for sig in entity_registry[entity] if sig != component.component_signature
-            )
+            entity_registry[entity] = tuple(c for c in entity_registry[entity] if c != component)
             return True
         except Exception:
             return False
 
+    @staticmethod
+    def get_components_of_type(entity, component_type) -> tuple:
+        try:
+            return tuple(c for c in entity_registry[entity] if isinstance(c, component_type))
+        except Exception:
+            return ()
 
-if __name__ == "__main__":
-    test_caste_characteristic = SEMANTICS.create(type=CharacteristicCode, name="caste")
 
+def generate_human_species() -> SpeciesCode:
     species_guid = GUID.generate(
         ns1=GUID.NameSpaces.Entity.PACKAGES,
         ns2=GUID.NameSpaces.Owner.ENV,
@@ -129,35 +132,157 @@ if __name__ == "__main__":
         identifying_guid=species_guid,
     )
 
+    return species
+
+
+def generate_test_species() -> SpeciesCode:
+    species_guid = GUID.generate(
+        ns1=GUID.NameSpaces.Entity.PACKAGES,
+        ns2=GUID.NameSpaces.Owner.ENV,
+        name="TestSpecies",
+    )
+
+    gene_characteristics_collection = [
+        strength := SEMANTICS.create(type=CharacteristicCode, name="strength"),
+        agility := SEMANTICS.create(type=CharacteristicCode, name="agility"),
+        stamina := SEMANTICS.create(type=CharacteristicCode, name="stamina"),
+        intelligence := SEMANTICS.create(type=CharacteristicCode, name="intelligence"),
+        caste := SEMANTICS.create(type=CharacteristicCode, name="caste"),
+        training := SEMANTICS.create(type=CharacteristicCode, name="training"),
+        psionic := SEMANTICS.create(type=CharacteristicCode, name="psionic"),
+        sanity := SEMANTICS.create(type=CharacteristicCode, name="sanity"),
+    ]
+
+    genes: tuple[GeneCode, ...] = ()
+
+    gene_collection = [
+        gene_strength := GeneCode(
+            characteristic=gene_characteristics_collection[0],
+            precedence=1,
+            die_mult=2,
+            gender_link=SEMANTICS.create(type=GenderCode, name="male"),
+            characteristic_link=gene_characteristics_collection[4],
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_agility := GeneCode(
+            characteristic=gene_characteristics_collection[1],
+            precedence=1,
+            die_mult=2,
+            gender_link=SEMANTICS.create(type=GenderCode, name="female"),
+            characteristic_link=None,
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_stamina := GeneCode(
+            characteristic=gene_characteristics_collection[2],
+            precedence=1,
+            die_mult=2,
+            gender_link=None,
+            characteristic_link=None,
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_intelligence := GeneCode(
+            characteristic=gene_characteristics_collection[3],
+            precedence=1,
+            die_mult=2,
+            gender_link=None,
+            characteristic_link=gene_characteristics_collection[0],
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_caste := GeneCode(
+            characteristic=gene_characteristics_collection[4],
+            precedence=1,
+            die_mult=2,
+            gender_link=SEMANTICS.create(type=GenderCode, name="donor"),
+            characteristic_link=gene_characteristics_collection[4],
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_training := GeneCode(
+            characteristic=gene_characteristics_collection[5],
+            precedence=1,
+            die_mult=2,
+            gender_link=None,
+            characteristic_link=None,
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_psionic := GeneCode(
+            characteristic=gene_characteristics_collection[6],
+            precedence=1,
+            die_mult=2,
+            gender_link=None,
+            characteristic_link=None,
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+        gene_sanity := GeneCode(
+            characteristic=gene_characteristics_collection[7],
+            precedence=1,
+            die_mult=2,
+            gender_link=None,
+            characteristic_link=None,
+            contributor_pool_size=3,
+            contributor_guid=species_guid,
+        ),
+    ]
+
+    for gene in gene_collection:
+        genes += (gene,)
+
+    genotype = GenotypeCode(
+        genes=genes,
+        phenes=None,
+    )
+
+    species = SpeciesCode(
+        genotype=genotype,
+        identifying_guid=species_guid,
+    )
+
+    return species
+
+
+if __name__ == "__main__":
+    species = generate_test_species()
+
     print()
 
-    upps: tuple[UPP, ...] = ()
-    for gene in species.genotype.genes:
-        rolled = apply_dice_rolls(gene.die_mult)
-        for roll in rolled:
-            upp = UPP(
-                position=gene.characteristic.upp_position,
-                value=roll,
-            )
-            upps += (upp,)
-    for phene in species.genotype.phenes:
-        rolled = apply_dice_rolls(phene.die_mult)
-        upp = UPP(
-            position=phene.characteristic.upp_position,
-            value=sum(rolled),
-        )
-        upps += (upp,)
+    genotype = InheritanceProcessor.species_to_genotype(species)
+    pprint(genotype)
 
-    # Order by position
-    upps = tuple(sorted(upps, key=lambda x: x.position))
+    # entity_name = "Test Entity"
+    # entity = Entities.add_entity(entity_name)
+    # # print(f"Created '{entity_name}' with ID: {entity}")
 
-    entity_name = "Test Entity"
-    entity = DemoEntity.add_entity(entity_name)
-    print(f"Created '{entity_name}' with ID: {entity}")
+    # Entities.add_component(entity, species)
 
-    DemoEntity.add_component(entity, species)
+    # entity_species = Entities.get_components_of_type(entity, SpeciesCode)
 
-    for upp in upps:
-        DemoEntity.add_component(entity, upp)
+    # upps: tuple[UPP, ...] = ()
+    # for gene in entity_species[0].genotype.genes:
+    #     rolled = apply_dice_rolls(gene.die_mult)
+    #     for roll in rolled:
+    #         upp = UPP(
+    #             position=gene.characteristic.upp_position,
+    #             value=roll,
+    #         )
+    #         upps += (upp,)
+    # for phene in entity_species[0].genotype.phenes:
+    #     rolled = apply_dice_rolls(phene.die_mult)
+    #     upp = UPP(
+    #         position=phene.characteristic.upp_position,
+    #         value=sum(rolled),
+    #     )
+    #     upps += (upp,)
 
-    pprint(entity_registry.get(entity))
+    # # Order by position
+    # upps = tuple(sorted(upps, key=lambda x: x.position))
+    # for upp in upps:
+    #     Entities.add_component(entity, upp)
+
+    # print("\nEntity Components:")
+    # pprint(Entities().get_components_of_type(entity, UPP))
