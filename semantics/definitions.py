@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from rich import print
 from rich.pretty import pprint
 
 from api.t5 import (
@@ -76,15 +77,22 @@ class Semantics:
     def create(self, type: type, name: str, **kwargs) -> Any:
         """Helper method to create a component instance from a canonical name and
         keyword arguments, using the by_alias_for_signature index via the T5 API."""
-        domain: int = type.subclass_dict[type]
+        search_domain: int = type.subclass_dict[type]
         # Do a fuzzy search for the string name as the names are command-separated aliases.
         for domain, aliases in self.canonical_definitions.by_alias_for_signature:
             if name.lower() in (alias.lower() for alias in aliases.split(",")):
-                search = self.canonical_definitions.by_alias_for_signature[(domain, aliases)]
-                tuple_result = convert_bytes_to_tuple(search)[1:]
-                instance = type(*tuple_result)
-                return instance
-        raise ValueError(f"No component found for type {type.__name__} with name '{name}'.")
+                try:
+                    search = self.canonical_definitions.by_alias_for_signature[
+                        (search_domain, aliases)
+                    ]
+                    tuple_result = convert_bytes_to_tuple(search)[1:]
+                    instance = type(*tuple_result)
+                    return instance
+                except KeyError:
+                    print(
+                        f"[bold red]Error:[/bold red] No component found for type {type.__name__} with name '{name}' in domain {search_domain}."
+                    )
+                    continue
 
 
 # Convenience global instance for easy access to definitions and licensed material.
