@@ -37,7 +37,7 @@ class PheneCode(Applied):
 @component
 class GenotypeCode(Applied):
     genes: tuple[GeneCode, ...]
-    phenes: tuple[PheneCode, ...]
+    phenes: Optional[tuple[PheneCode, ...]]
 
 
 @component
