@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any, ClassVar, get_type_hints
 
-from utils.semantics import SemanticMap
+from utils.semantics import SemanticMap, SemanticsDescriptor
 
 _SKIP_FIELDS = frozenset(
     ("subclass_dict", "component_signature", "semantic_signature", "semantic_map")
@@ -74,7 +74,6 @@ def _recursive_semantic_map(
 
 
 class Primitive:
-
     subclass_dict: ClassVar[dict[type, int]] = {}
 
     def __init_subclass__(cls) -> None:
@@ -84,6 +83,8 @@ class Primitive:
                 cls.semantic_map: SemanticMap
                 cls.component_signature: bytes
                 cls.semantic_signature: tuple[int, ...]
+                cls.semantics: SemanticsDescriptor
+
                 base_dict[cls] = len(base_dict)
                 raw_map, members = _recursive_semantic_map(cls)
                 cls.semantic_map = SemanticMap.from_raw(raw_map, members)
@@ -95,10 +96,22 @@ class Primitive:
 
 
 class Applied:
-    """Base class for all components of a more complex signature
-    that can hold references to Primitive components or other
-    Applied components.
-    """
+    subclass_dict: ClassVar[dict[type, int]] = {}
 
-    # This will be developed further in the future
-    pass
+    def __init_subclass__(cls) -> None:
+        if dataclasses.is_dataclass(cls):
+            base_dict = Applied.subclass_dict
+            if cls not in base_dict:
+                cls.semantic_map: SemanticMap
+                cls.component_signature: bytes
+                cls.semantic_signature: tuple[int, ...]
+                cls.semantics: SemanticsDescriptor
+
+                base_dict[cls] = len(base_dict)
+                raw_map, members = _recursive_semantic_map(cls)
+                cls.semantic_map = SemanticMap.from_raw(raw_map, members)
+
+    @property
+    def domain_identity(self) -> int:
+        """Return the domain identity for this instance's class."""
+        return Applied.subclass_dict[self.__class__]

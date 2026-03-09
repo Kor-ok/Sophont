@@ -13,6 +13,8 @@ from typing import (
     overload,
 )
 
+from utils.semantics import SemanticsDescriptor
+
 logger = logging.getLogger(__name__)
 
 # dataclass_transform tells static type checkers that @component behaves like @dataclass
@@ -277,7 +279,7 @@ def component(
         # -----------------------------------------------------------------
         # 6. Add utility methods
         # -----------------------------------------------------------------
-        
+
         _base_class = dc_cls.mro()[-2]
 
         def _semantic_signature(self: Any) -> tuple[int, ...]:
@@ -302,17 +304,19 @@ def component(
 
             return tuple(expand(getattr(self, f.name)) for f in cls_fields)
 
-        dc_cls._semantic_signature = _semantic_signature  # type: ignore[attr-defined]
+        dc_cls._semantic_signature = _semantic_signature
+
+        dc_cls.semantics = SemanticsDescriptor()
 
         # -----------------------------------------------------------------
         # 7. Primitive support — compute signature after init
         # -----------------------------------------------------------------
 
         try:
-            from components.base import Primitive
+            from components.base import Applied, Primitive
             from utils.components import compute_component_signature
 
-            if issubclass(dc_cls, Primitive):
+            if issubclass(dc_cls, (Primitive, Applied)):
                 _prev_init = dc_cls.__init__
 
                 def _init_with_signature(self: Any, *args: Any, **kwargs: Any) -> None:
@@ -322,7 +326,7 @@ def component(
                         object.__setattr__(
                             self,
                             "component_signature",
-                            compute_component_signature(self, (Primitive,)),
+                            compute_component_signature(self, (Primitive, Applied)),
                         )
                         logger.debug(
                             "lru_cache info for %s: %s",

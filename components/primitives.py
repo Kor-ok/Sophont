@@ -4,6 +4,12 @@ from components import component
 from components.base import Primitive
 from utils.inspection import ModuleGraph
 
+"""Nested ECS Component System:
+Primitives gather data via the T5 API
+vs. Applied which are derived from Primitives and gather data 
+via the internal, runtime semantics system.
+"""
+
 
 @component
 class CharacteristicCode(Primitive):
