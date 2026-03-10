@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from json import load
+from os import PathLike
+from typing import Any, overload
 
 from components.applied import GeneCode, GenotypeCode, PheneCode, SpeciesCode
 from components.primitives import CharacteristicCode, GenderCode
@@ -8,12 +10,48 @@ from semantics.definitions import SEMANTICS
 from utils.guid import GUID
 
 
-def parse_species_template(filepath: str) -> tuple[SpeciesCode, GUID]:
-    from json import load
+@overload
+def generate(*, filepath: str | PathLike[str]) -> tuple[SpeciesCode, GUID]: ...
 
-    with open(filepath) as f:
-        species_template = load(f)
 
+@overload
+def generate(*, name: str, genotype: GenotypeCode) -> tuple[SpeciesCode, GUID]: ...
+
+
+def generate(
+    *,
+    filepath: str | PathLike[str] | None = None,
+    name: str | None = None,
+    genotype: GenotypeCode | None = None,
+) -> tuple[SpeciesCode, GUID]:
+    if filepath is not None:
+        if name is not None or genotype is not None:
+            raise TypeError("generate() accepts either filepath or name+genotype, not both")
+
+        with open(filepath) as f:
+            species_template = load(f)
+
+        name = species_template["name"]
+        genotype = _build_genotype(species_template)
+
+    elif name is None or genotype is None:
+        raise TypeError("generate() requires either filepath=... or name=... and genotype=...")
+
+    species = SpeciesCode(
+        genotype=genotype,
+    )
+
+    guid = GUID.generate(
+        ns1=GUID.Entity.SPECIES,
+        ns2=GUID.Owner.ENV,
+        name=name,
+        instance=species,
+    )
+
+    return species, guid
+
+
+def _build_genotype(species_template: dict[str, Any]) -> GenotypeCode:
     parsed_templates = {
         "gene_templates": {
             int(id): template
@@ -29,7 +67,7 @@ def parse_species_template(filepath: str) -> tuple[SpeciesCode, GUID]:
 
     def resolve_template(
         item: dict[str, Any], templates: dict[int, dict[str, Any]]
-    ) -> tuple[str, dict[Any, Any] | dict[str, Any]]:
+    ) -> tuple[str, dict[str, Any]]:
         id, value = next(iter(item.items()))
         template = value if isinstance(value, dict) else templates[int(value)]
         return id, template
@@ -45,7 +83,10 @@ def parse_species_template(filepath: str) -> tuple[SpeciesCode, GUID]:
                 else None
             ),
             characteristic_link=(
-                SEMANTICS.create(type=CharacteristicCode, name=template["characteristic_link"])
+                SEMANTICS.create(
+                    type=CharacteristicCode,
+                    name=template["characteristic_link"],
+                )
                 if template["characteristic_link"] is not None
                 else None
             ),
@@ -60,45 +101,20 @@ def parse_species_template(filepath: str) -> tuple[SpeciesCode, GUID]:
             die_mult=template["die_mult"],
         )
 
-    genes: tuple[GeneCode, ...] = tuple(
+    genes = tuple(
         create_gene_code(*resolve_template(gene, parsed_templates["gene_templates"]))
         for gene in species_template["gene_list"]
     )
 
-    phenes: tuple[PheneCode, ...] | None = tuple(
-        create_phene_code(*resolve_template(phene, parsed_templates["phene_templates"]))
-        for phene in species_template["phene_list"]
+    phenes = (
+        tuple(
+            create_phene_code(*resolve_template(phene, parsed_templates["phene_templates"]))
+            for phene in species_template["phene_list"]
+        )
+        or None
     )
 
-    if not phenes:
-        phenes = None
-
-    genotype = GenotypeCode(
+    return GenotypeCode(
         genes=genes,
         phenes=phenes,
     )
-
-    species, guid = generate_species(
-        name=species_template["name"],
-        genotype=genotype,
-    )
-
-    return species, guid
-
-
-def generate_species(
-    name: str,
-    genotype: GenotypeCode,
-) -> tuple[SpeciesCode, GUID]:
-    species = SpeciesCode(
-        genotype=genotype,
-    )
-
-    guid = GUID.generate(
-        ns1=GUID.Entity.SPECIES,
-        ns2=GUID.Owner.ENV,
-        name=name,
-        instance=species,
-    )
-
-    return species, guid
