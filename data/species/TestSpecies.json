@@ -1,0 +1,71 @@
+{
+    "name": "TestSpecies",
+    "genders": [
+        "male",
+        "female",
+        "donor"
+    ],
+    "gene_templates": [
+        {
+            "101": {
+                "precedence": 1,
+                "die_mult": 2,
+                "gender_link": null,
+                "characteristic_link": null,
+                "contributor_pool_size": 3
+            }
+        }
+    ],
+    "gene_list": [
+        {
+            "strength": {
+                "precedence": 1,
+                "die_mult": 2,
+                "gender_link": "Male",
+                "characteristic_link": "Caste",
+                "contributor_pool_size": 3
+            }
+        },
+        {
+            "agility": {
+                "precedence": 1,
+                "die_mult": 2,
+                "gender_link": "Female",
+                "characteristic_link": null,
+                "contributor_pool_size": 3
+            }
+        },
+        {
+            "stamina": 101
+        },
+        {
+            "intelligence": {
+                "precedence": 1,
+                "die_mult": 2,
+                "gender_link": null,
+                "characteristic_link": "Strength",
+                "contributor_pool_size": 3
+            }
+        },
+        {
+            "caste": {
+                "precedence": 1,
+                "die_mult": 2,
+                "gender_link": "donor",
+                "characteristic_link": "Caste",
+                "contributor_pool_size": 3
+            }
+        },
+        {
+            "training": 101
+        },
+        {
+            "psionic": 101
+        },
+        {
+            "sanity": 101
+        }
+    ],
+    "phene_templates": [],
+    "phene_list": []
+}

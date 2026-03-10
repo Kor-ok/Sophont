@@ -15,7 +15,9 @@ def generate(*, filepath: str | PathLike[str]) -> tuple[SpeciesCode, GUID]: ...
 
 
 @overload
-def generate(*, name: str, genotype: GenotypeCode) -> tuple[SpeciesCode, GUID]: ...
+def generate(
+    *, name: str, genotype: GenotypeCode, genders: tuple[GenderCode, ...]
+) -> tuple[SpeciesCode, GUID]: ...
 
 
 def generate(
@@ -23,22 +25,29 @@ def generate(
     filepath: str | PathLike[str] | None = None,
     name: str | None = None,
     genotype: GenotypeCode | None = None,
+    genders: tuple[GenderCode, ...] | None = None,
 ) -> tuple[SpeciesCode, GUID]:
     if filepath is not None:
-        if name is not None or genotype is not None:
-            raise TypeError("generate() accepts either filepath or name+genotype, not both")
+        if name is not None or genotype is not None or genders is not None:
+            raise TypeError("generate() accepts either filepath or name+genotype+genders, not both")
 
         with open(filepath) as f:
             species_template = load(f)
 
         name = species_template["name"]
+        genders = tuple(
+            SEMANTICS.create(type=GenderCode, name=gender) for gender in species_template["genders"]
+        )
         genotype = _build_genotype(species_template)
 
-    elif name is None or genotype is None:
-        raise TypeError("generate() requires either filepath=... or name=... and genotype=...")
+    elif name is None or genotype is None or genders is None:
+        raise TypeError(
+            "generate() requires either filepath=... or name=... and genotype=... and genders=..."
+        )
 
     species = SpeciesCode(
         genotype=genotype,
+        genders=genders,
     )
 
     guid = GUID.generate(

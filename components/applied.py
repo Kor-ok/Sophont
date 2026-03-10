@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 from components import component
 from components.base import Applied
 from components.primitives import CharacteristicCode, GenderCode
-from utils.guid import GUID
 from utils.inspection import ModuleGraph
 
 """Nested ECS Component System:
@@ -32,7 +31,7 @@ class PheneCode(Applied):
     die_mult: int
 
 
-@component
+@component(flyweight=False)
 class GenotypeCode(Applied):
     genes: tuple[GeneCode, ...]
     phenes: Optional[tuple[PheneCode, ...]]
@@ -41,11 +40,12 @@ class GenotypeCode(Applied):
 @component
 class SpeciesCode(Applied):
     genotype: GenotypeCode
+    genders: tuple[GenderCode, ...]
 
 
-@component
+@component(flyweight=False)
 class UPP(Applied):
-    position: int
+    xene: Union[GeneCode, PheneCode]
     value: int
 
 
