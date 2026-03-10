@@ -185,9 +185,7 @@ _learning/
 _prototypes/
 
 # Data files
-data/
 *.csv
-*.json
 *.bin
 # Except the following encrypted .bin
 !**/T5LicensedMaterial.bin
