@@ -8,7 +8,7 @@ from semantics.definitions import SEMANTICS
 from utils.guid import GUID
 
 
-def parse_species_template(filepath: str) -> GenotypeCode:
+def parse_species_template(filepath: str) -> tuple[SpeciesCode, GUID]:
     from json import load
 
     with open(filepath) as f:
@@ -78,7 +78,12 @@ def parse_species_template(filepath: str) -> GenotypeCode:
         phenes=phenes,
     )
 
-    return genotype
+    species, guid = generate_species(
+        name=species_template["name"],
+        genotype=genotype,
+    )
+
+    return species, guid
 
 
 def generate_species(
