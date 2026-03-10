@@ -22,7 +22,6 @@ class GeneCode(Applied):
     gender_link: Optional[GenderCode]
     characteristic_link: Optional[CharacteristicCode]
     contributor_pool_size: int
-    contributor_guid: GUID
 
 
 @component
@@ -31,7 +30,6 @@ class PheneCode(Applied):
     is_grafted: bool
     precedence: int
     die_mult: int
-    contributor_guid: GUID
 
 
 @component
@@ -43,7 +41,6 @@ class GenotypeCode(Applied):
 @component
 class SpeciesCode(Applied):
     genotype: GenotypeCode
-    identifying_guid: GUID
 
 
 @component
