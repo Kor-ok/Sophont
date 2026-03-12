@@ -99,7 +99,7 @@ async def _drain_input_queue():
     yield first so those callbacks execute and land in the queue before we
     drain it.
     """
-    await asyncio.sleep(0)          # let pending threadsafe callbacks run
+    await asyncio.sleep(0)  # let pending threadsafe callbacks run
     queue = _input_queue
     if queue is None:
         return
@@ -115,6 +115,7 @@ async def _drain_input_queue():
 # Script selection UI
 # ---------------------------------------------------------------------------
 
+
 async def prompt_script_selection() -> None:
     """Wait for the user to pick a script number.
 
@@ -122,7 +123,7 @@ async def prompt_script_selection() -> None:
     input, the CancelledError propagates immediately.
     """
     global _scripts, _running_script
-    
+
     while True:
         selected = await _async_input("run: ")
 
@@ -134,9 +135,11 @@ async def prompt_script_selection() -> None:
                     break
             if previously_running_script_number is None:
                 print("No previously running script found. Please select a script to run.")
-                continue          # keep prompting – don't break without a valid script
+                continue  # keep prompting – don't break without a valid script
             else:
-                print(f"No selection made. Defaulting to {_scripts[previously_running_script_number]}.")
+                print(
+                    f"No selection made. Defaulting to {_scripts[previously_running_script_number]}."
+                )
             break
 
         if not selected.isdigit():
@@ -158,7 +161,6 @@ async def display_scripts() -> None:
     global _scripts
 
     _scripts.clear()  # Clear previous scripts before repopulating
-
 
     print(f"\n[color(232)]Scripts in {_running_script.parent}:[/color(232)]")
 
@@ -182,6 +184,7 @@ async def display_scripts() -> None:
 # File-watcher helper
 # ---------------------------------------------------------------------------
 
+
 async def _wait_for_change() -> None:
     """Wait for filesystem changes.
 
@@ -198,6 +201,7 @@ async def _wait_for_change() -> None:
 # ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
+
 
 async def watcher() -> None:
     global _running_script
@@ -228,7 +232,6 @@ async def watcher() -> None:
             {prompt_task, change_task},
             return_when=asyncio.FIRST_COMPLETED,
         )
-
 
         # Cancel whichever task lost the race.
         for task in pending:
@@ -265,13 +268,19 @@ async def script_process_handler() -> bool:
             cwd=_running_script.parent,
             stdin=subprocess.DEVNULL,  # prevent child from stealing stdin
         )
-        print(f"[italic color(232)]Started {_running_script.stem} (pid={proc.pid})[/italic color(232)]")
+        print(
+            f"[italic color(232)]Started {_running_script.stem} (pid={proc.pid})[/italic color(232)]"
+        )
         returncode = await proc.wait()
         if returncode != 0:
-            print(f"[bold red]{_running_script.stem} exited with return code {returncode}[/bold red]")
+            print(
+                f"[bold red]{_running_script.stem} exited with return code {returncode}[/bold red]"
+            )
             return False
         else:
-            print(f"[italic color(232)]{_running_script.stem} completed successfully[/italic color(232)]")
+            print(
+                f"[italic color(232)]{_running_script.stem} completed successfully[/italic color(232)]"
+            )
             return True
 
     except Exception as exc:  # Show exceptions from the launcher and continue
@@ -281,4 +290,3 @@ async def script_process_handler() -> bool:
 
 if __name__ == "__main__":
     asyncio.run(watcher())
-
