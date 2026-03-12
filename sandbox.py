@@ -2,287 +2,185 @@ from __future__ import annotations
 
 from random import randint
 
+# from rich import print
+from rich import print
 from rich.pretty import pprint
+from sortedcontainers import SortedKeyList
 
-from components.applied import UPP, GeneCode, GenotypeCode, PheneCode, SpeciesCode
-from components.primitives import CharacteristicCode, GenderCode
-from processors.inheritance import InheritanceProcessor
-from semantics.definitions import SEMANTICS
-from utils.guid import GUID
+from components.applied import Sensation
+from components.primitives import VisionCode
 
 
-def display_species_info(species: SpeciesCode) -> None:
-    print(f"Species Name: {species.identifying_guid.uid_to_string}")
-    print("Genes:")
-    for gene in species.genotype.genes:
-        semantics = SEMANTICS.of(gene.characteristic)
-        canonical = semantics[CharacteristicCode]["canonical"]
-        print(canonical)
-    print("Phenes:")
-    for phene in species.genotype.phenes:
-        semantics = SEMANTICS.of(phene.characteristic)
-        canonical = semantics[CharacteristicCode]["canonical"]
-        print(canonical)
+def _roll(num_dice: int) -> int:
+    rolls = [randint(1, 6) for _ in range(num_dice)]
+    return sum(rolls)
 
 
-def apply_dice_rolls(die_mult: int) -> tuple[int, ...]:
-    values = []
-    for _ in range(die_mult):
-        roll = randint(1, 6)
-        values.append(roll)
-    return tuple(values)
+def _get_matching_sensation_components(
+    sensor: Sensation, emitter: Sensation
+) -> tuple[list[Sensation], list[Sensation], list[Sensation]]:
+    matching_senses_sensor_components = []
+    matching_senses_emitter_components = []
+    difference_sensor_emitter_components = []
 
-
-entity_registry = {}
-
-
-class Entities:
-    """Experimental ECS entity manager for testing the applied components."""
-
-    @staticmethod
-    def add_entity(name: str) -> int:
-        id = GUID.generate(
-            ns1=GUID.NameSpaces.Entity.PACKAGES,
-            ns2=GUID.NameSpaces.Owner.NPC,
-            name=name,
+    if sensor.sense is None or emitter.sense is None:
+        return (
+            matching_senses_sensor_components,
+            matching_senses_emitter_components,
+            difference_sensor_emitter_components,
         )
-        try:
-            entity_registry[id] = ()
-            return id
-        except Exception:
-            return -1
+    for sense in sensor.sense:
+        if sense in emitter.sense:
+            sensor_component = Sensation(
+                sense=tuple([sense]),
+                constant=(sensor.constant[sensor.sense.index(sense)],),
+            )
+            matching_senses_sensor_components.append(sensor_component)
+    for sense in emitter.sense:
+        if sense in sensor.sense:
+            emitter_component = Sensation(
+                sense=tuple([sense]),
+                constant=(emitter.constant[emitter.sense.index(sense)],),
+            )
+            matching_senses_emitter_components.append(emitter_component)
 
-    @staticmethod
-    def add_component(entity, component) -> bool:
-        try:
-            entity_registry[entity] += (component,)
-            return True
-        except Exception:
-            return False
-
-    @staticmethod
-    def remove_component(entity, component) -> bool:
-        try:
-            entity_registry[entity] = tuple(c for c in entity_registry[entity] if c != component)
-            return True
-        except Exception:
-            return False
-
-    @staticmethod
-    def get_components_of_type(entity, component_type) -> tuple:
-        try:
-            return tuple(c for c in entity_registry[entity] if isinstance(c, component_type))
-        except Exception:
-            return ()
-
-
-def generate_human_species() -> SpeciesCode:
-    species_guid = GUID.generate(
-        ns1=GUID.NameSpaces.Entity.PACKAGES,
-        ns2=GUID.NameSpaces.Owner.ENV,
-        name="Human",
-    )
-
-    gene_characteristics_collection = [
-        strength := SEMANTICS.create(type=CharacteristicCode, name="strength"),
-        dexterity := SEMANTICS.create(type=CharacteristicCode, name="dexterity"),
-        endurance := SEMANTICS.create(type=CharacteristicCode, name="endurance"),
-        intelligence := SEMANTICS.create(type=CharacteristicCode, name="intelligence"),
-        psionic := SEMANTICS.create(type=CharacteristicCode, name="psionic"),
-        sanity := SEMANTICS.create(type=CharacteristicCode, name="sanity"),
-    ]
-
-    phene_characteristics_collection = [
-        education := SEMANTICS.create(type=CharacteristicCode, name="education"),
-        social := SEMANTICS.create(type=CharacteristicCode, name="social"),
-    ]
-
-    genes: tuple[GeneCode, ...] = ()
-    phenes: tuple[PheneCode, ...] = ()
-
-    for i, characteristic in enumerate(gene_characteristics_collection):
-        gene = GeneCode(
-            characteristic=characteristic,
-            precedence=1,
-            die_mult=2,
-            gender_link=None,
-            characteristic_link=None,
-            contributor_pool_size=2,
-            contributor_guid=species_guid,
+    for constant in zip(
+        matching_senses_emitter_components, matching_senses_sensor_components
+    ):
+        difference = constant[0].constant[0] - constant[1].constant[0]
+        difference_component = Sensation(
+            sense=constant[0].sense,
+            constant=(difference,),
         )
-        genes += (gene,)
+        difference_sensor_emitter_components.append(difference_component)
 
-    for i, characteristic in enumerate(phene_characteristics_collection):
-        phene = PheneCode(
-            characteristic=characteristic,
-            is_grafted=False,
-            precedence=1,
-            die_mult=2,
-            contributor_guid=species_guid,
+    return (
+        matching_senses_sensor_components,
+        matching_senses_emitter_components,
+        difference_sensor_emitter_components,
+    )
+
+
+def roll_for_sensory_acquisition(
+    sensor: Sensation,
+    emitter: Sensation,
+    distance: int,
+    size: int,
+) -> Sensation | None:
+    benchmark = size - distance
+    if benchmark < 0:
+        print("Impossible to perceive")
+        return
+
+    matching_senses_sensor, matching_senses_emitter, difference_senses = (
+        _get_matching_sensation_components(sensor, emitter)
+    )
+    # print("Matching Senses Sensor:")
+    # pprint(matching_senses_sensor)
+    # print()
+    # print("Matching Senses Emitter:")
+    # pprint(matching_senses_emitter)
+    # print()
+    # print("Difference Sensor Emitter:")
+    # pprint(difference_senses)
+    # print()
+
+    roll_result = _roll(distance)
+    # print(f"Roll Result: {roll_result}")
+    # print()
+
+    roll_targets = []
+    for sense in matching_senses_sensor:
+        roll_targets.append(benchmark + sense.constant[0])
+    # print(f"Roll Targets: {roll_targets}")
+    # print()
+
+    result_sensation = Sensation(
+        sense=tuple(s.sense[0] for s in matching_senses_sensor),
+        constant=tuple(
+            target - roll_result + difference_senses[i].constant[0]
+            for i, target in enumerate(roll_targets)
+        ),
+    )
+
+    return result_sensation
+
+
+def emitter_factory(emitter_template: Sensation) -> Sensation:
+    sorted_key_values: SortedKeyList = SortedKeyList(key=lambda x: x[0])
+    # for each sense the key is the VisionCode key and the value is the tuple element from the constant tuple in the Sensation
+    for i, sense in enumerate(emitter_template.sense or []):
+        sorted_key_values.add((sense.key, emitter_template.constant[i]))
+
+    new_senses = []
+    new_constants = []
+    for key in range(sorted_key_values[0][0], sorted_key_values[-1][0] + 1):
+        # Generate a new Sensation where new VisionCodes are created for each key in the range and the constant is interpolated based on the sorted key values
+        new_senses.append(VisionCode(key))
+        new_constants.append(
+            tuple(
+                int(
+                    sorted_key_values[i][1]
+                    + (key - sorted_key_values[i][0])
+                    * (sorted_key_values[i + 1][1] - sorted_key_values[i][1])
+                    / (sorted_key_values[i + 1][0] - sorted_key_values[i][0])
+                )
+                for i in range(len(sorted_key_values) - 1)
+                if sorted_key_values[i][0]
+                <= key
+                <= sorted_key_values[i + 1][0]
+            )
         )
-        phenes += (phene,)
 
-    genotype = GenotypeCode(
-        genes=genes,
-        phenes=phenes,
+    new_emitter = Sensation(
+        sense=tuple(reversed(new_senses)),
+        constant=tuple(c[0] for c in reversed(new_constants)),
     )
-
-    species = SpeciesCode(
-        genotype=genotype,
-        identifying_guid=species_guid,
-    )
-
-    return species
-
-
-def generate_test_species() -> SpeciesCode:
-    species_guid = GUID.generate(
-        ns1=GUID.NameSpaces.Entity.PACKAGES,
-        ns2=GUID.NameSpaces.Owner.ENV,
-        name="TestSpecies",
-    )
-
-    gene_characteristics_collection = [
-        strength := SEMANTICS.create(type=CharacteristicCode, name="strength"),
-        agility := SEMANTICS.create(type=CharacteristicCode, name="agility"),
-        stamina := SEMANTICS.create(type=CharacteristicCode, name="stamina"),
-        intelligence := SEMANTICS.create(type=CharacteristicCode, name="intelligence"),
-        caste := SEMANTICS.create(type=CharacteristicCode, name="caste"),
-        training := SEMANTICS.create(type=CharacteristicCode, name="training"),
-        psionic := SEMANTICS.create(type=CharacteristicCode, name="psionic"),
-        sanity := SEMANTICS.create(type=CharacteristicCode, name="sanity"),
-    ]
-
-    genes: tuple[GeneCode, ...] = ()
-
-    gene_collection = [
-        gene_strength := GeneCode(
-            characteristic=gene_characteristics_collection[0],
-            precedence=1,
-            die_mult=2,
-            gender_link=SEMANTICS.create(type=GenderCode, name="male"),
-            characteristic_link=gene_characteristics_collection[4],
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_agility := GeneCode(
-            characteristic=gene_characteristics_collection[1],
-            precedence=1,
-            die_mult=2,
-            gender_link=SEMANTICS.create(type=GenderCode, name="female"),
-            characteristic_link=None,
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_stamina := GeneCode(
-            characteristic=gene_characteristics_collection[2],
-            precedence=1,
-            die_mult=2,
-            gender_link=None,
-            characteristic_link=None,
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_intelligence := GeneCode(
-            characteristic=gene_characteristics_collection[3],
-            precedence=1,
-            die_mult=2,
-            gender_link=None,
-            characteristic_link=gene_characteristics_collection[0],
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_caste := GeneCode(
-            characteristic=gene_characteristics_collection[4],
-            precedence=1,
-            die_mult=2,
-            gender_link=SEMANTICS.create(type=GenderCode, name="donor"),
-            characteristic_link=gene_characteristics_collection[4],
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_training := GeneCode(
-            characteristic=gene_characteristics_collection[5],
-            precedence=1,
-            die_mult=2,
-            gender_link=None,
-            characteristic_link=None,
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_psionic := GeneCode(
-            characteristic=gene_characteristics_collection[6],
-            precedence=1,
-            die_mult=2,
-            gender_link=None,
-            characteristic_link=None,
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-        gene_sanity := GeneCode(
-            characteristic=gene_characteristics_collection[7],
-            precedence=1,
-            die_mult=2,
-            gender_link=None,
-            characteristic_link=None,
-            contributor_pool_size=3,
-            contributor_guid=species_guid,
-        ),
-    ]
-
-    for gene in gene_collection:
-        genes += (gene,)
-
-    genotype = GenotypeCode(
-        genes=genes,
-        phenes=None,
-    )
-
-    species = SpeciesCode(
-        genotype=genotype,
-        identifying_guid=species_guid,
-    )
-
-    return species
+    return new_emitter
 
 
 if __name__ == "__main__":
-    species = generate_test_species()
+    vision_senses = [
+        red := VisionCode(8),
+        green := VisionCode(7),
+        blue := VisionCode(6),
+    ]
 
+    human_vision_sensor = Sensation(
+        sense=tuple(vision_senses), constant=(16, 16, 16)
+    )
+
+    # print("Human Vision Sensor:")
+    # pprint(human_vision_sensor)
+
+    emitter_senses = [
+        ir := VisionCode(12),
+        red := VisionCode(8),
+        green := VisionCode(7),
+        blue := VisionCode(6),
+    ]
+
+    thing_emission = Sensation(
+        sense=tuple(emitter_senses), constant=(32, 18, 16, 11)
+    )
+
+    # print("Thing Emitter:")
+    # pprint(thing_emission)
     print()
 
-    genotype = InheritanceProcessor.species_to_genotype(species)
-    pprint(genotype)
+    thing_from_factory = emitter_factory(thing_emission)
+    print("Thing from Factory:")
+    pprint(thing_from_factory)
 
-    # entity_name = "Test Entity"
-    # entity = Entities.add_entity(entity_name)
-    # # print(f"Created '{entity_name}' with ID: {entity}")
+    thing_range = 5  # id=5 means Vlong 1000m
+    thing_size = 6  # id=6 means Vehicle Sized
 
-    # Entities.add_component(entity, species)
+    perception_result = roll_for_sensory_acquisition(
+        sensor=human_vision_sensor,
+        emitter=thing_from_factory,
+        distance=thing_range,
+        size=thing_size,
+    )
 
-    # entity_species = Entities.get_components_of_type(entity, SpeciesCode)
-
-    # upps: tuple[UPP, ...] = ()
-    # for gene in entity_species[0].genotype.genes:
-    #     rolled = apply_dice_rolls(gene.die_mult)
-    #     for roll in rolled:
-    #         upp = UPP(
-    #             position=gene.characteristic.upp_position,
-    #             value=roll,
-    #         )
-    #         upps += (upp,)
-    # for phene in entity_species[0].genotype.phenes:
-    #     rolled = apply_dice_rolls(phene.die_mult)
-    #     upp = UPP(
-    #         position=phene.characteristic.upp_position,
-    #         value=sum(rolled),
-    #     )
-    #     upps += (upp,)
-
-    # # Order by position
-    # upps = tuple(sorted(upps, key=lambda x: x.position))
-    # for upp in upps:
-    #     Entities.add_component(entity, upp)
-
-    # print("\nEntity Components:")
-    # pprint(Entities().get_components_of_type(entity, UPP))
+    print("Result Sensation:")
+    pprint(perception_result)
