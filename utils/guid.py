@@ -236,15 +236,15 @@ class GUID(int):
             name = name.split(".")[-1]
         return instance, name
 
-    @property
-    def get_name(self) -> str:
-        """Backward-compatible property returning the short name."""
-        return self.lookup_name()
+    # @property
+    # def get_name(self) -> str:
+    #     """Backward-compatible property returning the short name."""
+    #     return self.lookup_name()
 
-    @property
-    def get_instance(self) -> tuple[object | None, str | None]:
-        """Backward-compatible property returning the instance and short name."""
-        return self.lookup_instance()
+    # @property
+    # def get_instance(self) -> tuple[object | None, str | None]:
+    #     """Backward-compatible property returning the instance and short name."""
+    #     return self.lookup_instance()
 
     @staticmethod
     def get_uid(name: str | object) -> GUID:
