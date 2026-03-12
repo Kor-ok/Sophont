@@ -90,7 +90,8 @@ class Semantics:
                     return instance
                 except KeyError:
                     print(
-                        f"[bold red]Error:[/bold red] No component found for type {type.__name__} with name '{name}' in domain {search_domain}."
+                        f"[bold red]Error:[/bold red] No component found for type"
+                        f" {type.__name__} with name '{name}' in domain {search_domain}."
                     )
                     continue
 
