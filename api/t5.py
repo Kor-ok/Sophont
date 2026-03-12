@@ -5,6 +5,7 @@ from types import MappingProxyType
 from typing import Any, NamedTuple
 
 import pandas as pd
+from rich.pretty import pprint
 from typing_extensions import TypeAlias
 
 from humaniseT5.semantics import DEFINITIONS_XLSX_PATH
@@ -41,8 +42,13 @@ ByAliasForSignature: TypeAlias = dict[tuple[int, FlattenedAliasMap], Signature]
 ByMemberIdentity: TypeAlias = dict[tuple[int, int, int], FlattenedAliasMap]
 """Member index: (domain_identity, member_identity, value) → FlattenedAliasMap."""
 
-ByAliasForMemberIdentity: TypeAlias = dict[tuple[int, int, FlattenedAliasMap], int]
+ByAliasForMemberIdentity: TypeAlias = dict[
+    tuple[int, int, FlattenedAliasMap], int
+]
 """Reverse member index: (domain_identity, member_identity, FlattenedAliasMap) → value."""
+
+BySignatureForAdditionalProperties: TypeAlias = dict[Signature, dict[str, Any]]
+"""Forward index for additional properties: Signature → {property_name: property_value}."""
 # endregion
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -56,7 +62,7 @@ converters: ConvertersType = {
 }
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-# ┃                                                                  DEFINITIONS INDICES ┃
+# ┃                                                                 DEFINITIONS INDICES ┃
 # ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 
@@ -68,9 +74,18 @@ class DefinitionsIndices(NamedTuple):
 
     by_header: MappingProxyType = MappingProxyType(SearchHeader({}))
     by_signature: MappingProxyType = MappingProxyType(BySignature({}))
-    by_alias_for_signature: MappingProxyType = MappingProxyType(ByAliasForSignature({}))
-    by_member_identity: MappingProxyType = MappingProxyType(ByMemberIdentity({}))
-    by_alias_for_member_identity: MappingProxyType = MappingProxyType(ByAliasForMemberIdentity({}))
+    by_alias_for_signature: MappingProxyType = MappingProxyType(
+        ByAliasForSignature({})
+    )
+    by_member_identity: MappingProxyType = MappingProxyType(
+        ByMemberIdentity({})
+    )
+    by_alias_for_member_identity: MappingProxyType = MappingProxyType(
+        ByAliasForMemberIdentity({})
+    )
+    by_signature_for_additional_properties: MappingProxyType = (
+        MappingProxyType(BySignatureForAdditionalProperties({}))
+    )
 
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -88,18 +103,67 @@ def _generate_base_and_header_maps(
     base_map: dict[type, list[str]] = {}
     header_map: dict[type, list[str]] = {}
 
+    # Flatten all base-map sheet names into a set once for O(1) membership tests.
+    all_sheet_members: set[str] = {
+        s for sheets in base_map.values() for s in sheets
+    }
+
     for component_cls in classes:
         prefix = component_cls.__name__ + "."
-        base_map[component_cls] = [s for s in sheet_names if s.startswith(prefix)]
-
-    # Flatten all base-map sheet names into a set once for O(1) membership tests.
-    all_sheet_members: set[str] = {s for sheets in base_map.values() for s in sheets}
+        base_map[component_cls] = [
+            s for s in sheet_names if s.startswith(prefix)
+        ]
 
     for component_cls in classes:
         members = component_cls.semantic_map.members
-        header_map[component_cls] = [name for (name, _) in members if name in all_sheet_members]
+        header_map[component_cls] = [
+            name for (name, _) in members if name in all_sheet_members
+        ]
 
     return base_map, header_map
+
+
+def _generate_prime_sheet_headers(
+    classes: list[type],
+    data: dict[str, pd.DataFrame],
+    base_map: dict[type, list[str]],
+) -> dict[type, list[str]]:
+    """Identify prime sheet headers for each class.
+
+    Prime headers are columns on the class's own sheet that are not already
+    represented by member sheets in base_map or by member identities in the
+    class semantic map.
+    """
+
+    prime_sheet_headers: dict[type, list[str]] = {}
+
+    for component_cls in classes:
+        sheet_name = component_cls.__name__
+        df = data.get(sheet_name)
+        if df is None:
+            continue
+
+        prefix = sheet_name + "."
+
+        excluded_headers = {
+            name[len(prefix) :]
+            for name in base_map.get(component_cls, [])
+            if name.startswith(prefix)
+        }
+
+        excluded_headers.update(
+            name[len(prefix) :]
+            for (name, _) in component_cls.semantic_map.members
+            if name.startswith(prefix)
+        )
+
+        prime_headers = [
+            header for header in df.columns if header not in excluded_headers
+        ]
+        if prime_headers:
+            prime_sheet_headers[component_cls] = prime_headers
+
+    return prime_sheet_headers
 
 
 # ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -120,12 +184,19 @@ def build_definitions_indices(
         converters=converters,
     )
 
-    base_map, header_map = _generate_base_and_header_maps(classes, sheet_names=list(data.keys()))
+    base_map, header_map = _generate_base_and_header_maps(
+        classes, sheet_names=list(data.keys())
+    )
+
+    prime_sheet_headers = _generate_prime_sheet_headers(
+        classes, data, base_map
+    )
 
     by_signature: BySignature = {}
     by_member_identity: ByMemberIdentity = {}
     by_alias_for_signature: ByAliasForSignature = {}
     by_alias_for_member_identity: ByAliasForMemberIdentity = {}
+    by_signature_for_additional_properties: BySignatureForAdditionalProperties = {}
 
     for component_cls, sheets in base_map.items():
         domain_identity = component_cls.subclass_dict.get(component_cls)
@@ -140,7 +211,6 @@ def build_definitions_indices(
 
         for sheet in sheets:
             suffix = sheet.split(".", 1)[1]
-
             required_cols = {suffix, "lang", "canonical", "aliases"}
             missing = required_cols - set(data[sheet].columns)
             if missing:
@@ -162,24 +232,52 @@ def build_definitions_indices(
                         component_cls.semantic_map, authored_value.value
                     )
                     by_signature[component_signature] = flattened_aliases
-                    by_alias_for_signature[(domain_identity, flattened_aliases)] = (
-                        component_signature
-                    )
+                    by_alias_for_signature[
+                        (domain_identity, flattened_aliases)
+                    ] = component_signature
                 else:
                     member_identity = suffix_to_member_id[suffix]
-                    by_member_identity[(domain_identity, member_identity, authored_value)] = (
-                        flattened_aliases
-                    )
+                    by_member_identity[
+                        (domain_identity, member_identity, authored_value)
+                    ] = flattened_aliases
                     by_alias_for_member_identity[
                         (domain_identity, member_identity, flattened_aliases)
                     ] = authored_value
+
+    for component_cls, prime_headers in prime_sheet_headers.items():
+        domain_identity = component_cls.subclass_dict.get(component_cls)
+        for header in prime_headers:
+            sheet_name = component_cls.__name__
+            df = data[sheet_name]
+            for row in df.itertuples(index=False):
+                non_prime_values = []
+                non_prime_values.append(domain_identity)
+                for col in df.columns:
+                    if col not in prime_headers:
+                        non_prime_values.append(getattr(row, col))
+
+                component_signature = convert_to_bytes(non_prime_values)
+
+                additional_properties = {
+                    col: getattr(row, col) for col in prime_headers
+                }
+                by_signature_for_additional_properties[component_signature] = (
+                    additional_properties
+                )
+    # print("By Signature for Additional Properties:")
+    # pprint(by_signature_for_additional_properties)
 
     return DefinitionsIndices(
         by_header=MappingProxyType(header_map),
         by_signature=MappingProxyType(by_signature),
         by_alias_for_signature=MappingProxyType(by_alias_for_signature),
         by_member_identity=MappingProxyType(by_member_identity),
-        by_alias_for_member_identity=MappingProxyType(by_alias_for_member_identity),
+        by_alias_for_member_identity=MappingProxyType(
+            by_alias_for_member_identity
+        ),
+        by_signature_for_additional_properties=MappingProxyType(
+            by_signature_for_additional_properties
+        ),
     )
 
 
@@ -197,15 +295,23 @@ def get_primitive_semantics_from_instance(
     resolving its signature and per-member values against *definitions*."""
 
     # -- reverse-lookup dicts built once per call --------------------------------
-    identity_to_cls: dict[int, type] = {cls.subclass_dict.get(cls): cls for cls in classes}
+    identity_to_cls: dict[int, type] = {
+        cls.subclass_dict.get(cls): cls for cls in classes
+    }
     name_to_cls: dict[str, type] = {cls.__name__: cls for cls in classes}
 
     # -- transform semantic signature into per-component items -------------------
-    semantic_signature_array = nested_tuple_to_nested_list(instance.semantic_signature)
+    semantic_signature_array = nested_tuple_to_nested_list(
+        instance.semantic_signature
+    )
     elements = instance.semantic_map.elements
-    array_transform_pattern = [[depth, domain_id, count] for depth, domain_id, count in elements]
+    array_transform_pattern = [
+        [depth, domain_id, count] for depth, domain_id, count in elements
+    ]
 
-    transformed_signature = signature_transformer(semantic_signature_array, array_transform_pattern)
+    transformed_signature = signature_transformer(
+        semantic_signature_array, array_transform_pattern
+    )
 
     # -- resolve each component's full signature ---------------------------------
     signature_semantics: dict[type, dict[tuple[int, str] | str, Any]] = {}
@@ -242,7 +348,9 @@ def get_primitive_semantics_from_instance(
         cls_identity = member_cls.subclass_dict.get(member_cls)
         member_value = component_signature[member_identity + 1]
         member_canonical, *member_alias_list = split_flattened_aliases(
-            definitions.by_member_identity.get((cls_identity, member_identity, member_value))
+            definitions.by_member_identity.get(
+                (cls_identity, member_identity, member_value)
+            )
         )
         signature_semantics[member_cls][(member_identity, member_name)] = {
             # "member": member_identity,

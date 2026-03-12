@@ -45,4 +45,9 @@ class GenderCode(Primitive):
     """-1 unspecified, 0 solo, 1 female, 2 male, 3 neuter ... etc."""
 
 
+@component
+class VisionCode(Primitive):
+    key: int
+
+
 MODULE_GRAPH = ModuleGraph()
