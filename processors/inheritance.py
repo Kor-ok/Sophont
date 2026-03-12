@@ -1,31 +1,28 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from dataclasses import replace
 from itertools import chain
-from pprint import pprint
 from random import choice, randint
-from typing import Any, Optional, Union
+from typing import Union
 
 from rich import print
 from sortedcontainers import SortedKeyList
 
-from components.applied import UPP, GeneCode, GenotypeCode, PheneCode, SpeciesCode
-from components.primitives import CharacteristicCode, GenderCode
-from utils.guid import GUID, _instance_id_to_uids, _uid_to_instance_store
+from components.applied import UPP, GeneCode, PheneCode, SpeciesCode
+from components.primitives import GenderCode
+from utils.guid import GUID
 
 
-def _roll_inheritance_value(xene: Union[GeneCode, PheneCode]) -> int:
-    # Placeholder for actual inheritance logic; replace with proper calculations
+def _roll_inheritance_values(xene: Union[GeneCode, PheneCode]) -> tuple[int, ...]:
     die_mult = xene.die_mult
-    return sum(randint(1, 6) for _ in range(die_mult))
+    return tuple(randint(1, 6) for _ in range(die_mult))
 
 
 class InheritanceProcessor:
     """Processes inheritance logic for species and entities, applying genetic traits and calculating derived attributes."""
 
     @staticmethod
-    def species_to_upps(sophont_guid: GUID, species: SpeciesCode) -> None:  # SortedKeyList[UPP]:
+    def species_to_upps(sophont_guid: GUID, species: SpeciesCode) -> tuple[SortedKeyList[UPP], dict[GUID, list[Union[GenderCode, GeneCode, PheneCode]]]]:
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # Populate Progenitors
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -83,10 +80,6 @@ class InheritanceProcessor:
             candidate_guids.rotate(-1)
 
         gene_pool = remaining_genes
-        pprint(gene_pool)
-        print()
-
-        pprint(progenitor_guids)
 
         # Of the remaining genes in the gene pool, match the characteristic_link to the characteristic of the genes in the progenitor_guids, and assign to the same progenitor
         for genecode in gene_pool:
@@ -108,21 +101,11 @@ class InheritanceProcessor:
                 if matched:
                     break
 
-        pprint(progenitor_guids)
-        print()
-        pprint("Remaining unmatched genes in gene pool:")
-        pprint(gene_pool)
-
         # Randomly assign remaining genes to any progenitor
         for genecode in gene_pool:
             guid = choice(list(progenitor_guids.keys()))
             GUID.add_instance(guid, genecode)
             progenitor_guids[guid].append(genecode)
-
-        print()
-        print("Final Progenitor Assignments:")
-        pprint(progenitor_guids)
-        print()
 
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         # UPP SortedKeyList Construction
@@ -130,17 +113,16 @@ class InheritanceProcessor:
 
         upp_list: SortedKeyList[UPP] = SortedKeyList(  # pyright: ignore[reportInvalidTypeArguments]
             (
-                UPP(xene=gene, value=_roll_inheritance_value(gene))
-                for gene in chain(
+                UPP(xene=xene, rolls=_roll_inheritance_values(xene))
+                for xene in chain(
                     *progenitor_guids.values(),
                     species.genotype.phenes or (),
                 )
-                if isinstance(gene, (GeneCode))  # if isinstance(gene, (GeneCode, PheneCode))
+                if isinstance(
+                    xene, (GeneCode, PheneCode)
+                )  # if isinstance(gene, (GeneCode, PheneCode))
             ),
             key=lambda upp: upp.xene.characteristic.upp_position,
         )
-        print("Constructed UPP List:")
-        for upp in upp_list:
-            print(
-                f"{upp.xene.__class__.__name__} - {upp.xene.characteristic.upp_position} - {repr(upp.xene.characteristic)}: {upp.value}"
-            )
+
+        return upp_list, progenitor_guids

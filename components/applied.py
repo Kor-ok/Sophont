@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 from components import component
 from components.base import Applied
-from components.primitives import CharacteristicCode, GenderCode
+from components.primitives import CharacteristicCode, GenderCode, VisionCode
 from utils.inspection import ModuleGraph
 
 """Nested ECS Component System:
@@ -46,7 +46,13 @@ class SpeciesCode(Applied):
 @component(flyweight=False)
 class UPP(Applied):
     xene: Union[GeneCode, PheneCode]
-    value: int
+    rolls: tuple[int, ...]
+
+
+@component
+class Sensation(Applied):
+    sense: Union[tuple[VisionCode, ...], None]
+    constant: tuple[int, ...]
 
 
 MODULE_GRAPH = ModuleGraph()
